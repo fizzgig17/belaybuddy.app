@@ -24,9 +24,12 @@ export type AuthProvider = 'email' | 'apple' | 'google' | 'facebook';
 
 export type ClimberProfile = {
   userId: string;
-  displayName: string;
+  /** Empty until the user fills in their profile after first sign-in. */
+  displayName?: string;
   avatarUrl?: string;
   bio?: string;
+  /** City or area the user climbs in most, e.g. "Raleigh, NC". */
+  homeArea?: string;
   styles: ClimbingStyle[];
   /** Free-text grades so users can use V-scale, Font, YDS, French, etc. */
   boulderGrade?: string;
@@ -34,8 +37,19 @@ export type ClimberProfile = {
   yearsClimbing?: number;
   hasGear: { rope: boolean; quickdraws: boolean; rack: boolean; crashPad: boolean };
   /** Belay certifications the user self-reports (e.g. "top-rope", "lead"). */
-  belayCertified: ('top-rope' | 'lead')[];
-  favoriteAreaIds: string[];
+  belayCertified: BelayCert[];
+};
+
+export type BelayCert = 'top-rope' | 'lead';
+
+/** A saved gym or crag. Stores a snapshot because areas come from outside sources. */
+export type Favorite = {
+  areaId: string;
+  areaKind: ClimbingArea['kind'];
+  source: ClimbingArea['source'];
+  name: string;
+  location: LatLng;
+  createdAt: string;
 };
 
 /**

@@ -1,27 +1,65 @@
+import { useState } from 'react';
+import { ActivityIndicator, Alert, Platform } from 'react-native';
+
+import { SignIn } from '@/components/auth/sign-in';
 import { FeatureCard } from '@/components/feature-card';
+import { Button } from '@/components/form';
+import { ProfileEditor } from '@/components/profile/profile-editor';
 import { Screen } from '@/components/screen';
+import { ThemedText } from '@/components/themed-text';
+import { useAuth } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 
 export default function ProfileScreen() {
+  const { user, loading } = useAuth();
+  const [signingOut, setSigningOut] = useState(false);
+
+  if (loading) {
+    return (
+      <Screen title="Profile">
+        <ActivityIndicator />
+      </Screen>
+    );
+  }
+
+  if (!user) {
+    return (
+      <Screen title="Profile" subtitle="Sign in to save favorites, set up your climbing profile, and find partners.">
+        <SignIn />
+      </Screen>
+    );
+  }
+
+  async function signOut() {
+    setSigningOut(true);
+    await supabase.auth.signOut();
+    setSigningOut(false);
+  }
+
+  function confirmSignOut() {
+    if (Platform.OS === 'web') {
+      signOut();
+      return;
+    }
+    Alert.alert('Sign out?', undefined, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign out', style: 'destructive', onPress: signOut },
+    ]);
+  }
+
   return (
-    <Screen title="Profile" subtitle="Sign in to save favorites and find partners.">
-      <FeatureCard
-        icon="person.badge.key"
-        title="Sign in"
-        description="Continue with Apple, Google, Facebook, or email."
-        comingSoon
-      />
-      <FeatureCard
-        icon="figure.climbing"
-        title="Climbing profile"
-        description="Your styles, grades, gear, and belay certifications."
-        comingSoon
-      />
+    <Screen title="Profile">
+      <ThemedText type="small" themeColor="textSecondary">
+        Signed in as {user.email}
+      </ThemedText>
+      <ProfileEditor userId={user.id} />
       <FeatureCard
         icon="gearshape"
         title="Settings & privacy"
         description="Location sharing, blocked users, and account deletion."
         comingSoon
       />
+      <Button title="Sign out" variant="secondary" onPress={confirmSignOut} loading={signingOut} />
     </Screen>
   );
 }
