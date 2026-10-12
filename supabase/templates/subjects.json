@@ -1,0 +1,4 @@
+{
+  "confirmation": "Your Belay Buddy code: {{ .Token }}",
+  "magic_link": "Your Belay Buddy code: {{ .Token }}"
+}
