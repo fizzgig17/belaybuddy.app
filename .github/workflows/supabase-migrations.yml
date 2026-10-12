@@ -41,7 +41,7 @@ jobs:
       # direct database host is IPv6-only, so migrations go through the pooler.
       # Copy from the project's Connect > Direct > Session pooler string.
       DEV_POOLER_HOST: aws-0-us-east-1.pooler.supabase.com
-      PROD_POOLER_HOST: ''
+      PROD_POOLER_HOST: aws-0-us-east-1.pooler.supabase.com
     steps:
       - uses: actions/checkout@v4
 
