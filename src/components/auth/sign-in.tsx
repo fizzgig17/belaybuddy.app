@@ -1,4 +1,3 @@
-import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -115,11 +114,6 @@ export function SignIn() {
 
       <ThemedView type="backgroundElement" style={styles.providers}>
         <ThemedText type="smallBold">Sign in with Apple, Google or Facebook</ThemedText>
-        <View style={styles.providerRow}>
-          {(['apple.logo', 'g.circle', 'f.circle'] as const).map((icon) => (
-            <SymbolView key={icon} name={icon} size={24} tintColor={theme.textSecondary} />
-          ))}
-        </View>
         <ThemedText type="small" themeColor="textSecondary">
           Coming soon. Each provider is switched on once its developer account is set up.
         </ThemedText>
@@ -132,5 +126,4 @@ const styles = StyleSheet.create({
   container: { gap: Spacing.three },
   row: { flexDirection: 'row', gap: Spacing.two, flexWrap: 'wrap' },
   providers: { gap: Spacing.two, padding: Spacing.three, borderRadius: Spacing.three },
-  providerRow: { flexDirection: 'row', gap: Spacing.three },
 });
