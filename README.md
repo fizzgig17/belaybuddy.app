@@ -1,4 +1,4 @@
-# Climbing Companion
+# Belay Buddy
 
 An iOS app for climbers: find indoor gyms and outdoor crags, find climbing partners at home or while traveling, learn safety, gear and knots, and use Route AI to map the holds of a gym route from a photo.
 
@@ -51,4 +51,4 @@ src/content/        static Learn content
 src/types/models.ts data model shared with the backend
 ```
 
-Bundle ID: `com.fizzgig17.climbingcompanion` (placeholder until registered in App Store Connect).
+Bundle IDs: iOS `app.belaybuddy.ios`, Android `app.belaybuddy.android`. Domain: belaybuddy.app.

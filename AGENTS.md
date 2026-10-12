@@ -42,7 +42,7 @@ Docs: https://docs.expo.dev/eas/index.md
 
 ## This project
 
-Climbing Companion — iOS-first climbing app. See README.md for features and roadmap.
+Belay Buddy — iOS-first climbing app. See README.md for features and roadmap.
 
 - Data model shapes live in `src/types/models.ts`; keep them backend-agnostic.
 - Partner-finder location must always be coarse (area name + rounded point), never a user's exact position.

@@ -1,5 +1,5 @@
 {
-  "name": "climbing-companion",
+  "name": "belay-buddy",
   "main": "expo-router/entry",
   "version": "0.1.0",
   "dependencies": {

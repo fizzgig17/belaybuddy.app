@@ -1,25 +1,25 @@
 {
   "expo": {
-    "name": "Climbing Companion",
-    "slug": "climbing-companion",
+    "name": "Belay Buddy",
+    "slug": "belay-buddy",
     "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "climbingcompanion",
+    "scheme": "belaybuddy",
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon",
-      "bundleIdentifier": "com.fizzgig17.climbingcompanion",
+      "bundleIdentifier": "app.belaybuddy.ios",
       "supportsTablet": false,
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Climbing Companion uses your location to find nearby climbing gyms, outdoor crags, and climbing partners.",
-        "NSCameraUsageDescription": "Climbing Companion uses the camera to photograph gym walls so Route AI can highlight the holds on a route.",
-        "NSPhotoLibraryUsageDescription": "Climbing Companion lets you pick wall photos from your library for Route AI.",
+        "NSLocationWhenInUseUsageDescription": "Belay Buddy uses your location to find nearby climbing gyms, outdoor crags, and climbing partners.",
+        "NSCameraUsageDescription": "Belay Buddy uses the camera to photograph gym walls so Route AI can highlight the holds on a route.",
+        "NSPhotoLibraryUsageDescription": "Belay Buddy lets you pick wall photos from your library for Route AI.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
-      "package": "com.fizzgig17.climbingcompanion",
+      "package": "app.belaybuddy.android",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
