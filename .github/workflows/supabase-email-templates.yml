@@ -38,6 +38,17 @@ jobs:
         run: |
           if [ "$TARGET" = belaybuddy-prod ]; then PROJECT_ID="$PROD_PROJECT_ID"; else PROJECT_ID="$DEV_PROJECT_ID"; fi
           echo "PROJECT_ID=$PROJECT_ID" >> "$GITHUB_ENV"
+          # Tokens pasted on a phone often pick up spaces or line breaks.
+          token=$(printf '%s' "$SUPABASE_ACCESS_TOKEN" | tr -d '[:space:]')
+          echo "::add-mask::$token"
+          echo "SUPABASE_ACCESS_TOKEN=$token" >> "$GITHUB_ENV"
+          if [ "$token" != "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "::warning::Removed whitespace from SUPABASE_ACCESS_TOKEN; re-save the secret without it."
+          fi
+          case "$token" in
+            sbp_*) ;;
+            *) echo "::warning::SUPABASE_ACCESS_TOKEN doesn't start with sbp_ (starts with '${token:0:3}', length ${#token}). Is it an account access token?" ;;
+          esac
           if [ -z "$SUPABASE_ACCESS_TOKEN" ] || [ -z "$PROJECT_ID" ]; then
             echo "::error::Missing SUPABASE_ACCESS_TOKEN or the project id secret for $TARGET"
             exit 1
@@ -66,8 +77,8 @@ jobs:
             -H "Content-Type: application/json" \
             --data @body.json)
           if [ "$status" -ge 300 ]; then
-            echo "::error::Supabase returned HTTP $status"
-            jq '{message, error, code} | with_entries(select(.value != null))' response.json 2>/dev/null || head -c 500 response.json
+            detail=$(jq -c '{message, error} | with_entries(select(.value != null))' response.json 2>/dev/null || head -c 300 response.json)
+            echo "::error::Supabase returned HTTP $status: $detail"
             exit 1
           fi
           echo "Templates updated on $TARGET (HTTP $status)"
