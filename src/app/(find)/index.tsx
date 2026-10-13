@@ -252,8 +252,12 @@ export default function FindScreen() {
             <ActivityIndicator style={styles.loading} />
           ) : (
             <>
-              {result?.errors.gyms && <Notice text="Gyms couldn't be loaded right now. Try again in a minute." />}
-              {result?.errors.crags && <Notice text="Crags couldn't be loaded right now. Try again in a minute." />}
+              {result?.errors.gyms && (
+                <Notice text={`Gyms couldn't be loaded right now (${result.errors.gyms}). Try again in a minute.`} />
+              )}
+              {result?.errors.crags && (
+                <Notice text={`Crags couldn't be loaded right now (${result.errors.crags}). Try again in a minute.`} />
+              )}
               {result && visible.length === 0 && (
                 <ThemedText themeColor="textSecondary">
                   {radius < 50

@@ -19,7 +19,7 @@ export default function AppTabs() {
     <Tabs style={styles.root}>
       <TabList asChild>
         <CustomTabList>
-          <TabTrigger name="index" href="/" asChild>
+          <TabTrigger name="(find)" href="/" asChild>
             <TabButton>Find</TabButton>
           </TabTrigger>
           <TabTrigger name="partners" href="/partners" asChild>

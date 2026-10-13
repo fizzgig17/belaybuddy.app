@@ -22,10 +22,15 @@ export type ClimbingArea = {
   source: AreaSource;
   sourceId?: string;
   website?: string;
+  phone?: string;
+  /** Raw OpenStreetMap opening_hours, e.g. "Mo-Fr 06:00-22:00; Sa,Su 09:00-20:00". */
+  openingHours?: string;
   /** Crags: number of routes/problems recorded. */
   climbCount?: number;
   /** Crags: the parent area, e.g. "Pilot Mountain State Park". */
   region?: string;
+  /** Crags: full location path, e.g. ["USA", "North Carolina", "Pilot Mountain"]. */
+  path?: string[];
 };
 
 export type AuthProvider = 'email' | 'apple' | 'google' | 'facebook';

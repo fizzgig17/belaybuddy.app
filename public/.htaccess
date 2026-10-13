@@ -49,4 +49,6 @@ DirectoryIndex index.html
     # Dynamic routes: /learn/safety -> learn/[topic].html (the page reads the
     # topic from the URL).
     RewriteRule ^learn/[^/]+/?$ learn/[topic].html [L]
+    # Gym and crag pages: /area/osm-way-123 -> area/[id].html
+    RewriteRule ^area/[^/]+/?$ area/[id].html [L]
 </IfModule>

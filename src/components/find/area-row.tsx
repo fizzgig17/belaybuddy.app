@@ -1,12 +1,13 @@
+import { Link } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { Linking, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Icons } from '@/constants/icons';
 import { HoldColors, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { directionsUrl, sourceUrl } from '@/lib/areas';
+import { areaSlug } from '@/lib/areas';
 import { formatDistance } from '@/lib/geo';
 import type { ClimbingArea } from '@/types/models';
 
@@ -27,47 +28,36 @@ function describe(area: ClimbingArea): string {
   return area.region ? `${count} in ${area.region}` : count;
 }
 
+/** One gym or crag in a list. Tapping opens its detail screen. */
 export function AreaRow({ area, distanceKm, favorite, onToggleFavorite }: Props) {
   const theme = useTheme();
   // Gyms and crags get their own hold color so the list scans at a glance.
   const tint = area.kind === 'gym' ? HoldColors.purple : HoldColors.green;
-  const details = sourceUrl(area);
 
   return (
     <ThemedView type="backgroundElement" style={styles.row}>
-      <View style={[styles.badge, { backgroundColor: `${tint}26` }]}>
-        <SymbolView name={area.kind === 'gym' ? Icons.gym : Icons.crag} size={20} tintColor={tint} />
-      </View>
-
-      <View style={styles.body}>
-        <View style={styles.titleRow}>
-          <ThemedText type="smallBold" style={styles.name} numberOfLines={2}>
-            {area.name}
-          </ThemedText>
-          {distanceKm != null && (
-            <ThemedText type="small" themeColor="textSecondary">
-              {formatDistance(distanceKm)}
+      <Link href={{ pathname: '/area/[id]', params: { id: areaSlug(area.id) } }} asChild>
+        <Pressable accessibilityRole="link" style={({ pressed }) => [styles.main, pressed && styles.pressed]}>
+          <View style={[styles.badge, { backgroundColor: `${tint}26` }]}>
+            <SymbolView name={area.kind === 'gym' ? Icons.gym : Icons.crag} size={20} tintColor={tint} />
+          </View>
+          <View style={styles.body}>
+            <View style={styles.titleRow}>
+              <ThemedText type="smallBold" style={styles.name} numberOfLines={2}>
+                {area.name}
+              </ThemedText>
+              {distanceKm != null && (
+                <ThemedText type="small" themeColor="textSecondary">
+                  {formatDistance(distanceKm)}
+                </ThemedText>
+              )}
+            </View>
+            <ThemedText type="small" themeColor="textSecondary" numberOfLines={2}>
+              {describe(area)}
             </ThemedText>
-          )}
-        </View>
-        <ThemedText type="small" themeColor="textSecondary" numberOfLines={2}>
-          {describe(area)}
-        </ThemedText>
-
-        <View style={styles.actions}>
-          <Action label="Directions" icon={Icons.directions} onPress={() => Linking.openURL(directionsUrl(area))} />
-          {area.website && (
-            <Action label="Website" icon={Icons.website} onPress={() => Linking.openURL(area.website!)} />
-          )}
-          {details && (
-            <Action
-              label={area.source === 'openbeta' ? 'Routes' : 'Details'}
-              icon={Icons.external}
-              onPress={() => Linking.openURL(details)}
-            />
-          )}
-        </View>
-      </View>
+          </View>
+        </Pressable>
+      </Link>
 
       <Pressable
         onPress={onToggleFavorite}
@@ -86,36 +76,19 @@ export function AreaRow({ area, distanceKm, favorite, onToggleFavorite }: Props)
   );
 }
 
-function Action({ label, icon, onPress }: { label: string; icon: (typeof Icons)[keyof typeof Icons]; onPress: () => void }) {
-  const theme = useTheme();
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="link"
-      hitSlop={6}
-      style={({ pressed }) => [styles.action, pressed && styles.pressed]}>
-      <SymbolView name={icon} size={14} tintColor={theme.accent} />
-      <ThemedText type="small" style={{ color: theme.accent }}>
-        {label}
-      </ThemedText>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.three,
-    padding: Spacing.three,
+    alignItems: 'center',
+    paddingLeft: Spacing.three,
+    paddingRight: Spacing.two,
     borderRadius: Spacing.three,
   },
+  main: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.three },
   badge: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   body: { flex: 1, gap: Spacing.half },
   titleRow: { flexDirection: 'row', alignItems: 'baseline', gap: Spacing.two },
   name: { flex: 1 },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', columnGap: Spacing.three, rowGap: Spacing.one, marginTop: Spacing.one },
-  action: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one },
-  star: { padding: Spacing.one },
+  star: { padding: Spacing.two },
   pressed: { opacity: 0.6 },
 });

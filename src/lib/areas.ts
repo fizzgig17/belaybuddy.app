@@ -24,7 +24,15 @@ async function cached(key: string, load: () => Promise<ClimbingArea[]>) {
   if (hit && Date.now() - hit.at < CACHE_MS) return hit.data;
   const data = await load();
   cache.set(key, { at: Date.now(), data });
+  for (const area of data) known.set(area.id, area);
   return data;
+}
+
+/** Every area seen this session, by id, so a detail screen opens instantly. */
+const known = new Map<string, ClimbingArea>();
+
+export function knownArea(id: string): ClimbingArea | undefined {
+  return known.get(id);
 }
 
 const cacheKey = (kind: string, center: LatLng, radiusKm: number) => {
@@ -49,7 +57,7 @@ type OsmElement = {
 
 function osmAddress(t: Record<string, string>): string | undefined {
   const street = [t['addr:housenumber'], t['addr:street']].filter(Boolean).join(' ');
-  const parts = [street, t['addr:city']].filter(Boolean);
+  const parts = [street, t['addr:city'], t['addr:state']].filter(Boolean);
   return parts.length ? parts.join(', ') : undefined;
 }
 
@@ -80,6 +88,26 @@ async function queryOverpass(query: string): Promise<OsmElement[]> {
   throw lastError;
 }
 
+function osmToGym(el: OsmElement): ClimbingArea | null {
+  const t = el.tags ?? {};
+  const lat = el.lat ?? el.center?.lat;
+  const lon = el.lon ?? el.center?.lon;
+  if (!t.name || lat == null || lon == null) return null;
+  return {
+    id: `osm:${el.type}/${el.id}`,
+    kind: 'gym',
+    name: t.name,
+    location: { latitude: lat, longitude: lon },
+    address: osmAddress(t),
+    styles: osmStyles(t),
+    source: 'osm',
+    sourceId: `${el.type}/${el.id}`,
+    website: t.website ?? t['contact:website'],
+    phone: t.phone ?? t['contact:phone'],
+    openingHours: t.opening_hours,
+  };
+}
+
 export function fetchGyms(center: LatLng, radiusKm: number): Promise<ClimbingArea[]> {
   return cached(cacheKey('gyms', center, radiusKm), async () => {
     const r = Math.round(radiusKm * 1000);
@@ -95,24 +123,10 @@ export function fetchGyms(center: LatLng, radiusKm: number): Promise<ClimbingAre
     const seen = new Set<string>();
     const gyms: ClimbingArea[] = [];
     for (const el of elements) {
-      const t = el.tags ?? {};
-      const lat = el.lat ?? el.center?.lat;
-      const lon = el.lon ?? el.center?.lon;
-      if (!t.name || lat == null || lon == null) continue;
-      const id = `osm:${el.type}/${el.id}`;
-      if (seen.has(id)) continue;
-      seen.add(id);
-      gyms.push({
-        id,
-        kind: 'gym',
-        name: t.name,
-        location: { latitude: lat, longitude: lon },
-        address: osmAddress(t),
-        styles: osmStyles(t),
-        source: 'osm',
-        sourceId: `${el.type}/${el.id}`,
-        website: t.website ?? t['contact:website'],
-      });
+      const gym = osmToGym(el);
+      if (!gym || seen.has(gym.id)) continue;
+      seen.add(gym.id);
+      gyms.push(gym);
     }
     return gyms;
   });
@@ -128,6 +142,23 @@ type OpenBetaArea = {
   pathTokens: string[];
   metadata: { lat: number | null; lng: number | null; isBoulder: boolean | null };
 };
+
+function openBetaToCrag(a: OpenBetaArea): ClimbingArea | null {
+  if (a.metadata.lat == null || a.metadata.lng == null) return null;
+  return {
+    id: `openbeta:${a.uuid}`,
+    kind: 'crag',
+    name: a.areaName,
+    location: { latitude: a.metadata.lat, longitude: a.metadata.lng },
+    styles: a.metadata.isBoulder ? ['bouldering'] : [],
+    source: 'openbeta',
+    sourceId: a.uuid,
+    climbCount: a.totalClimbs,
+    // pathTokens runs country > state > ... > this crag; the parent is most useful.
+    region: a.pathTokens.length > 1 ? a.pathTokens[a.pathTokens.length - 2] : undefined,
+    path: a.pathTokens.slice(0, -1),
+  };
+}
 
 export function fetchCrags(center: LatLng, radiusKm: number): Promise<ClimbingArea[]> {
   return cached(cacheKey('crags', center, radiusKm), async () => {
@@ -146,19 +177,9 @@ export function fetchCrags(center: LatLng, radiusKm: number): Promise<ClimbingAr
     const json = (await res.json()) as { data?: { cragsWithin: OpenBetaArea[] }; errors?: { message: string }[] };
     if (json.errors?.length) throw new Error(json.errors[0].message);
     return (json.data?.cragsWithin ?? [])
-      .filter((a) => a.metadata.lat != null && a.metadata.lng != null && a.totalClimbs > 0)
-      .map((a) => ({
-        id: `openbeta:${a.uuid}`,
-        kind: 'crag' as const,
-        name: a.areaName,
-        location: { latitude: a.metadata.lat!, longitude: a.metadata.lng! },
-        styles: a.metadata.isBoulder ? (['bouldering'] as ClimbingStyle[]) : [],
-        source: 'openbeta' as const,
-        sourceId: a.uuid,
-        climbCount: a.totalClimbs,
-        // pathTokens runs country > state > ... > this crag; the parent is most useful.
-        region: a.pathTokens.length > 1 ? a.pathTokens[a.pathTokens.length - 2] : undefined,
-      }));
+      .filter((a) => a.totalClimbs > 0)
+      .map(openBetaToCrag)
+      .filter((a): a is ClimbingArea => a !== null);
   });
 }
 
@@ -193,9 +214,69 @@ export function directionsUrl(area: ClimbingArea): string {
   return `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
 }
 
+// --- Single area (detail screen) ----------------------------------------------
+
+/** URL-safe form of an area id: "osm:way/123" <-> "osm-way-123". */
+export function areaSlug(id: string): string {
+  return id.replace(':', '-').replace('/', '-');
+}
+
+function slugToId(slug: string): string | null {
+  const osm = /^osm-(node|way|relation)-(\d+)$/.exec(slug);
+  if (osm) return `osm:${osm[1]}/${osm[2]}`;
+  const ob = /^openbeta-([0-9a-f-]{8,})$/i.exec(slug);
+  if (ob) return `openbeta:${ob[1]}`;
+  return null;
+}
+
+/** Loads one gym or crag; uses what's already been fetched when possible. */
+export async function fetchAreaBySlug(slug: string): Promise<ClimbingArea | null> {
+  const id = slugToId(slug);
+  if (!id) return null;
+  const hit = known.get(id);
+  if (hit) return hit;
+
+  if (id.startsWith('osm:')) {
+    const [type, num] = id.slice(4).split('/');
+    const elements = await queryOverpass(`[out:json][timeout:15];${type}(${num});out center tags;`);
+    const gym = elements.length ? osmToGym(elements[0]) : null;
+    if (gym) known.set(gym.id, gym);
+    return gym;
+  }
+
+  const uuid = id.slice('openbeta:'.length);
+  const query = `query Area($uuid: ID) {
+    area(uuid: $uuid) { uuid areaName totalClimbs pathTokens metadata { lat lng isBoulder } }
+  }`;
+  const res = await fetch(OPENBETA, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...UA },
+    body: JSON.stringify({ query, variables: { uuid } }),
+  });
+  if (!res.ok) throw new Error(`OpenBeta returned ${res.status}`);
+  const json = (await res.json()) as { data?: { area: OpenBetaArea | null } };
+  const crag = json.data?.area ? openBetaToCrag(json.data.area) : null;
+  if (crag) known.set(crag.id, crag);
+  return crag;
+}
+
 /** Link to the source page with more detail. */
 export function sourceUrl(area: ClimbingArea): string | undefined {
   if (area.source === 'openbeta' && area.sourceId) return `https://openbeta.io/area/${area.sourceId}`;
   if (area.source === 'osm' && area.sourceId) return `https://www.openstreetmap.org/${area.sourceId}`;
   return undefined;
+}
+
+/** Where someone can correct or add missing details. */
+export function editUrl(area: ClimbingArea): string | undefined {
+  if (area.source === 'osm' && area.sourceId) {
+    const [type, num] = area.sourceId.split('/');
+    return `https://www.openstreetmap.org/edit?${type}=${num}`;
+  }
+  if (area.source === 'openbeta' && area.sourceId) return `https://openbeta.io/area/${area.sourceId}`;
+  return undefined;
+}
+
+export function phoneUrl(phone: string): string {
+  return `tel:${phone.replace(/[^\d+]/g, '')}`;
 }

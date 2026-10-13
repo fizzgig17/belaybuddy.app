@@ -13,7 +13,7 @@ export default function AppTabs() {
       indicatorColor={colors.backgroundElement}
       tintColor={colors.accent}
       labelStyle={{ selected: { color: colors.accent } }}>
-      <NativeTabs.Trigger name="index">
+      <NativeTabs.Trigger name="(find)">
         <NativeTabs.Trigger.Label>Find</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf={{ default: 'map', selected: 'map.fill' }} />
       </NativeTabs.Trigger>
