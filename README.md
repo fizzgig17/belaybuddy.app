@@ -11,7 +11,7 @@ Working: email sign-in, climbing profile, and the Find tab (nearby gyms and crag
 | Tab | Planned features |
 | --- | --- |
 | Find | Indoor gyms (OpenStreetMap), outdoor crags (OpenBeta), place search, favorites; map view next |
-| Partners | Nearby listings with coarse location only, travel posts, block/report |
+| Partners | Gym-first belay board, safety profiles with peer endorsements, session goals and weight-compatibility hints, block/report (see docs/product-principles.md) |
 | Route AI | Wall photo → pick hold color → highlighted hold map → per-hold technique tips |
 | Learn | Climbing safety, gear, knots (content must be reviewed by a qualified instructor) |
 | Profile | Sign in with Apple, Google, Facebook or email; climbing profile; settings |
@@ -21,7 +21,7 @@ Working: email sign-in, climbing profile, and the Find tab (nearby gyms and crag
 1. Auth (Sign in with Apple is required by the App Store when Google/Facebook login is offered) and climbing profile
 2. Gym and crag map with favorites
 3. Learn content
-4. Partner finder, with blocking, reporting and moderation in place before launch
+4. Partners, gym first: home gyms, safety profile, per-gym belay board, session chat, endorsements; blocking, reporting and moderation before launch
 5. Route AI hold map
 6. Route AI technique suggestions
 

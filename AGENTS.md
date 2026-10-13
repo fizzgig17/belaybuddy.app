@@ -44,6 +44,7 @@ Docs: https://docs.expo.dev/eas/index.md
 
 Belay Buddy — iOS-first climbing app. See README.md for features and roadmap.
 
+- Read `docs/product-principles.md` before building anything partner-related: trust layer, gym-first belay board, two-body matching, privacy guardrails.
 - Data model shapes live in `src/types/models.ts`; keep them backend-agnostic.
 - Partner-finder location must always be coarse (area name + rounded point), never a user's exact position.
 - Learn content (safety, gear, knots) is safety-critical: mark it as draft until reviewed by a qualified instructor, and keep the "not a substitute for instruction" disclaimer on every article.
