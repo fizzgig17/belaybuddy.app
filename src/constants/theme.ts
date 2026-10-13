@@ -8,24 +8,39 @@ import '@/global.css';
 import { Platform } from 'react-native';
 
 export const Colors = {
+  // Palette drawn from climbing materials: chalk, granite and dynamic rope.
   light: {
-    text: '#000000',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
-    accent: '#D9531E',
-    accentSoft: '#FBE7DD',
+    text: '#1F2D35', // granite
+    background: '#F6F8F7', // chalk
+    backgroundElement: '#E7EDEB',
+    backgroundSelected: '#D5E0DD',
+    textSecondary: '#5A6A70',
+    accent: '#0E7A80', // rope teal
+    accentSoft: '#D6ECEC',
+    onAccent: '#FFFFFF',
   },
   dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
-    accent: '#F07A45',
-    accentSoft: '#3A2219',
+    text: '#EEF3F1',
+    background: '#141E23',
+    backgroundElement: '#1F2D35',
+    backgroundSelected: '#2A3B44',
+    textSecondary: '#A3B2B6',
+    accent: '#46B8BD',
+    accentSoft: '#173A3E',
+    onAccent: '#0B1A1D',
   },
+} as const;
+
+/**
+ * Gym hold colors. Used only in illustrations and to color-code topics, the
+ * way gyms tape routes by color — never as general UI decoration.
+ */
+export const HoldColors = {
+  yellow: '#F2B705',
+  coral: '#E2554A',
+  green: '#3F9A5B',
+  purple: '#7A5BC4',
+  blue: '#2F7FD1',
 } as const;
 
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;

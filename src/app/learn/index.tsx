@@ -9,6 +9,7 @@ export default function LearnScreen() {
         <FeatureCard
           key={topic.id}
           icon={topic.icon}
+          tint={topic.color}
           title={topic.title}
           description={topic.summary}
           href={{ pathname: '/learn/[topic]', params: { topic: topic.id } }}

@@ -1,4 +1,5 @@
-import type { SymbolViewProps } from 'expo-symbols';
+import type { IconName } from '@/constants/icons';
+import { HoldColors } from '@/constants/theme';
 
 /**
  * Learn-section content. This is an outline only: every article must be written
@@ -12,7 +13,9 @@ export type LearnTopic = {
   id: LearnTopicId;
   title: string;
   summary: string;
-  icon: SymbolViewProps['name'];
+  icon: IconName;
+  /** Topic color, like route tape in a gym. */
+  color: string;
   /** Planned articles; content to be written. */
   articles: { title: string; summary: string }[];
 };
@@ -22,7 +25,8 @@ export const LEARN_TOPICS: LearnTopic[] = [
     id: 'safety',
     title: 'Climbing safety',
     summary: 'Partner checks, belaying, falling, and gym etiquette.',
-    icon: 'checkmark.shield',
+    icon: 'checklist',
+    color: HoldColors.coral,
     articles: [
       { title: 'Partner check', summary: 'Harness, knot, belay device, and carabiner, every climb.' },
       { title: 'Belaying basics', summary: 'Top-rope and lead belaying, and staying attentive.' },
@@ -35,7 +39,8 @@ export const LEARN_TOPICS: LearnTopic[] = [
     id: 'gear',
     title: 'Climbing gear',
     summary: 'What you need to start, and how to look after it.',
-    icon: 'bag',
+    icon: 'gear',
+    color: HoldColors.blue,
     articles: [
       { title: 'Shoes', summary: 'Fit, downturn, and when to resole.' },
       { title: 'Harness', summary: 'Fit, inspection, and retirement.' },
@@ -48,7 +53,8 @@ export const LEARN_TOPICS: LearnTopic[] = [
     id: 'knots',
     title: 'Knots',
     summary: 'Step-by-step diagrams for the essential climbing knots.',
-    icon: 'link',
+    icon: 'knot',
+    color: HoldColors.yellow,
     articles: [
       { title: 'Figure-eight follow-through', summary: 'The standard tie-in knot.' },
       { title: 'Stopper knot', summary: 'Backing up the tie-in and closing the rope system.' },

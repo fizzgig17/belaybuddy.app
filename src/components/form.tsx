@@ -69,11 +69,11 @@ export function Button({ title, onPress, variant = 'primary', disabled, loading,
         pressed && styles.pressed,
       ]}>
       {loading ? (
-        <ActivityIndicator color={primary ? '#fff' : theme.text} />
+        <ActivityIndicator color={primary ? theme.onAccent : theme.text} />
       ) : (
         <>
           {icon}
-          <ThemedText type="smallBold" style={{ color: primary ? '#fff' : theme.text }}>
+          <ThemedText type="smallBold" style={{ color: primary ? theme.onAccent : theme.text }}>
             {title}
           </ThemedText>
         </>

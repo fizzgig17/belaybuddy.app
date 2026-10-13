@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, Platform } from 'react-native';
 
 import { SignIn } from '@/components/auth/sign-in';
 import { FeatureCard } from '@/components/feature-card';
+import { GymWallBanner } from '@/components/illustrations';
 import { Button } from '@/components/form';
 import { ProfileEditor } from '@/components/profile/profile-editor';
 import { Screen } from '@/components/screen';
@@ -25,6 +26,7 @@ export default function ProfileScreen() {
   if (!user) {
     return (
       <Screen title="Profile" subtitle="Sign in to save favorites, set up your climbing profile, and find partners.">
+        <GymWallBanner />
         <SignIn />
       </Screen>
     );
@@ -54,7 +56,7 @@ export default function ProfileScreen() {
       </ThemedText>
       <ProfileEditor userId={user.id} />
       <FeatureCard
-        icon="gearshape"
+        icon="settings"
         title="Settings & privacy"
         description="Location sharing, blocked users, and account deletion."
         comingSoon
