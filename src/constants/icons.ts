@@ -21,6 +21,13 @@ export const Icons = {
   gear: icon('bag', 'backpack'),
   knot: icon('link', 'link'),
   chevron: icon('chevron.right', 'chevron_right'),
+  directions: icon('arrow.triangle.turn.up.right.diamond', 'directions'),
+  myLocation: icon('location.fill', 'my_location'),
+  search: icon('magnifyingglass', 'search'),
+  external: icon('arrow.up.right.square', 'open_in_new'),
+  website: icon('globe', 'language'),
+  warning: icon('exclamationmark.triangle', 'error'),
+  favoriteOn: icon('star.fill', 'star_rate'),
 } as const;
 
 export type IconName = keyof typeof Icons;

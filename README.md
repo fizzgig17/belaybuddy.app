@@ -6,11 +6,11 @@ Built with Expo (SDK 57), Expo Router and TypeScript.
 
 ## Status
 
-Scaffold only. All five tabs exist with placeholder cards; no feature is implemented yet.
+Working: email sign-in, climbing profile, and the Find tab (nearby gyms and crags, place search, favorites). The other tabs are placeholders.
 
 | Tab | Planned features |
 | --- | --- |
-| Find | Indoor gyms (MapKit / Google Places), outdoor crags (OpenBeta), favorites |
+| Find | Indoor gyms (OpenStreetMap), outdoor crags (OpenBeta), place search, favorites; map view next |
 | Partners | Nearby listings with coarse location only, travel posts, block/report |
 | Route AI | Wall photo → pick hold color → highlighted hold map → per-hold technique tips |
 | Learn | Climbing safety, gear, knots (content must be reviewed by a qualified instructor) |

@@ -7,8 +7,11 @@ export type LatLng = { latitude: number; longitude: number };
 
 export type ClimbingStyle = 'bouldering' | 'top-rope' | 'lead' | 'trad' | 'multipitch' | 'ice';
 
-/** An indoor gym (from Apple MapKit / Google Places) or an outdoor crag (from OpenBeta). */
+export type AreaSource = 'osm' | 'openbeta' | 'mapkit' | 'google-places' | 'user';
+
+/** An indoor gym (from OpenStreetMap) or an outdoor crag (from OpenBeta). */
 export type ClimbingArea = {
+  /** Stable across sources, e.g. "osm:way/123" or "openbeta:<uuid>". */
   id: string;
   kind: 'gym' | 'crag';
   name: string;
@@ -16,8 +19,13 @@ export type ClimbingArea = {
   address?: string;
   styles: ClimbingStyle[];
   /** Where the record came from, so we can attribute and refresh it. */
-  source: 'mapkit' | 'google-places' | 'openbeta' | 'user';
+  source: AreaSource;
   sourceId?: string;
+  website?: string;
+  /** Crags: number of routes/problems recorded. */
+  climbCount?: number;
+  /** Crags: the parent area, e.g. "Pilot Mountain State Park". */
+  region?: string;
 };
 
 export type AuthProvider = 'email' | 'apple' | 'google' | 'facebook';

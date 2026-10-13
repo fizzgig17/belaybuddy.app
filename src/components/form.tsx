@@ -178,3 +178,53 @@ const styles = StyleSheet.create({
     minHeight: 40,
   },
 });
+
+/** Single-choice segmented control. */
+export function Segmented<T extends string | number>({
+  options,
+  value,
+  onChange,
+  label,
+}: {
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (value: T) => void;
+  /** Accessibility label for the group. */
+  label: string;
+}) {
+  const theme = useTheme();
+  return (
+    <View
+      accessibilityRole="radiogroup"
+      accessibilityLabel={label}
+      style={[segStyles.group, { backgroundColor: theme.backgroundElement }]}>
+      {options.map((option) => {
+        const on = option.value === value;
+        return (
+          <Pressable
+            key={String(option.value)}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: on }}
+            onPress={() => onChange(option.value)}
+            style={[segStyles.segment, on && { backgroundColor: theme.background }]}>
+            <ThemedText
+              type={on ? 'smallBold' : 'small'}
+              style={{ color: on ? theme.accent : theme.textSecondary }}>
+              {option.label}
+            </ThemedText>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+const segStyles = StyleSheet.create({
+  group: { flexDirection: 'row', borderRadius: Spacing.two + 2, padding: 3, gap: 3 },
+  segment: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: Spacing.one + 2,
+    borderRadius: Spacing.two,
+  },
+});

@@ -12,7 +12,6 @@
       "bundleIdentifier": "app.belaybuddy.ios",
       "supportsTablet": false,
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Belay Buddy uses your location to find nearby climbing gyms, outdoor crags, and climbing partners.",
         "NSCameraUsageDescription": "Belay Buddy uses the camera to photograph gym walls so Route AI can highlight the holds on a route.",
         "NSPhotoLibraryUsageDescription": "Belay Buddy lets you pick wall photos from your library for Route AI.",
         "ITSAppUsesNonExemptEncryption": false
@@ -40,6 +39,12 @@
           "backgroundColor": "#1F2A2E",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Belay Buddy uses your location to find nearby climbing gyms, outdoor crags, and climbing partners."
         }
       ]
     ],
