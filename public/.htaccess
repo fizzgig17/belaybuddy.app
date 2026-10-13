@@ -1,0 +1,52 @@
+# Apache config for the Belay Buddy website (static Expo web export).
+# Expo copies everything in public/ into the export, so this lands in the
+# site root. The deploy workflow appends dev-only rules (noindex) for
+# dev.belaybuddy.app.
+
+<IfModule mod_headers.c>
+    # Hashed bundles under /_expo/static never change: cache them for a year.
+    <If "%{REQUEST_URI} =~ m#^/_expo/static/#">
+        Header set Cache-Control "public, max-age=31536000, immutable"
+    </If>
+    # Pages must always be revalidated so a deploy shows up immediately.
+    <FilesMatch "\.html$">
+        Header set Cache-Control "no-cache"
+    </FilesMatch>
+
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    # Camera (Route AI) and location (Find, Partners) are used by the app itself.
+    Header always set Permissions-Policy "camera=(self), microphone=(), geolocation=(self), payment=()"
+    Header always set Strict-Transport-Security "max-age=31536000"
+</IfModule>
+
+ErrorDocument 404 /+not-found.html
+
+# /learn is a folder (learn/index.html); serve it at /learn without Apache
+# first redirecting to /learn/.
+DirectorySlash Off
+DirectoryIndex index.html
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Force HTTPS (.app domains are HTTPS-only in browsers anyway).
+    RewriteCond %{HTTPS} !=on
+    RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+    # Real files are served as-is.
+    RewriteCond %{REQUEST_FILENAME} -f
+    RewriteRule ^ - [L]
+
+    # Clean URLs: /profile -> profile.html, /learn and /learn/ -> learn/index.html
+    RewriteCond %{DOCUMENT_ROOT}/$1.html -f
+    RewriteRule ^(.+?)/?$ $1.html [L]
+    RewriteCond %{DOCUMENT_ROOT}/$1/index.html -f
+    RewriteRule ^(.+?)/?$ $1/index.html [L]
+
+    # Dynamic routes: /learn/safety -> learn/[topic].html (the page reads the
+    # topic from the URL).
+    RewriteRule ^learn/[^/]+/?$ learn/[topic].html [L]
+</IfModule>

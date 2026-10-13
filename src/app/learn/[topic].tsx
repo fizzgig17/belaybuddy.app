@@ -6,7 +6,12 @@ import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
-import { getLearnTopic } from '@/content/learn';
+import { getLearnTopic, LEARN_TOPICS } from '@/content/learn';
+
+/** Website: pre-render a page per topic (learn/safety.html, ...). */
+export async function generateStaticParams(): Promise<Record<string, string>[]> {
+  return LEARN_TOPICS.map((topic) => ({ topic: topic.id }));
+}
 
 export default function LearnTopicScreen() {
   const { topic: topicId } = useLocalSearchParams<{ topic: string }>();
