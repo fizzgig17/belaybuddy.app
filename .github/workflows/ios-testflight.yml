@@ -1,0 +1,338 @@
+# Builds a signed release of the iOS app and uploads it to TestFlight.
+# Adapted from hCRI Companion's ios-testflight.yml (same Apple account, same
+# signing approach), plus an Expo step that generates the ios/ folder.
+#
+# When it runs
+#   - Every push to master (production build: prod Supabase).
+#   - By hand: Actions tab > "Upload iOS build to TestFlight" > Run workflow,
+#     choosing the branch. develop = dev Supabase, master = prod Supabase.
+#   It does NOT run on every develop push: this repo is private, and macOS
+#   minutes count heavily against GitHub's free Actions allowance.
+#
+# One-time Apple setup (developer.apple.com and appstoreconnect.apple.com)
+#   1. Certificates, Identifiers & Profiles > Identifiers > + > App IDs > App:
+#      explicit bundle ID app.belaybuddy.ios.
+#   2. App Store Connect > Apps > + > New App: iOS, bundle ID app.belaybuddy.ios.
+#   3. (Recommended) Profiles > + > App Store Connect distribution profile for
+#      app.belaybuddy.ios using your existing Apple Distribution certificate.
+#
+# Repository secrets (Settings > Secrets and variables > Actions). The first
+# six are the same values as in hcri-companion; GitHub can't copy secrets
+# between repos, so they come from the original files.
+#   ASC_KEY_ID              App Store Connect API key ID
+#   ASC_ISSUER_ID           its Issuer ID
+#   ASC_KEY_P8              full text of the .p8 key, including BEGIN/END lines
+#   APPLE_TEAM_ID           10-character Team ID
+#   IOS_DIST_P12            base64 of the Apple Distribution certificate (.p12)
+#   IOS_DIST_P12_PASSWORD   its password
+#   IOS_PROFILE             (optional) base64 of the App Store .mobileprovision
+#                           for app.belaybuddy.ios
+# Signing modes, best first:
+#   certificate + profile   -> manual signing (most predictable)
+#   certificate only        -> Xcode creates/downloads the profile with the API
+#                              key, reusing your installed certificate
+#   neither                 -> fully automatic; may create a new certificate on
+#                              each run until Apple's limit is hit (avoid)
+#
+# Versioning: the version testers see is expo.version in app.json; the build
+# number is this workflow's run number, so every upload is higher than the last.
+name: Upload iOS build to TestFlight
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: ios-testflight
+  cancel-in-progress: false
+
+jobs:
+  testflight:
+    runs-on: macos-15
+    timeout-minutes: 90
+    env:
+      BUNDLE_ID: app.belaybuddy.ios
+      BUILD_NUMBER: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the secrets are set
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          IOS_DIST_P12: ${{ secrets.IOS_DIST_P12 }}
+        run: |
+          missing=""
+          [ -n "$ASC_KEY_ID" ] || missing="$missing ASC_KEY_ID"
+          [ -n "$ASC_ISSUER_ID" ] || missing="$missing ASC_ISSUER_ID"
+          [ -n "$ASC_KEY_P8" ] || missing="$missing ASC_KEY_P8"
+          [ -n "$APPLE_TEAM_ID" ] || missing="$missing APPLE_TEAM_ID"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing (see the notes at the top of this workflow file)"
+            exit 1
+          fi
+          [ -n "$IOS_DIST_P12" ] || echo "::warning::No IOS_DIST_P12: falling back to fully automatic signing, which can create a new certificate on every run."
+
+      # App Store Connect only accepts builds made with the iOS 26 SDK (Xcode 26+).
+      - name: Select Xcode 26
+        run: |
+          X=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -n 1)
+          if [ -z "$X" ]; then
+            echo "::error::No Xcode 26 on this runner image. Installed: $(ls /Applications | grep -i xcode | tr '\n' ' ')"
+            exit 1
+          fi
+          sudo xcode-select -s "$X/Contents/Developer"
+          xcodebuild -version
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      # develop (and other branches) use .env = dev Supabase. master uses
+      # config/prod.env; environment variables take precedence over .env.
+      - name: Choose the Supabase project
+        run: |
+          if [ "$GITHUB_REF_NAME" = "master" ]; then
+            grep -E '^EXPO_PUBLIC_[A-Z_]+=' config/prod.env >> "$GITHUB_ENV"
+            echo "TARGET=production" >> "$GITHUB_ENV"
+          else
+            echo "TARGET=development" >> "$GITHUB_ENV"
+          fi
+
+      - name: Set the build number
+        run: |
+          jq --arg n "$BUILD_NUMBER" '.expo.ios.buildNumber = $n' app.json > app.json.tmp && mv app.json.tmp app.json
+          echo "Version $(jq -r .expo.version app.json) ($BUILD_NUMBER), $TARGET"
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+
+      - name: Install CocoaPods
+        run: |
+          gem install cocoapods --no-document
+          pod --version
+
+      - name: Cache CocoaPods downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/CocoaPods
+          key: pods-cache-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: pods-cache-${{ runner.os }}-
+
+      # Expo generates ios/ from app.json (it's not committed).
+      - name: Generate the iOS project
+        run: |
+          CI=1 npx expo prebuild --platform ios --no-install
+          cd ios && pod install
+
+      - name: Write the App Store Connect API key
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/asc"
+          printf '%s\n' "$ASC_KEY_P8" > "$RUNNER_TEMP/asc/AuthKey.p8"
+          chmod 600 "$RUNNER_TEMP/asc/AuthKey.p8"
+
+      - name: Install the signing certificate and profile
+        env:
+          IOS_DIST_P12: ${{ secrets.IOS_DIST_P12 }}
+          IOS_DIST_P12_PASSWORD: ${{ secrets.IOS_DIST_P12_PASSWORD }}
+          IOS_PROFILE: ${{ secrets.IOS_PROFILE }}
+        run: |
+          if [ -z "$IOS_DIST_P12" ]; then
+            echo "SIGN_MODE=auto" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          KC="$RUNNER_TEMP/signing.keychain-db"
+          KCPASS="$(uuidgen)"
+          security create-keychain -p "$KCPASS" "$KC"
+          security set-keychain-settings -lut 21600 "$KC"
+          security unlock-keychain -p "$KCPASS" "$KC"
+          printf '%s' "$IOS_DIST_P12" | base64 --decode > "$RUNNER_TEMP/dist.p12"
+          security import "$RUNNER_TEMP/dist.p12" -P "$IOS_DIST_P12_PASSWORD" -A -t cert -f pkcs12 -k "$KC"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KCPASS" "$KC" >/dev/null
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | sed 's/"//g')
+          security find-identity -v -p codesigning "$KC"
+          rm -f "$RUNNER_TEMP/dist.p12"
+
+          if [ -z "$IOS_PROFILE" ]; then
+            echo "Certificate installed; Xcode will fetch the App Store profile with the API key."
+            echo "SIGN_MODE=cert" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          printf '%s' "$IOS_PROFILE" | base64 --decode > "$RUNNER_TEMP/profile.mobileprovision"
+          security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" > "$RUNNER_TEMP/profile.plist"
+          PUUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/profile.plist")
+          PNAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/profile.plist")
+          PAPP=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$RUNNER_TEMP/profile.plist")
+          echo "Profile: $PNAME ($PUUID) for $PAPP"
+          case "$PAPP" in
+            *".$BUNDLE_ID") ;;
+            *) echo "::error::IOS_PROFILE is for $PAPP, not $BUNDLE_ID. Create an App Store profile for $BUNDLE_ID."; exit 1 ;;
+          esac
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          cp "$RUNNER_TEMP/profile.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$PUUID.mobileprovision"
+          echo "SIGN_MODE=manual" >> "$GITHUB_ENV"
+          echo "PROFILE_NAME=$PNAME" >> "$GITHUB_ENV"
+
+      - name: Archive (signed, Release)
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -o pipefail
+          if [ "$SIGN_MODE" = "manual" ]; then
+            # Manual signing for the app target only; the Pods targets must keep their own settings.
+            ruby -rxcodeproj -e '
+              proj = Xcodeproj::Project.open("ios/BelayBuddy.xcodeproj")
+              target = proj.targets.find { |t| t.name == "BelayBuddy" } or abort("target BelayBuddy not found")
+              target.build_configurations.each do |c|
+                s = c.build_settings
+                s["CODE_SIGN_STYLE"] = "Manual"
+                s["DEVELOPMENT_TEAM"] = ENV["APPLE_TEAM_ID"]
+                s["CODE_SIGN_IDENTITY"] = "Apple Distribution"
+                s["CODE_SIGN_IDENTITY[sdk=iphoneos*]"] = "Apple Distribution"
+                s["PROVISIONING_PROFILE_SPECIFIER"] = ENV["PROFILE_NAME"]
+              end
+              proj.save
+            '
+            AUTH_FLAGS=""
+          else
+            AUTH_FLAGS="-allowProvisioningUpdates -authenticationKeyPath $RUNNER_TEMP/asc/AuthKey.p8 -authenticationKeyID $ASC_KEY_ID -authenticationKeyIssuerID $ASC_ISSUER_ID"
+          fi
+          xcodebuild \
+            -workspace ios/BelayBuddy.xcworkspace \
+            -scheme BelayBuddy \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/BelayBuddy.xcarchive" \
+            $AUTH_FLAGS \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            archive 2>&1 | tee xcodebuild-archive.log | tail -n 40
+
+      - name: Export and upload to TestFlight
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -o pipefail
+          if [ "$SIGN_MODE" = "manual" ]; then
+            SIGN_STYLE=manual
+            SIGN_EXTRA="<key>signingCertificate</key><string>Apple Distribution</string><key>provisioningProfiles</key><dict><key>${BUNDLE_ID}</key><string>${PROFILE_NAME}</string></dict>"
+            EXTRA_FLAGS=""
+          else
+            SIGN_STYLE=automatic
+            SIGN_EXTRA=""
+            EXTRA_FLAGS="-allowProvisioningUpdates"
+          fi
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>${APPLE_TEAM_ID}</string>
+            <key>signingStyle</key><string>${SIGN_STYLE}</string>
+            ${SIGN_EXTRA}
+            <key>uploadSymbols</key><true/>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict>
+          </plist>
+          PLIST
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/BelayBuddy.xcarchive" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            $EXTRA_FLAGS \
+            -authenticationKeyPath "$RUNNER_TEMP/asc/AuthKey.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" 2>&1 | tee xcodebuild-export.log | tail -n 40
+
+      # TestFlight's list only shows version + build number, so write the
+      # branch, commit and backend into each build's "What to Test" text.
+      # Best effort: the build is already uploaded, so this never fails the run.
+      - name: Label the build in TestFlight (What to Test)
+        continue-on-error: true
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          python3 -m pip install --quiet --break-system-packages pyjwt cryptography || python3 -m pip install --quiet pyjwt cryptography
+          python3 - <<'PY'
+          import json, os, subprocess, time, urllib.request, urllib.error, urllib.parse, jwt
+
+          key = open(os.path.join(os.environ['RUNNER_TEMP'], 'asc', 'AuthKey.p8')).read()
+          branch = os.environ['BRANCH']
+          prod = branch == 'master'
+          sha = os.environ.get('GITHUB_SHA', '')[:7]
+          subject = subprocess.run(['git', 'log', '-1', '--pretty=%s'], capture_output=True, text=True).stdout.strip()
+          text = (f"{'PRODUCTION' if prod else 'DEVELOPMENT'} build\nBranch: {branch}\nCommit: {sha}\n"
+                  f"Backend: {'belaybuddy-prod' if prod else 'belaybuddy-dev'}\n{subject}")[:3900]
+
+          def token():
+              now = int(time.time())
+              return jwt.encode({'iss': os.environ['ASC_ISSUER_ID'], 'iat': now, 'exp': now + 1100, 'aud': 'appstoreconnect-v1'},
+                                key, algorithm='ES256', headers={'kid': os.environ['ASC_KEY_ID']})
+
+          def call(method, path, body=None):
+              req = urllib.request.Request('https://api.appstoreconnect.apple.com' + path, method=method,
+                                           data=json.dumps(body).encode() if body is not None else None,
+                                           headers={'Authorization': 'Bearer ' + token(), 'Content-Type': 'application/json'})
+              try:
+                  with urllib.request.urlopen(req, timeout=60) as r:
+                      raw = r.read()
+                      return json.loads(raw) if raw else {}
+              except urllib.error.HTTPError as e:
+                  raise SystemExit(f'{method} {path} -> {e.code}: {e.read().decode()[:500]}')
+
+          apps = call('GET', '/v1/apps?filter[bundleId]=' + urllib.parse.quote(os.environ['BUNDLE_ID'])).get('data', [])
+          if not apps:
+              raise SystemExit('No App Store Connect app for ' + os.environ['BUNDLE_ID'])
+          app_id = apps[0]['id']
+
+          build_id = None
+          for _ in range(50):  # up to ~25 minutes for the upload to appear
+              r = call('GET', f"/v1/builds?filter[app]={app_id}&filter[version]={os.environ['BUILD_NUMBER']}&limit=5")
+              if r.get('data'):
+                  build_id = r['data'][0]['id']
+                  break
+              time.sleep(30)
+          if not build_id:
+              raise SystemExit('Build did not appear in App Store Connect in time.')
+
+          locs = call('GET', f'/v1/builds/{build_id}/betaBuildLocalizations').get('data', [])
+          mine = next((l for l in locs if l['attributes'].get('locale') == 'en-US'), None)
+          if mine:
+              call('PATCH', f"/v1/betaBuildLocalizations/{mine['id']}",
+                   {'data': {'type': 'betaBuildLocalizations', 'id': mine['id'], 'attributes': {'whatsNew': text}}})
+          else:
+              call('POST', '/v1/betaBuildLocalizations',
+                   {'data': {'type': 'betaBuildLocalizations', 'attributes': {'locale': 'en-US', 'whatsNew': text},
+                             'relationships': {'build': {'data': {'type': 'builds', 'id': build_id}}}}})
+          print('Labeled build', os.environ['BUILD_NUMBER'], 'as', branch)
+          PY
+
+      # Surface the real errors as annotations, since the logs themselves are
+      # hard to read from a phone.
+      - name: Annotate errors
+        if: failure()
+        run: |
+          cat xcodebuild-archive.log xcodebuild-export.log 2>/dev/null | grep -E ": error: |^error: |fatal error: |\*\* (ARCHIVE|EXPORT) FAILED|Validation failed|SDK version|Undefined symbols|No profiles|No signing certificate|Provisioning profile|doesn't match|Bundle identifier" | head -n 20 | while IFS= read -r line; do
+            echo "::error::${line//%/%25}"
+          done
+
+      - name: Remove the API key
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/asc"
