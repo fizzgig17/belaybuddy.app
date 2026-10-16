@@ -1,0 +1,146 @@
+# Deploys the `notify` Edge Function (push + email notifications) and its
+# settings, and points the database at it.
+#   push to develop -> belaybuddy-dev
+#   push to master  -> belaybuddy-prod
+#
+# Uses the same secrets as supabase-migrations.yml, plus these optional ones.
+# Without them the function still runs; it just skips that channel.
+#
+#   Push (iOS) — developer.apple.com > Certificates, IDs & Profiles > Keys > +,
+#   tick "Apple Push Notifications service (APNs)", download the .p8 once:
+#     APNS_KEY_P8     full text of the .p8, including BEGIN/END lines
+#     APNS_KEY_ID     the key's 10-character Key ID
+#     APPLE_TEAM_ID   (already set for the iOS workflow)
+#
+#   Email — the same Spacemail mailbox Supabase Auth uses:
+#     SMTP_HOST       e.g. mail.spacemail.com
+#     SMTP_PORT       465 (SSL). Supabase Edge Functions can't use port 25 or 587.
+#     SMTP_USER       e.g. noreply@belaybuddy.app
+#     SMTP_PASS       that mailbox's password
+name: Supabase functions
+
+on:
+  push:
+    branches: [develop, master]
+    paths:
+      - 'supabase/functions/**'
+      - '.github/workflows/supabase-functions.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: supabase-functions-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.ref_name == 'develop' || github.ref_name == 'master'
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      DEV_DB_PASSWORD: ${{ secrets.DEV_DB_PASSWORD }}
+      DEV_PROJECT_ID: ${{ secrets.DEV_PROJECT_ID }}
+      PROD_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
+      PROD_PROJECT_ID: ${{ secrets.PROD_PROJECT_ID }}
+      TARGET: ${{ github.ref_name == 'master' && 'belaybuddy-prod' || 'belaybuddy-dev' }}
+      # Same pooler hosts as supabase-migrations.yml.
+      DEV_POOLER_HOST: aws-0-us-east-1.pooler.supabase.com
+      PROD_POOLER_HOST: aws-0-us-east-1.pooler.supabase.com
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pick ${{ env.TARGET }} settings
+        run: |
+          if [ "$TARGET" = belaybuddy-prod ]; then
+            PROJECT_ID="$PROD_PROJECT_ID"; DB_PASSWORD="$PROD_DB_PASSWORD"; POOLER_HOST="$PROD_POOLER_HOST"; SITE_URL=https://belaybuddy.app
+          else
+            PROJECT_ID="$DEV_PROJECT_ID"; DB_PASSWORD="$DEV_DB_PASSWORD"; POOLER_HOST="$DEV_POOLER_HOST"; SITE_URL=https://dev.belaybuddy.app
+          fi
+          token=$(printf '%s' "$SUPABASE_ACCESS_TOKEN" | tr -d '[:space:]')
+          echo "::add-mask::$token"
+          {
+            echo "SUPABASE_ACCESS_TOKEN=$token"
+            echo "PROJECT_ID=$PROJECT_ID"
+            echo "DB_PASSWORD<<__EOF__"
+            echo "$DB_PASSWORD"
+            echo "__EOF__"
+            echo "POOLER_HOST=$POOLER_HOST"
+            echo "SITE_URL=$SITE_URL"
+          } >> "$GITHUB_ENV"
+          if [ -z "$token" ] || [ -z "$PROJECT_ID" ] || [ -z "$DB_PASSWORD" ]; then
+            echo "::error::Missing SUPABASE_ACCESS_TOKEN, project id or db password for $TARGET"
+            exit 1
+          fi
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Deploy the notify function
+        run: supabase functions deploy notify --project-ref "$PROJECT_ID" --no-verify-jwt --use-api
+
+      # A fresh shared secret each deploy, given to both the function and the
+      # database (Vault), so only the database can trigger deliveries.
+      - name: Set function secrets
+        env:
+          APNS_KEY_P8: ${{ secrets.APNS_KEY_P8 }}
+          APNS_KEY_ID: ${{ secrets.APNS_KEY_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+        run: |
+          NOTIFY_SECRET=$(openssl rand -hex 32)
+          echo "::add-mask::$NOTIFY_SECRET"
+          echo "NOTIFY_SECRET=$NOTIFY_SECRET" >> "$GITHUB_ENV"
+          f="$RUNNER_TEMP/fn.env"
+          {
+            echo "NOTIFY_SECRET=$NOTIFY_SECRET"
+            echo "SITE_URL=$SITE_URL"
+            echo "APNS_BUNDLE_ID=app.belaybuddy.ios"
+          } > "$f"
+          if [ -n "$APNS_KEY_P8" ] && [ -n "$APNS_KEY_ID" ] && [ -n "$APPLE_TEAM_ID" ]; then
+            # One line; the function turns \n back into line breaks.
+            p8=$(printf '%s' "$APNS_KEY_P8" | tr -d '\r' | awk '{printf "%s\\n", $0}')
+            { echo "APNS_KEY_P8=\"$p8\""; echo "APNS_KEY_ID=$(printf '%s' "$APNS_KEY_ID" | tr -d '[:space:]')"; echo "APPLE_TEAM_ID=$APPLE_TEAM_ID"; } >> "$f"
+            echo "Push: on"
+          else
+            echo "::warning::Push notifications are off: add APNS_KEY_P8 and APNS_KEY_ID (see the top of this workflow)."
+          fi
+          if [ -n "$SMTP_HOST" ] && [ -n "$SMTP_USER" ] && [ -n "$SMTP_PASS" ]; then
+            port="${SMTP_PORT:-465}"
+            {
+              echo "SMTP_HOST=$SMTP_HOST"; echo "SMTP_PORT=$port"; echo "SMTP_USER=$SMTP_USER"
+              echo "SMTP_PASS=\"$(printf '%s' "$SMTP_PASS" | sed 's/["\\]/\\&/g')\""
+              echo "SMTP_FROM=\"Belay Buddy <$SMTP_USER>\""
+            } >> "$f"
+            echo "Email: on"
+          else
+            echo "::warning::Email notifications are off: add SMTP_HOST, SMTP_USER and SMTP_PASS (see the top of this workflow)."
+          fi
+          supabase secrets set --env-file "$f" --project-ref "$PROJECT_ID"
+          rm -f "$f"
+
+      - name: Point the database at the function
+        run: |
+          password=$(jq -rn --arg p "$DB_PASSWORD" '$p | @uri')
+          echo "::add-mask::$password"
+          psql "postgresql://postgres.$PROJECT_ID:$password@$POOLER_HOST:5432/postgres" -v ON_ERROR_STOP=1 \
+            -v url="https://$PROJECT_ID.supabase.co/functions/v1/notify" -v secret="$NOTIFY_SECRET" <<'SQL'
+          delete from vault.secrets where name in ('notify_url', 'notify_secret');
+          select vault.create_secret(:'url', 'notify_url');
+          select vault.create_secret(:'secret', 'notify_secret');
+          SQL
+          echo "Vault updated; deliveries go to the notify function."
+
+      - name: Check the function answers
+        # New secrets and a same-push migration can take a minute to land.
+        run: |
+          for i in $(seq 1 12); do
+            code=$(curl -s -o "$RUNNER_TEMP/out" -w '%{http_code}' -X POST "https://$PROJECT_ID.supabase.co/functions/v1/notify" -H "x-notify-secret: $NOTIFY_SECRET")
+            echo "Try $i: HTTP $code $(head -c 200 "$RUNNER_TEMP/out")"
+            [ "$code" = 200 ] && exit 0
+            sleep 10
+          done
+          echo "::error::notify didn't answer with HTTP 200"
+          exit 1

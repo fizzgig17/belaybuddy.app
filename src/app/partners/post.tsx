@@ -10,6 +10,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/lib/auth';
+import { enablePush, getPushStatus } from '@/lib/notifications';
 import {
   deletePost,
   fetchCards,
@@ -171,7 +172,17 @@ export default function PostScreen() {
               />
             </>
           ) : (
-            <Button title="I'm in" loading={busy} onPress={() => run(() => joinPost(post.id))} />
+            <Button
+              title="I'm in"
+              loading={busy}
+              onPress={() =>
+                run(async () => {
+                  await joinPost(post.id);
+                  // So they hear back: ask for notifications (iOS asks once).
+                  if ((await getPushStatus()) === 'off') await enablePush().catch(() => {});
+                })
+              }
+            />
           )}
           <ThemedText type="small" themeColor="textSecondary">
             “I'm in” lets {poster?.displayName || 'them'} know and opens a chat for this session. The chat closes

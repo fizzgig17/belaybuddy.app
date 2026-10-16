@@ -57,6 +57,12 @@
         {
           "faceIDPermission": "Belay Buddy uses Face ID to unlock the app when you've turned that on."
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "mode": "production"
+        }
       ]
     ],
     "experiments": {

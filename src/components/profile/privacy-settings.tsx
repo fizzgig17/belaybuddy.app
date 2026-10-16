@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Alert, Platform, StyleSheet, View } from 'react-native';
 
-import { SignInOptions } from '@/components/auth/sign-in-options';
 import { Button } from '@/components/form';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -58,9 +57,6 @@ export function PrivacySettings() {
   return (
     <View style={styles.container}>
       <ThemedText type="smallBold">Privacy & safety</ThemedText>
-      <ThemedView type="backgroundElement" style={styles.card}>
-        <SignInOptions />
-      </ThemedView>
       <ThemedView type="backgroundElement" style={styles.card}>
         <ThemedText type="smallBold">Blocked climbers</ThemedText>
         {blocked.length === 0 ? (

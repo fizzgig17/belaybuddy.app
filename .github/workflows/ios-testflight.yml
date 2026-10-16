@@ -149,6 +149,8 @@ jobs:
 
       - name: Install the signing certificate and profile
         env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           IOS_DIST_P12: ${{ secrets.IOS_DIST_P12 }}
           IOS_DIST_P12_PASSWORD: ${{ secrets.IOS_DIST_P12_PASSWORD }}
           IOS_PROFILE: ${{ secrets.IOS_PROFILE }}
@@ -191,12 +193,23 @@ jobs:
           fi
           rm -f "$RUNNER_TEMP/dist.p12"
 
-          if [ -z "$IOS_PROFILE" ]; then
+          # Make sure the App ID has Push Notifications and get a current App
+          # Store profile for it (recreated automatically when capabilities
+          # change). Falls back to the IOS_PROFILE secret if that fails.
+          SERIAL=$(security find-certificate -a -c "Apple Distribution" -p "$KC" | openssl x509 -noout -serial | cut -d= -f2)
+          echo "Certificate serial: $SERIAL"
+          if ASC_KEY_PATH="$RUNNER_TEMP/asc/AuthKey.p8" node .github/scripts/asc-profile.mjs "$BUNDLE_ID" "$SERIAL" "$RUNNER_TEMP/profile.mobileprovision"; then
+            echo "Using the profile from App Store Connect."
+          elif [ -n "$IOS_PROFILE" ]; then
+            echo "::warning::Couldn't get a profile from App Store Connect (see above); using IOS_PROFILE, which may lack Push Notifications."
+            printf '%s' "$IOS_PROFILE" | base64 --decode > "$RUNNER_TEMP/profile.mobileprovision"
+          else
             echo "Certificate installed; Xcode will fetch the App Store profile with the API key."
             echo "SIGN_MODE=cert" >> "$GITHUB_ENV"
             exit 0
           fi
-          printf '%s' "$IOS_PROFILE" | base64 --decode > "$RUNNER_TEMP/profile.mobileprovision"
+          ENT=$(security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" | plutil -extract Entitlements.aps-environment raw - 2>/dev/null || echo none)
+          echo "Profile aps-environment: $ENT"
           security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" > "$RUNNER_TEMP/profile.plist"
           PUUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/profile.plist")
           PNAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/profile.plist")

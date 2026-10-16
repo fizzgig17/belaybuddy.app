@@ -9,6 +9,7 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { slugToId } from '@/lib/areas';
 import { useAuth } from '@/lib/auth';
+import { enablePush, getPushStatus } from '@/lib/notifications';
 import { useHomeGyms } from '@/lib/home-gyms';
 import { createPost, formatWindow, GOAL_LABELS, POST_STYLE_LABELS } from '@/lib/partners';
 import type { BelayPost, SessionGoal } from '@/types/models';
@@ -119,6 +120,8 @@ export default function NewPostScreen() {
         mentoring,
         note,
       });
+      // So they hear when someone's in: ask for notifications (iOS asks once).
+      if ((await getPushStatus()) === 'off') await enablePush().catch(() => {});
       router.replace({ pathname: '/partners/post', params: { id: post.id } });
     } catch (e) {
       setError((e as Error).message);

@@ -183,7 +183,7 @@ export function ToggleRow({
       <ThemedText type="small" style={styles.toggleLabel}>
         {label}
       </ThemedText>
-      <Switch value={value} onValueChange={onValueChange} trackColor={{ true: theme.accent }} />
+      <Switch value={value} onValueChange={onValueChange} trackColor={{ true: theme.accent, false: theme.backgroundSelected }} />
     </View>
   );
 }

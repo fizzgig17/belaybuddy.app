@@ -1,6 +1,7 @@
 import type { Session, User } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
+import { unregisterPushToken } from '@/lib/notifications';
 import { supabase } from '@/lib/supabase';
 
 type AuthState = {
@@ -33,6 +34,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
+}
+
+/** Signs out after stopping push notifications to this device. */
+export async function signOut() {
+  await unregisterPushToken();
+  await supabase.auth.signOut();
 }
 
 export function useAuth() {

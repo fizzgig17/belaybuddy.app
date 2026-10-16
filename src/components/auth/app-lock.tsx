@@ -8,10 +8,9 @@ import { ThemedView } from '@/components/themed-view';
 import { Icons } from '@/constants/icons';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { useAuth } from '@/lib/auth';
+import { signOut, useAuth } from '@/lib/auth';
 import { biometricLabel, confirmWithBiometrics } from '@/lib/biometrics';
 import { getBiometricLock } from '@/lib/session-prefs';
-import { supabase } from '@/lib/supabase';
 
 /** Ask again after the app has been in the background this long. */
 const GRACE_MS = 60_000;
@@ -85,7 +84,7 @@ export function AppLock() {
       </View>
       <View style={styles.buttons}>
         <Button title={`Unlock with ${label}`} onPress={unlock} />
-        <Button title="Sign out" variant="secondary" onPress={() => supabase.auth.signOut()} />
+        <Button title="Sign out" variant="secondary" onPress={signOut} />
       </View>
     </ThemedView>
   );
