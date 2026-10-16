@@ -1,14 +1,16 @@
-import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { useState } from "react";
+import { StyleSheet, View } from "react-native";
 
-import { Button, Field } from '@/components/form';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
-import { supabase } from '@/lib/supabase';
+import { Button, Field } from "@/components/form";
+import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
+import { Spacing } from "@/constants/theme";
+import { useTheme } from "@/hooks/use-theme";
+import { supabase } from "@/lib/supabase";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/** Matches otp_length in supabase/config.toml and the hosted projects. */
+const CODE_LENGTH = 6;
 
 /**
  * Passwordless email sign-in: we email a one-time code, the user types it in.
@@ -17,9 +19,9 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  */
 export function SignIn() {
   const theme = useTheme();
-  const [email, setEmail] = useState('');
-  const [code, setCode] = useState('');
-  const [step, setStep] = useState<'email' | 'code'>('email');
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [step, setStep] = useState<"email" | "code">("email");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,26 +40,35 @@ export function SignIn() {
       setError(sendError.message);
       return;
     }
-    setCode('');
-    setStep('code');
+    setCode("");
+    setStep("code");
   }
 
-  async function verifyCode() {
+  async function verifyCode(token = code) {
+    if (busy || !/^\d{6,10}$/.test(token)) return;
     setBusy(true);
     setError(null);
     const { error: verifyError } = await supabase.auth.verifyOtp({
       email: email.trim(),
-      token: code.trim(),
-      type: 'email',
+      token,
+      type: "email",
     });
     setBusy(false);
     // On success the auth listener swaps this screen for the profile.
     if (verifyError) setError(verifyError.message);
   }
 
+  // Digits only; sign in as soon as the full code is typed or autofilled,
+  // so there's no second tap needed.
+  function onCodeChange(text: string) {
+    const digits = text.replace(/\D/g, "").slice(0, CODE_LENGTH);
+    setCode(digits);
+    if (digits.length === CODE_LENGTH) verifyCode(digits);
+  }
+
   return (
     <View style={styles.container}>
-      {step === 'email' ? (
+      {step === "email" ? (
         <>
           <Field
             label="Email"
@@ -71,7 +82,12 @@ export function SignIn() {
             returnKeyType="send"
             onSubmitEditing={() => emailValid && sendCode()}
           />
-          <Button title="Email me a sign-in code" onPress={sendCode} disabled={!emailValid} loading={busy} />
+          <Button
+            title="Email me a sign-in code"
+            onPress={sendCode}
+            disabled={!emailValid}
+            loading={busy}
+          />
         </>
       ) : (
         <>
@@ -82,22 +98,32 @@ export function SignIn() {
             label="Code"
             placeholder="123456"
             value={code}
-            onChangeText={setCode}
+            onChangeText={onCodeChange}
             keyboardType="number-pad"
             autoComplete="one-time-code"
             textContentType="oneTimeCode"
-            maxLength={10}
-            returnKeyType="done"
-            onSubmitEditing={() => codeValid && verifyCode()}
+            maxLength={CODE_LENGTH}
+            returnKeyType="go"
+            onSubmitEditing={() => verifyCode()}
           />
-          <Button title="Sign in" onPress={verifyCode} disabled={!codeValid} loading={busy} />
+          <Button
+            title="Sign in"
+            onPress={() => verifyCode()}
+            disabled={!codeValid}
+            loading={busy}
+          />
           <View style={styles.row}>
-            <Button title="Resend code" variant="secondary" onPress={sendCode} disabled={busy} />
+            <Button
+              title="Resend code"
+              variant="secondary"
+              onPress={sendCode}
+              disabled={busy}
+            />
             <Button
               title="Use another email"
               variant="secondary"
               onPress={() => {
-                setStep('email');
+                setStep("email");
                 setError(null);
               }}
               disabled={busy}
@@ -107,15 +133,22 @@ export function SignIn() {
       )}
 
       {error && (
-        <ThemedText type="small" style={{ color: theme.accent }} accessibilityLiveRegion="polite">
+        <ThemedText
+          type="small"
+          style={{ color: theme.accent }}
+          accessibilityLiveRegion="polite"
+        >
           {error}
         </ThemedText>
       )}
 
       <ThemedView type="backgroundElement" style={styles.providers}>
-        <ThemedText type="smallBold">Sign in with Apple, Google or Facebook</ThemedText>
+        <ThemedText type="smallBold">
+          Sign in with Apple, Google or Facebook
+        </ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
-          Coming soon. Each provider is switched on once its developer account is set up.
+          Coming soon. Each provider is switched on once its developer account
+          is set up.
         </ThemedText>
       </ThemedView>
     </View>
@@ -124,6 +157,10 @@ export function SignIn() {
 
 const styles = StyleSheet.create({
   container: { gap: Spacing.three },
-  row: { flexDirection: 'row', gap: Spacing.two, flexWrap: 'wrap' },
-  providers: { gap: Spacing.two, padding: Spacing.three, borderRadius: Spacing.three },
+  row: { flexDirection: "row", gap: Spacing.two, flexWrap: "wrap" },
+  providers: {
+    gap: Spacing.two,
+    padding: Spacing.three,
+    borderRadius: Spacing.three,
+  },
 });

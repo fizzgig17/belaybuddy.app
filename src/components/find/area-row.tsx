@@ -1,41 +1,49 @@
-import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { router } from "expo-router";
+import { SymbolView } from "expo-symbols";
+import { Pressable, StyleSheet, View } from "react-native";
 
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Icons } from '@/constants/icons';
-import { HoldColors, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
-import { areaSlug } from '@/lib/areas';
-import { formatDistance } from '@/lib/geo';
-import type { ClimbingArea } from '@/types/models';
+import { ThemedText } from "@/components/themed-text";
+import { ThemedView } from "@/components/themed-view";
+import { Icons } from "@/constants/icons";
+import { HoldColors, Spacing } from "@/constants/theme";
+import { useTheme } from "@/hooks/use-theme";
+import { areaSlug } from "@/lib/areas";
+import { formatDistance } from "@/lib/geo";
+import type { ClimbingArea } from "@/types/models";
 
 type Props = {
   area: ClimbingArea;
   distanceKm?: number;
   favorite: boolean;
-  onToggleFavorite: () => void;
+  /** Omit when signed out: the star is hidden. */
+  onToggleFavorite?: () => void;
 };
 
 function describe(area: ClimbingArea): string {
-  if (area.kind === 'gym') {
+  if (area.kind === "gym") {
     const kind =
-      area.styles.length === 1 && area.styles[0] === 'bouldering' ? 'Bouldering gym' : 'Climbing gym';
+      area.styles.length === 1 && area.styles[0] === "bouldering"
+        ? "Bouldering gym"
+        : "Climbing gym";
     return area.address ? `${kind}, ${area.address}` : kind;
   }
-  const what = area.styles.includes('bouldering') ? 'problems' : 'routes';
+  const what = area.styles.includes("bouldering") ? "problems" : "routes";
   const count = area.climbCount
     ? `${area.climbCount} ${area.climbCount === 1 ? what.slice(0, -1) : what}`
-    : 'Crag';
+    : "Crag";
   return area.region ? `${count} in ${area.region}` : count;
 }
 
 /** One gym or crag in a list. Tapping opens its detail screen. */
-export function AreaRow({ area, distanceKm, favorite, onToggleFavorite }: Props) {
+export function AreaRow({
+  area,
+  distanceKm,
+  favorite,
+  onToggleFavorite,
+}: Props) {
   const theme = useTheme();
   // Gyms and crags get their own hold color so the list scans at a glance.
-  const tint = area.kind === 'gym' ? HoldColors.purple : HoldColors.green;
+  const tint = area.kind === "gym" ? HoldColors.purple : HoldColors.green;
 
   return (
     <ThemedView type="backgroundElement" style={styles.row}>
@@ -45,13 +53,18 @@ export function AreaRow({ area, distanceKm, favorite, onToggleFavorite }: Props)
         accessibilityRole="link"
         onPress={() =>
           router.push({
-            pathname: '/area/[id]',
+            pathname: "/area/[id]",
             params: { id: areaSlug(area.id) },
           })
         }
-        style={({ pressed }) => [styles.main, pressed && styles.pressed]}>
+        style={({ pressed }) => [styles.main, pressed && styles.pressed]}
+      >
         <View style={[styles.badge, { backgroundColor: `${tint}26` }]}>
-          <SymbolView name={area.kind === 'gym' ? Icons.gym : Icons.crag} size={20} tintColor={tint} />
+          <SymbolView
+            name={area.kind === "gym" ? Icons.gym : Icons.crag}
+            size={20}
+            tintColor={tint}
+          />
         </View>
         <View style={styles.body}>
           <View style={styles.titleRow}>
@@ -70,37 +83,42 @@ export function AreaRow({ area, distanceKm, favorite, onToggleFavorite }: Props)
         </View>
       </Pressable>
 
-      <Pressable
-        onPress={onToggleFavorite}
-        hitSlop={10}
-        accessibilityRole="button"
-        accessibilityLabel={
-          favorite ? `Remove ${area.name} from favorites` : `Save ${area.name} to favorites`
-        }
-        accessibilityState={{ selected: favorite }}
-        style={({ pressed }) => [styles.star, pressed && styles.pressed]}>
-        <SymbolView
-          name={favorite ? Icons.favoriteOn : Icons.favorite}
-          size={22}
-          tintColor={favorite ? HoldColors.yellow : theme.textSecondary}
-        />
-      </Pressable>
+      {onToggleFavorite && (
+        <Pressable
+          onPress={onToggleFavorite}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel={
+            favorite
+              ? `Remove ${area.name} from favorites`
+              : `Save ${area.name} to favorites`
+          }
+          accessibilityState={{ selected: favorite }}
+          style={({ pressed }) => [styles.star, pressed && styles.pressed]}
+        >
+          <SymbolView
+            name={favorite ? Icons.favoriteOn : Icons.favorite}
+            size={22}
+            tintColor={favorite ? HoldColors.yellow : theme.textSecondary}
+          />
+        </Pressable>
+      )}
     </ThemedView>
   );
 }
 
 const styles = StyleSheet.create({
   row: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingLeft: Spacing.three,
-    paddingRight: Spacing.two,
+    paddingRight: Spacing.three,
     borderRadius: Spacing.three,
   },
   main: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: Spacing.three,
     paddingVertical: Spacing.three,
   },
@@ -108,11 +126,11 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   body: { flex: 1, gap: Spacing.half },
-  titleRow: { flexDirection: 'row', alignItems: 'baseline', gap: Spacing.two },
+  titleRow: { flexDirection: "row", alignItems: "baseline", gap: Spacing.two },
   name: { flex: 1 },
   star: { padding: Spacing.two },
   pressed: { opacity: 0.6 },
