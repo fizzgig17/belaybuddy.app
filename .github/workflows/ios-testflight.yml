@@ -198,10 +198,11 @@ jobs:
           # change). Falls back to the IOS_PROFILE secret if that fails.
           SERIAL=$(security find-certificate -a -c "Apple Distribution" -p "$KC" | openssl x509 -noout -serial | cut -d= -f2)
           echo "Certificate serial: $SERIAL"
-          if ASC_KEY_PATH="$RUNNER_TEMP/asc/AuthKey.p8" node .github/scripts/asc-profile.mjs "$BUNDLE_ID" "$SERIAL" "$RUNNER_TEMP/profile.mobileprovision"; then
+          if ASC_KEY_PATH="$RUNNER_TEMP/asc/AuthKey.p8" node .github/scripts/asc-profile.mjs "$BUNDLE_ID" "$SERIAL" "$RUNNER_TEMP/profile.mobileprovision" 2>&1 | tee "$RUNNER_TEMP/asc-profile.log"; [ "${PIPESTATUS[0]}" = 0 ]; then
             echo "Using the profile from App Store Connect."
+            echo "::notice::Profile script: $(tr '\n' ' ' < "$RUNNER_TEMP/asc-profile.log" | head -c 500)"
           elif [ -n "$IOS_PROFILE" ]; then
-            echo "::warning::Couldn't get a profile from App Store Connect (see above); using IOS_PROFILE, which may lack Push Notifications."
+            echo "::warning::Couldn't get a profile from App Store Connect: $(grep -v '^ *at ' "$RUNNER_TEMP/asc-profile.log" | tr '\n' ' ' | head -c 700). Using IOS_PROFILE, which may lack Push Notifications or this certificate."
             printf '%s' "$IOS_PROFILE" | base64 --decode > "$RUNNER_TEMP/profile.mobileprovision"
           else
             echo "Certificate installed; Xcode will fetch the App Store profile with the API key."
