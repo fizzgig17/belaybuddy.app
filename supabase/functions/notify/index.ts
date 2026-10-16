@@ -159,6 +159,8 @@ async function sendEmail(to: string, msg: { title: string; body: string; path: s
   await transport.sendMail({
     from: env('SMTP_FROM') ?? `Belay Buddy <${env('SMTP_USER')}>`,
     to,
+    // Replies go to a monitored mailbox, not the no-reply sender.
+    replyTo: env('SMTP_REPLY_TO') ?? 'support@belaybuddy.app',
     subject,
     text: `${msg.title}\n\n${msg.body}\n\n${action}: ${open}\n\nChange which emails you get: ${settings}`,
     html: `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:480px;color:#1F2D35">
