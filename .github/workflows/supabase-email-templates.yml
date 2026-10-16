@@ -1,5 +1,6 @@
-# Pushes the auth email templates in supabase/templates/ to Supabase through
-# the Management API, so they never have to be edited in the dashboard.
+# Pushes the auth email templates in supabase/templates/ and the sign-in code
+# length to Supabase through the Management API, so they never have to be
+# edited in the dashboard.
 #   push to develop -> belaybuddy-dev
 #   push to master  -> belaybuddy-prod
 #
@@ -62,6 +63,7 @@ jobs:
             --arg ms "$(jq -r .magic_link supabase/templates/subjects.json)" \
             --rawfile mc supabase/templates/magic_link.html \
             '{
+              mailer_otp_length: 6,
               mailer_subjects_confirmation: $cs,
               mailer_templates_confirmation_content: $cc,
               mailer_subjects_magic_link: $ms,
@@ -69,7 +71,7 @@ jobs:
             }' > body.json
           jq 'with_entries(.value |= (.[0:60] + "…"))' body.json
 
-      - name: Update templates on ${{ env.TARGET }}
+      - name: Update templates and code length on ${{ env.TARGET }}
         run: |
           status=$(curl -sS -o response.json -w '%{http_code}' -X PATCH \
             "https://api.supabase.com/v1/projects/$PROJECT_ID/config/auth" \
@@ -81,4 +83,4 @@ jobs:
             echo "::error::Supabase returned HTTP $status: $detail"
             exit 1
           fi
-          echo "Templates updated on $TARGET (HTTP $status)"
+          echo "Templates and 6-digit codes set on $TARGET (HTTP $status)"
