@@ -57,7 +57,7 @@ const bundle = ids.data.find((b) => b.attributes.identifier === bundleIdentifier
 if (!bundle) throw new Error(`No App ID ${bundleIdentifier} in this team`);
 
 // 2. Capabilities
-const caps = await api('GET', `/bundleIds/${bundle.id}/bundleIdCapabilities?limit=200`);
+const caps = await api('GET', `/bundleIds/${bundle.id}/bundleIdCapabilities`);
 const have = new Set(caps.data.map((c) => c.attributes.capabilityType));
 let changed = false;
 for (const cap of CAPABILITIES) {
