@@ -69,7 +69,7 @@ jobs:
               mailer_subjects_magic_link: $ms,
               mailer_templates_magic_link_content: $mc
             }' > body.json
-          jq 'with_entries(.value |= (.[0:60] + "…"))' body.json
+          jq 'with_entries(.value |= (if type == "string" then .[0:60] + "…" else . end))' body.json
 
       - name: Update templates and code length on ${{ env.TARGET }}
         run: |
