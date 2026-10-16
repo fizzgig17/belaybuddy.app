@@ -1,4 +1,4 @@
-import { Link } from 'expo-router';
+import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, View } from 'react-native';
 
@@ -20,11 +20,14 @@ type Props = {
 
 function describe(area: ClimbingArea): string {
   if (area.kind === 'gym') {
-    const kind = area.styles.length === 1 && area.styles[0] === 'bouldering' ? 'Bouldering gym' : 'Climbing gym';
+    const kind =
+      area.styles.length === 1 && area.styles[0] === 'bouldering' ? 'Bouldering gym' : 'Climbing gym';
     return area.address ? `${kind}, ${area.address}` : kind;
   }
   const what = area.styles.includes('bouldering') ? 'problems' : 'routes';
-  const count = area.climbCount ? `${area.climbCount} ${area.climbCount === 1 ? what.slice(0, -1) : what}` : 'Crag';
+  const count = area.climbCount
+    ? `${area.climbCount} ${area.climbCount === 1 ? what.slice(0, -1) : what}`
+    : 'Crag';
   return area.region ? `${count} in ${area.region}` : count;
 }
 
@@ -36,34 +39,44 @@ export function AreaRow({ area, distanceKm, favorite, onToggleFavorite }: Props)
 
   return (
     <ThemedView type="backgroundElement" style={styles.row}>
-      <Link href={{ pathname: '/area/[id]', params: { id: areaSlug(area.id) } }} asChild>
-        <Pressable accessibilityRole="link" style={({ pressed }) => [styles.main, pressed && styles.pressed]}>
-          <View style={[styles.badge, { backgroundColor: `${tint}26` }]}>
-            <SymbolView name={area.kind === 'gym' ? Icons.gym : Icons.crag} size={20} tintColor={tint} />
-          </View>
-          <View style={styles.body}>
-            <View style={styles.titleRow}>
-              <ThemedText type="smallBold" style={styles.name} numberOfLines={2}>
-                {area.name}
-              </ThemedText>
-              {distanceKm != null && (
-                <ThemedText type="small" themeColor="textSecondary">
-                  {formatDistance(distanceKm)}
-                </ThemedText>
-              )}
-            </View>
-            <ThemedText type="small" themeColor="textSecondary" numberOfLines={2}>
-              {describe(area)}
+      {/* Plain Pressable + router.push: Link asChild drops function styles,
+          which collapsed this row's layout. */}
+      <Pressable
+        accessibilityRole="link"
+        onPress={() =>
+          router.push({
+            pathname: '/area/[id]',
+            params: { id: areaSlug(area.id) },
+          })
+        }
+        style={({ pressed }) => [styles.main, pressed && styles.pressed]}>
+        <View style={[styles.badge, { backgroundColor: `${tint}26` }]}>
+          <SymbolView name={area.kind === 'gym' ? Icons.gym : Icons.crag} size={20} tintColor={tint} />
+        </View>
+        <View style={styles.body}>
+          <View style={styles.titleRow}>
+            <ThemedText type="smallBold" style={styles.name} numberOfLines={2}>
+              {area.name}
             </ThemedText>
+            {distanceKm != null && (
+              <ThemedText type="small" themeColor="textSecondary">
+                {formatDistance(distanceKm)}
+              </ThemedText>
+            )}
           </View>
-        </Pressable>
-      </Link>
+          <ThemedText type="small" themeColor="textSecondary" numberOfLines={2}>
+            {describe(area)}
+          </ThemedText>
+        </View>
+      </Pressable>
 
       <Pressable
         onPress={onToggleFavorite}
         hitSlop={10}
         accessibilityRole="button"
-        accessibilityLabel={favorite ? `Remove ${area.name} from favorites` : `Save ${area.name} to favorites`}
+        accessibilityLabel={
+          favorite ? `Remove ${area.name} from favorites` : `Save ${area.name} to favorites`
+        }
         accessibilityState={{ selected: favorite }}
         style={({ pressed }) => [styles.star, pressed && styles.pressed]}>
         <SymbolView
@@ -84,8 +97,20 @@ const styles = StyleSheet.create({
     paddingRight: Spacing.two,
     borderRadius: Spacing.three,
   },
-  main: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.three },
-  badge: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  main: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.three,
+    paddingVertical: Spacing.three,
+  },
+  badge: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   body: { flex: 1, gap: Spacing.half },
   titleRow: { flexDirection: 'row', alignItems: 'baseline', gap: Spacing.two },
   name: { flex: 1 },
