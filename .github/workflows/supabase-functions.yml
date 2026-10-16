@@ -3,7 +3,9 @@
 #   push to develop -> belaybuddy-dev
 #   push to master  -> belaybuddy-prod
 #
-# Uses the same secrets as supabase-migrations.yml, plus these optional ones.
+# Uses the same secrets as supabase-migrations.yml. SUPABASE_ACCESS_TOKEN also
+# needs the "Edge Functions" read and write permissions (supabase.com/dashboard/
+# account/tokens > a token with fine-grained access). Plus these optional secrets.
 # Without them the function still runs; it just skips that channel.
 #
 #   Push (iOS) — developer.apple.com > Certificates, IDs & Profiles > Keys > +,
@@ -77,6 +79,7 @@ jobs:
 
       - name: Deploy the notify function
         run: |
+          set -o pipefail
           if ! supabase functions deploy notify --project-ref "$PROJECT_ID" --no-verify-jwt --use-api 2>&1 | tee "$RUNNER_TEMP/deploy.log"; then
             echo "::error::Deploy failed: $(tail -n 5 "$RUNNER_TEMP/deploy.log" | tr '\n' ' ' | head -c 600)"
             exit 1
@@ -97,6 +100,7 @@ jobs:
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
         run: |
+          set -o pipefail
           NOTIFY_SECRET=$(openssl rand -hex 32)
           echo "::add-mask::$NOTIFY_SECRET"
           echo "NOTIFY_SECRET=$NOTIFY_SECRET" >> "$GITHUB_ENV"
