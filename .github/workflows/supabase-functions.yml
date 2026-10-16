@@ -76,7 +76,11 @@ jobs:
           version: latest
 
       - name: Deploy the notify function
-        run: supabase functions deploy notify --project-ref "$PROJECT_ID" --no-verify-jwt --use-api
+        run: |
+          if ! supabase functions deploy notify --project-ref "$PROJECT_ID" --no-verify-jwt --use-api 2>&1 | tee "$RUNNER_TEMP/deploy.log"; then
+            echo "::error::Deploy failed: $(tail -n 5 "$RUNNER_TEMP/deploy.log" | tr '\n' ' ' | head -c 600)"
+            exit 1
+          fi
 
       # A fresh shared secret each deploy, given to both the function and the
       # database (Vault), so only the database can trigger deliveries.
