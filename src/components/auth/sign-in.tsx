@@ -1,22 +1,39 @@
-import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, AppState, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { SignInOptions } from '@/components/auth/sign-in-options';
 import { Button, Field } from '@/components/form';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { supabase } from '@/lib/supabase';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-/** Matches otp_length in supabase/config.toml and the hosted projects. */
+/** Matches mailer_otp_length set by the email-templates workflow. */
 const CODE_LENGTH = 6;
+/** Supabase allows one code email per minute per address. */
+const RESEND_SECONDS = 60;
+const LAST_EMAIL_KEY = 'bb.lastEmail';
+
+function loadLastEmail(): string {
+  try {
+    return localStorage.getItem(LAST_EMAIL_KEY) ?? '';
+  } catch {
+    return '';
+  }
+}
+
+/** Plain-language versions of the errors people actually hit. */
+function friendly(message: string): string {
+  if (/expired|invalid/i.test(message)) return "That code didn't work. Check the newest email, or send a new code.";
+  if (/rate|seconds|security purposes/i.test(message)) return 'Please wait a minute before asking for another code.';
+  return message;
+}
 
 /**
- * Passwordless email sign-in: we email a one-time code, the user types it in.
- * The same flow creates the account on first use. No deep links required, so
- * it works the same on iOS, Android and the web.
+ * Passwordless email sign-in: we email a 6-digit code, the user types it in
+ * (or iOS fills it from Mail). The same flow creates the account on first use.
  */
 export function SignIn() {
   const theme = useTheme();
@@ -25,11 +42,42 @@ export function SignIn() {
   const [step, setStep] = useState<'email' | 'code'>('email');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resendIn, setResendIn] = useState(0);
+  const codeInput = useRef<TextInput>(null);
+  const [canPaste, setCanPaste] = useState(false);
+
+  // Offer "Paste code" when something's been copied, e.g. after copying the
+  // code in Gmail and switching back. Checking doesn't trigger iOS's paste
+  // prompt; only reading it (on tap) does.
+  useEffect(() => {
+    if (step !== 'code' || process.env.EXPO_OS === 'web') return;
+    const check = () => Clipboard.hasStringAsync().then(setCanPaste).catch(() => setCanPaste(false));
+    check();
+    const sub = AppState.addEventListener('change', (s) => s === 'active' && check());
+    return () => sub.remove();
+  }, [step]);
+
+  async function pasteCode() {
+    const text = await Clipboard.getStringAsync().catch(() => '');
+    const digits = /\d{6}/.exec(text.replace(/\s/g, ''))?.[0];
+    if (digits) onCodeChange(digits);
+    else setError("The copied text doesn't contain a 6-digit code.");
+  }
+
+  // Prefill the last email used on this device (after mount, for the website).
+  useEffect(() => setEmail(loadLastEmail()), []);
+
+  // Resend countdown.
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const t = setTimeout(() => setResendIn(resendIn - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendIn]);
 
   const emailValid = EMAIL_PATTERN.test(email.trim());
-  const codeValid = /^\d{6,10}$/.test(code.trim());
 
   async function sendCode() {
+    if (!emailValid || busy) return;
     setBusy(true);
     setError(null);
     const { error: sendError } = await supabase.auth.signInWithOtp({
@@ -38,105 +86,169 @@ export function SignIn() {
     });
     setBusy(false);
     if (sendError) {
-      setError(sendError.message);
+      setError(friendly(sendError.message));
       return;
+    }
+    try {
+      localStorage.setItem(LAST_EMAIL_KEY, email.trim());
+    } catch {
+      // Not important.
     }
     setCode('');
     setStep('code');
+    setResendIn(RESEND_SECONDS);
   }
 
-  async function verifyCode(token = code) {
-    if (busy || !/^\d{6,10}$/.test(token)) return;
+  async function verifyCode(token: string) {
+    if (busy || token.length !== CODE_LENGTH) return;
     setBusy(true);
     setError(null);
-    const { error: verifyError } = await supabase.auth.verifyOtp({
-      email: email.trim(),
-      token,
-      type: 'email',
-    });
-    setBusy(false);
-    // On success the auth listener swaps this screen for the profile.
-    if (verifyError) setError(verifyError.message);
+    const { error: verifyError } = await supabase.auth.verifyOtp({ email: email.trim(), token, type: 'email' });
+    // On success the auth listener swaps this screen out.
+    if (verifyError) {
+      setBusy(false);
+      setError(friendly(verifyError.message));
+      setCode('');
+      codeInput.current?.focus();
+    }
   }
 
-  // Digits only; sign in as soon as the full code is typed or autofilled,
-  // so there's no second tap needed.
   function onCodeChange(text: string) {
     const digits = text.replace(/\D/g, '').slice(0, CODE_LENGTH);
     setCode(digits);
+    setError(null);
     if (digits.length === CODE_LENGTH) verifyCode(digits);
+  }
+
+  if (step === 'email') {
+    return (
+      <View style={styles.container}>
+        <Field
+          label="Email"
+          placeholder="you@example.com"
+          value={email}
+          onChangeText={(v) => {
+            setEmail(v);
+            setError(null);
+          }}
+          autoFocus={!email}
+          autoCapitalize="none"
+          autoCorrect={false}
+          autoComplete="email"
+          keyboardType="email-address"
+          textContentType="emailAddress"
+          returnKeyType="send"
+          onSubmitEditing={sendCode}
+        />
+        <Button title="Continue" onPress={sendCode} disabled={!emailValid} loading={busy} />
+        {error && <ErrorText text={error} />}
+        <ThemedText type="small" themeColor="textSecondary">
+          We'll email you a 6-digit code. No password needed. New here? This creates your account.
+        </ThemedText>
+        <SignInOptions />
+      </View>
+    );
   }
 
   return (
     <View style={styles.container}>
-      {step === 'email' ? (
-        <>
-          <Field
-            label="Email"
-            placeholder="you@example.com"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            autoComplete="email"
-            keyboardType="email-address"
-            textContentType="emailAddress"
-            returnKeyType="send"
-            onSubmitEditing={() => emailValid && sendCode()}
-          />
-          <SignInOptions />
-          <Button title="Email me a sign-in code" onPress={sendCode} disabled={!emailValid} loading={busy} />
-        </>
-      ) : (
-        <>
-          <ThemedText type="small" themeColor="textSecondary">
-            We sent a code to {email.trim()}. It expires in an hour.
-          </ThemedText>
-          <Field
-            label="Code"
-            placeholder="123456"
-            value={code}
-            onChangeText={onCodeChange}
-            keyboardType="number-pad"
-            autoComplete="one-time-code"
-            textContentType="oneTimeCode"
-            maxLength={CODE_LENGTH}
-            returnKeyType="go"
-            onSubmitEditing={() => verifyCode()}
-          />
-          <Button title="Sign in" onPress={() => verifyCode()} disabled={!codeValid} loading={busy} />
-          <View style={styles.row}>
-            <Button title="Resend code" variant="secondary" onPress={sendCode} disabled={busy} />
-            <Button
-              title="Use another email"
-              variant="secondary"
-              onPress={() => {
-                setStep('email');
-                setError(null);
-              }}
-              disabled={busy}
-            />
-          </View>
-        </>
-      )}
-
-      {error && (
-        <ThemedText type="small" style={{ color: theme.accent }} accessibilityLiveRegion="polite">
-          {error}
-        </ThemedText>
-      )}
-
-      <ThemedView type="backgroundElement" style={styles.providers}>
-        <ThemedText type="smallBold">Sign in with Apple, Google or Facebook</ThemedText>
+      <View style={styles.gap1}>
+        <ThemedText type="smallBold">Enter the code we emailed you</ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
-          Coming soon. Each provider is switched on once its developer account is set up.
+          Sent to {email.trim()}.{' '}
+          <ThemedText
+            type="small"
+            style={{ color: theme.accent }}
+            onPress={() => {
+              setStep('email');
+              setError(null);
+            }}>
+            Change
+          </ThemedText>
         </ThemedText>
-      </ThemedView>
+      </View>
+
+      {/* One real input (for typing, pasting and iOS autofill) drawn as six boxes. */}
+      <Pressable onPress={() => codeInput.current?.focus()} accessibilityLabel="Sign-in code" style={styles.boxes}>
+        {Array.from({ length: CODE_LENGTH }, (_, i) => {
+          const active = i === code.length && !busy;
+          return (
+            <View
+              key={i}
+              style={[
+                styles.box,
+                { backgroundColor: theme.backgroundElement, borderColor: active ? theme.accent : 'transparent' },
+              ]}>
+              <ThemedText type="subtitle">{code[i] ?? ''}</ThemedText>
+            </View>
+          );
+        })}
+        <TextInput
+          ref={codeInput}
+          value={code}
+          onChangeText={onCodeChange}
+          autoFocus
+          editable={!busy}
+          keyboardType="number-pad"
+          autoComplete="one-time-code"
+          textContentType="oneTimeCode"
+          maxLength={CODE_LENGTH}
+          caretHidden
+          style={styles.hiddenInput}
+        />
+      </Pressable>
+
+      {canPaste && !busy && code.length < CODE_LENGTH && (
+        <Button title="Paste code" onPress={pasteCode} />
+      )}
+
+      {busy ? (
+        <View style={styles.signingIn}>
+          <ActivityIndicator />
+          <ThemedText type="small" themeColor="textSecondary">
+            Signing in…
+          </ThemedText>
+        </View>
+      ) : (
+        error && <ErrorText text={error} />
+      )}
+
+      <Button
+        title={resendIn > 0 ? `Send a new code in ${resendIn}s` : 'Send a new code'}
+        variant="secondary"
+        onPress={sendCode}
+        disabled={busy || resendIn > 0}
+      />
+      <ThemedText type="small" themeColor="textSecondary">
+        Can't find it? Check spam for an email from Belay Buddy. The code works for an hour.
+      </ThemedText>
     </View>
+  );
+}
+
+function ErrorText({ text }: { text: string }) {
+  const theme = useTheme();
+  return (
+    <ThemedText type="small" style={{ color: theme.accent }} accessibilityLiveRegion="polite">
+      {text}
+    </ThemedText>
   );
 }
 
 const styles = StyleSheet.create({
   container: { gap: Spacing.three },
-  row: { flexDirection: 'row', gap: Spacing.two, flexWrap: 'wrap' },
-  providers: { gap: Spacing.two, padding: Spacing.three, borderRadius: Spacing.three },
+  gap1: { gap: Spacing.one },
+  boxes: { flexDirection: 'row', gap: Spacing.two, justifyContent: 'space-between' },
+  box: {
+    flex: 1,
+    maxWidth: 56,
+    aspectRatio: 0.85,
+    borderRadius: Spacing.two,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // Covers the boxes so taps, long-press paste and autofill all reach it.
+  hiddenInput: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0.02, color: 'transparent', fontSize: 1 },
+  signingIn: { flexDirection: 'row', gap: Spacing.two, alignItems: 'center' },
 });

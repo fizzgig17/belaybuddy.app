@@ -14,28 +14,41 @@ import { areaSlug, slugToId } from '@/lib/areas';
 import { useAuth } from '@/lib/auth';
 import { useHomeGyms } from '@/lib/home-gyms';
 import { fetchBoard, fetchCards, fetchJoinedPosts, fetchMyPosts, fetchResponders } from '@/lib/partners';
-import type { BelayPost, ClimberCard } from '@/types/models';
+import type { BelayPost, ClimberCard, ClimbingArea } from '@/types/models';
 
-type Gym = { areaId: string; name: string };
+type Gym = { areaId: string; name: string; latitude?: number; longitude?: number };
+const ALL = 'all';
 
 export default function PartnersScreen() {
   const { user, loading: authLoading } = useAuth();
-  const { homeGyms, loading: gymsLoading } = useHomeGyms();
-  // /partners?gym=osm-way-123&name=… opens another gym's board (e.g. when traveling).
-  const params = useLocalSearchParams<{ gym?: string; name?: string }>();
-  const visiting = useMemo<Gym | null>(() => {
+  const homeGyms = useHomeGyms();
+  // /partners?gym=osm-way-123&name=…&lat=…&lng=… opens one gym's board, e.g.
+  // from a gym's page in Find when you're traveling.
+  const params = useLocalSearchParams<{ gym?: string; name?: string; lat?: string; lng?: string }>();
+  const opened = useMemo<Gym | null>(() => {
     const id = params.gym ? slugToId(params.gym) : null;
-    return id ? { areaId: id, name: params.name ?? 'This gym' } : null;
-  }, [params.gym, params.name]);
+    if (!id) return null;
+    return {
+      areaId: id,
+      name: params.name ?? 'This gym',
+      latitude: params.lat ? Number(params.lat) : undefined,
+      longitude: params.lng ? Number(params.lng) : undefined,
+    };
+  }, [params.gym, params.name, params.lat, params.lng]);
 
-  const gyms = useMemo<Gym[]>(() => {
-    const list: Gym[] = homeGyms.map((g) => ({ areaId: g.areaId, name: g.name }));
-    if (visiting && !list.some((g) => g.areaId === visiting.areaId)) list.push(visiting);
-    return list;
-  }, [homeGyms, visiting]);
+  const home: Gym[] = homeGyms.homeGyms.map((g) => ({ areaId: g.areaId, name: g.name }));
+  const otherGym = opened && !homeGyms.isHomeGym(opened.areaId) ? opened : null;
 
-  const [selected, setSelected] = useState<string | null>(null);
-  const gym = gyms.find((g) => g.areaId === (selected ?? visiting?.areaId)) ?? gyms[0];
+  // Which board is showing: every home gym together, or one gym.
+  const [picked, setPicked] = useState<string | null>(null);
+  const defaultView = opened ? opened.areaId : home.length > 1 ? ALL : home[0]?.areaId;
+  const view = picked && (picked === ALL || picked === otherGym?.areaId || homeGyms.isHomeGym(picked)) ? picked : defaultView;
+  const shownIds = useMemo(
+    () => (view === ALL ? home.map((g) => g.areaId) : view ? [view] : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [view, homeGyms.homeGyms],
+  );
+  const singleGym = view && view !== ALL ? (home.find((g) => g.areaId === view) ?? otherGym) : null;
 
   const [board, setBoard] = useState<BelayPost[] | null>(null);
   const [mine, setMine] = useState<BelayPost[]>([]);
@@ -44,8 +57,8 @@ export default function PartnersScreen() {
   const [cards, setCards] = useState<Map<string, ClimberCard>>(new Map());
   const [error, setError] = useState<string | null>(null);
 
-  const gymId = gym?.areaId;
   const userId = user?.id;
+  const idsKey = shownIds.join(',');
 
   // Reload whenever the screen comes back into view (after posting, joining…).
   useFocusEffect(
@@ -56,7 +69,7 @@ export default function PartnersScreen() {
       (async () => {
         try {
           const [boardPosts, myPosts, joinedPosts] = await Promise.all([
-            gymId ? fetchBoard(gymId) : Promise.resolve([]),
+            fetchBoard(idsKey ? idsKey.split(',') : []),
             fetchMyPosts(userId),
             fetchJoinedPosts(userId),
           ]);
@@ -77,7 +90,7 @@ export default function PartnersScreen() {
       return () => {
         active = false;
       };
-    }, [userId, gymId]),
+    }, [userId, idsKey]),
   );
 
   if (authLoading) {
@@ -102,9 +115,9 @@ export default function PartnersScreen() {
     );
   }
 
-  // Sessions at the gym on screen already show on its board.
+  const showing = new Set(shownIds);
   const otherSessions = [...mine, ...joined]
-    .filter((p) => p.areaId !== gym?.areaId)
+    .filter((p) => !showing.has(p.areaId))
     .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
   const badgeFor = (post: BelayPost) => {
     if (post.userId !== user.id) return joined.some((j) => j.id === post.id) ? "You're in" : undefined;
@@ -112,10 +125,35 @@ export default function PartnersScreen() {
     return count ? `${count} in` : 'Yours';
   };
 
+  const choices = [
+    ...(home.length > 1 ? [{ value: ALL, label: 'All my gyms' }] : []),
+    ...home.map((g) => ({ value: g.areaId, label: g.name })),
+    ...(otherGym ? [{ value: otherGym.areaId, label: otherGym.name }] : []),
+  ];
+
+  function addOtherAsHome() {
+    if (!otherGym || otherGym.latitude == null || otherGym.longitude == null) return;
+    const area: ClimbingArea = {
+      id: otherGym.areaId,
+      kind: 'gym',
+      name: otherGym.name,
+      location: { latitude: otherGym.latitude, longitude: otherGym.longitude },
+      styles: [],
+      source: 'osm',
+    };
+    homeGyms.toggle(area);
+  }
+
+  const newPost = () =>
+    router.push({
+      pathname: '/partners/new',
+      params: singleGym ? { gym: areaSlug(singleGym.areaId), name: singleGym.name } : {},
+    });
+
   return (
-    <Screen title="Partners" subtitle="Who's climbing at your gym, and when.">
-      {gyms.length === 0 ? (
-        gymsLoading ? (
+    <Screen title="Partners" subtitle="Who's climbing at your gyms, and when.">
+      {home.length === 0 && !otherGym ? (
+        homeGyms.loading ? (
           <ActivityIndicator />
         ) : (
           <>
@@ -123,38 +161,32 @@ export default function PartnersScreen() {
             <FeatureCard
               icon="home"
               title="Pick your home gym"
-              description="Open a gym in Find and tap “Home gym”. Its belay board shows up here. Add more than one if you climb at several."
+              description="Open a gym in Find and tap “Set as home gym”. Its belay board shows up here. Add more than one if you climb at several."
               href="/"
             />
           </>
         )
       ) : (
         <>
-          {gyms.length > 1 && (
-            <SingleChoice
-              label="Gym"
-              value={gym!.areaId}
-              onChange={setSelected}
-              options={gyms.map((g) => ({ value: g.areaId, label: g.name }))}
-            />
+          {choices.length > 1 && <SingleChoice label="Board" value={view!} onChange={setPicked} options={choices} />}
+
+          {otherGym && view === otherGym.areaId && (
+            <ThemedView type="backgroundElement" style={styles.notice}>
+              <ThemedText type="small">
+                {otherGym.name} isn't one of your home gyms. You can still post and join sessions here, which is
+                handy when you're traveling.
+              </ThemedText>
+              {otherGym.latitude != null && (
+                <Button title="Make it a home gym" variant="secondary" onPress={addOtherAsHome} />
+              )}
+            </ThemedView>
           )}
 
           <View style={styles.boardHeader}>
-            <View style={styles.flex}>
-              <ThemedText type="smallBold">{gym!.name}</ThemedText>
-              <ThemedText type="small" themeColor="textSecondary">
-                Belay board
-                {visiting && visiting.areaId === gym!.areaId && !homeGyms.some((g) => g.areaId === gym!.areaId)
-                  ? ' (visiting)'
-                  : ''}
-              </ThemedText>
-            </View>
-            <Button
-              title="Post"
-              onPress={() =>
-                router.push({ pathname: '/partners/new', params: { gym: areaSlug(gym!.areaId), name: gym!.name } })
-              }
-            />
+            <ThemedText type="smallBold" style={styles.flex}>
+              {singleGym ? `${singleGym.name} belay board` : 'Belay boards at your gyms'}
+            </ThemedText>
+            <Button title="Post" onPress={newPost} />
           </View>
 
           {error && (
@@ -167,8 +199,8 @@ export default function PartnersScreen() {
             <ActivityIndicator style={styles.loading} />
           ) : board && board.length === 0 ? (
             <ThemedText themeColor="textSecondary">
-              Nobody's posted yet. Post when you'll be there and what you want to climb, and others at this gym
-              will see it.
+              Nobody's posted yet. Post when you'll be there and what you want to climb, and other climbers at{' '}
+              {singleGym ? 'this gym' : 'your gyms'} will see it.
             </ThemedText>
           ) : (
             board?.map((post) => (
@@ -176,6 +208,7 @@ export default function PartnersScreen() {
                 key={post.id}
                 post={post}
                 card={cards.get(post.userId)}
+                showGym={!singleGym}
                 badge={badgeFor(post)}
               />
             ))
@@ -205,5 +238,5 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   section: { gap: Spacing.two },
   loading: { marginVertical: Spacing.four },
-  notice: { padding: Spacing.three, borderRadius: Spacing.three },
+  notice: { padding: Spacing.three, borderRadius: Spacing.three, gap: Spacing.two },
 });

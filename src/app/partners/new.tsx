@@ -9,6 +9,7 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { slugToId } from '@/lib/areas';
 import { useAuth } from '@/lib/auth';
+import { useHomeGyms } from '@/lib/home-gyms';
 import { createPost, formatWindow, GOAL_LABELS, POST_STYLE_LABELS } from '@/lib/partners';
 import type { BelayPost, SessionGoal } from '@/types/models';
 
@@ -33,8 +34,12 @@ export default function NewPostScreen() {
   const theme = useTheme();
   const { user } = useAuth();
   const params = useLocalSearchParams<{ gym?: string; name?: string }>();
-  const areaId = params.gym ? slugToId(params.gym) : null;
-  const areaName = params.name ?? 'Gym';
+  const { homeGyms } = useHomeGyms();
+  // Posting from "All my gyms": pick which home gym.
+  const [chosenGym, setChosenGym] = useState<string | null>(null);
+  const fromParams = params.gym ? slugToId(params.gym) : null;
+  const areaId = fromParams ?? chosenGym ?? homeGyms[0]?.areaId ?? null;
+  const areaName = fromParams ? (params.name ?? 'Gym') : (homeGyms.find((g) => g.areaId === areaId)?.name ?? 'Gym');
 
   const [when, setWhen] = useState<When>('now');
   const [hour, setHour] = useState<number | null>(null);
@@ -130,6 +135,16 @@ export default function NewPostScreen() {
           disappears when the session ends.
         </ThemedText>
       </View>
+
+      {!fromParams && homeGyms.length > 1 && (
+        <SingleChoice
+          label="Gym"
+          showLabel
+          value={areaId!}
+          onChange={setChosenGym}
+          options={homeGyms.map((g) => ({ value: g.areaId, label: g.name }))}
+        />
+      )}
 
       <SingleChoice
         label="When"

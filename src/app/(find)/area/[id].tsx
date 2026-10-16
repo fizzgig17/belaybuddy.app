@@ -129,7 +129,13 @@ export default function AreaScreen() {
             <Button
               title="Belay board"
               variant="secondary"
-              onPress={() => router.push({ pathname: '/partners', params: { gym: areaSlug(area.id), name: area.name } })}
+              onPress={() => router.push({ pathname: '/partners', params: {
+                  gym: areaSlug(area.id),
+                  name: area.name,
+                  lat: String(area.location.latitude),
+                  lng: String(area.location.longitude),
+                },
+              })}
             />
           </View>
         </View>

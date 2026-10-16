@@ -71,12 +71,13 @@ const postFromRow = (r: PostRow): BelayPost => ({
   note: r.note ?? undefined,
 });
 
-/** Live posts on one gym's board, soonest first. */
-export async function fetchBoard(areaId: string): Promise<BelayPost[]> {
+/** Live posts on one or more gyms' boards, soonest first. */
+export async function fetchBoard(areaIds: string[]): Promise<BelayPost[]> {
+  if (areaIds.length === 0) return [];
   const { data, error } = await supabase
     .from('belay_posts')
     .select(POST_COLUMNS)
-    .eq('area_id', areaId)
+    .in('area_id', areaIds)
     .gt('ends_at', new Date().toISOString())
     .order('starts_at')
     .limit(100);
