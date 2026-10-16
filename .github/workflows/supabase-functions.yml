@@ -154,5 +154,5 @@ jobs:
             [ "$code" = 200 ] && exit 0
             sleep 10
           done
-          echo "::error::notify didn't answer with HTTP 200"
+          echo "::error::notify didn't answer with HTTP 200. Last answer: HTTP $code $(head -c 400 "$RUNNER_TEMP/out" | tr '\n' ' ')"
           exit 1
