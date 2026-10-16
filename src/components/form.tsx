@@ -125,6 +125,49 @@ export function ChipGroup<T extends string>({
   );
 }
 
+/** Single-select chips, for choices with long or many labels. */
+export function SingleChoice<T extends string | number>({
+  label,
+  options,
+  value,
+  onChange,
+  showLabel = false,
+}: {
+  label: string;
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (value: T) => void;
+  showLabel?: boolean;
+}) {
+  const theme = useTheme();
+  return (
+    <View style={styles.field}>
+      {showLabel && <ThemedText type="smallBold">{label}</ThemedText>}
+      <View style={styles.chips} accessibilityRole="radiogroup" accessibilityLabel={label}>
+        {options.map((option) => {
+          const on = option.value === value;
+          return (
+            <Pressable
+              key={String(option.value)}
+              accessibilityRole="radio"
+              accessibilityState={{ checked: on }}
+              onPress={() => onChange(option.value)}
+              style={[
+                styles.chip,
+                { backgroundColor: on ? theme.accentSoft : theme.backgroundElement },
+                on && { borderColor: theme.accent },
+              ]}>
+              <ThemedText type="small" style={on ? { color: theme.accent } : undefined}>
+                {option.label}
+              </ThemedText>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
 export function ToggleRow({
   label,
   value,
@@ -137,7 +180,9 @@ export function ToggleRow({
   const theme = useTheme();
   return (
     <View style={styles.toggleRow}>
-      <ThemedText type="small">{label}</ThemedText>
+      <ThemedText type="small" style={styles.toggleLabel}>
+        {label}
+      </ThemedText>
       <Switch value={value} onValueChange={onValueChange} trackColor={{ true: theme.accent }} />
     </View>
   );
@@ -171,7 +216,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'transparent',
   },
+  toggleLabel: { flex: 1 },
   toggleRow: {
+    gap: Spacing.three,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

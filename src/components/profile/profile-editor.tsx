@@ -30,7 +30,12 @@ const GEAR_LABELS: Record<keyof ClimberProfile['hasGear'], string> = {
   crashPad: 'Crash pad',
 };
 
-type Draft = Omit<ProfileUpdate, 'yearsClimbing'> & { yearsClimbing: string };
+type Draft = Omit<ProfileUpdate, 'yearsClimbing' | 'weightKg'> & { yearsClimbing: string; weightLb: string };
+
+const LB_PER_KG = 2.20462;
+// Weight is stored rounded to 5 kg (see the partners migration), shown in lb.
+const kgToLb = (kg: number) => String(Math.round((kg * LB_PER_KG) / 5) * 5);
+const lbToKg = (lb: number) => Math.min(200, Math.max(20, Math.round(lb / LB_PER_KG / 5) * 5));
 
 function toDraft(profile: ClimberProfile): Draft {
   return {
@@ -43,6 +48,8 @@ function toDraft(profile: ClimberProfile): Draft {
     yearsClimbing: profile.yearsClimbing?.toString() ?? '',
     hasGear: profile.hasGear,
     belayCertified: profile.belayCertified,
+    assistedBraking: profile.assistedBraking,
+    weightLb: profile.weightKg ? kgToLb(profile.weightKg) : '',
   };
 }
 
@@ -77,14 +84,18 @@ export function ProfileEditor({ userId }: { userId: string }) {
 
   const years = draft.yearsClimbing.trim();
   const yearsValid = years === '' || (/^\d{1,2}$/.test(years) && Number(years) <= 90);
+  const weight = draft.weightLb.trim();
+  const weightValid = weight === '' || (/^\d{2,3}$/.test(weight) && Number(weight) >= 50 && Number(weight) <= 440);
 
   async function save() {
     if (!draft) return;
     setSaving(true);
     try {
+      const { weightLb: _lb, ...rest } = draft;
       const saved = await updateMyProfile(userId, {
-        ...draft,
+        ...rest,
         yearsClimbing: years === '' ? undefined : Number(years),
+        weightKg: weight === '' ? undefined : lbToKg(Number(weight)),
       });
       setDraft(toDraft(saved));
       setMessage({ kind: 'ok', text: 'Profile saved.' });
@@ -172,7 +183,28 @@ export function ProfileEditor({ userId }: { userId: string }) {
         ))}
       </ThemedView>
 
-      <Button title="Save profile" onPress={save} loading={saving} disabled={!yearsValid} />
+      <View style={styles.section}>
+        <ThemedText type="smallBold">Partner matching</ThemedText>
+        <ToggleRow
+          label="Comfortable belaying with an assisted-braking device (GriGri etc.)"
+          value={draft.assistedBraking}
+          onValueChange={(v) => set('assistedBraking', v)}
+        />
+        <Field
+          label="Weight in lb (optional, private)"
+          value={draft.weightLb}
+          onChangeText={(v) => set('weightLb', v.replace(/\D/g, ''))}
+          keyboardType="number-pad"
+          maxLength={3}
+          hint={
+            weightValid
+              ? 'Never shown to anyone. Rounded and used only to show partners a lead weight-match hint. Clear it to delete it.'
+              : 'Enter a weight from 50 to 440 lb, or leave it empty.'
+          }
+        />
+      </View>
+
+      <Button title="Save profile" onPress={save} loading={saving} disabled={!yearsValid || !weightValid} />
       {message && (
         <ThemedText
           type="small"
@@ -190,5 +222,6 @@ const styles = StyleSheet.create({
   container: { gap: Spacing.three },
   row: { flexDirection: 'row', gap: Spacing.three },
   flex: { flex: 1 },
+  section: { gap: Spacing.two },
   gear: { padding: Spacing.three, borderRadius: Spacing.three, gap: Spacing.one },
 });

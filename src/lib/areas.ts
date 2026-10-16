@@ -275,7 +275,7 @@ export function areaSlug(id: string): string {
   return id.replace(':', '-').replace('/', '-');
 }
 
-function slugToId(slug: string): string | null {
+export function slugToId(slug: string): string | null {
   const osm = /^osm-(node|way|relation)-(\d+)$/.exec(slug);
   if (osm) return `osm:${osm[1]}/${osm[2]}`;
   const ob = /^openbeta-([0-9a-f-]{8,})$/i.exec(slug);

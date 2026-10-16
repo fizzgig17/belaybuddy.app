@@ -51,6 +51,10 @@ export type ClimberProfile = {
   hasGear: { rope: boolean; quickdraws: boolean; rack: boolean; crashPad: boolean };
   /** Belay certifications the user self-reports (e.g. "top-rope", "lead"). */
   belayCertified: BelayCert[];
+  /** Private. Rounded to 5 kg; only used for the lead weight-match hint. */
+  weightKg?: number;
+  /** Comfortable with an assisted-braking device (GriGri etc.). */
+  assistedBraking: boolean;
 };
 
 export type BelayCert = 'top-rope' | 'lead';
@@ -65,19 +69,62 @@ export type Favorite = {
   createdAt: string;
 };
 
+/** A gym whose belay board the user follows. Snapshot like Favorite. */
+export type HomeGym = {
+  areaId: string;
+  name: string;
+  location: LatLng;
+};
+
+export type SessionGoal = 'projecting' | 'mileage' | 'learning-lead' | 'top-rope-laps' | 'bouldering';
+
 /**
- * A partner-finder listing. Location is deliberately coarse (a city/area name
- * plus a rounded point) so we never expose anyone's exact position.
+ * A post on a gym's belay board: who, which gym, and when. Never a position.
+ * Posts disappear when the time window ends.
  */
-export type PartnerListing = {
+export type BelayPost = {
   id: string;
   userId: string;
+  areaId: string;
   areaName: string;
-  approxLocation: LatLng;
-  /** Set when someone is posting for a trip rather than their home area. */
-  travel?: { from: string; to: string };
-  styles: ClimbingStyle[];
+  startsAt: string;
+  endsAt: string;
+  hereNow: boolean;
+  goal: SessionGoal;
+  styles: ('bouldering' | 'top-rope' | 'lead')[];
+  gradeLow?: string;
+  gradeHigh?: string;
+  /** Offering to mentor someone newer, so grade mismatches are welcome. */
+  mentoring: boolean;
   note?: string;
+};
+
+export type WeightHint = 'similar' | 'some-difference' | 'large-difference';
+
+/** What other signed-in climbers can see about someone. */
+export type ClimberCard = {
+  userId: string;
+  displayName?: string;
+  bio?: string;
+  homeArea?: string;
+  styles: ClimbingStyle[];
+  boulderGrade?: string;
+  routeGrade?: string;
+  yearsClimbing?: number;
+  /** Self-reported belay skills. */
+  belayCertified: BelayCert[];
+  assistedBraking: boolean;
+  memberSince: string;
+  /** Lead weight-compatibility hint with the viewer; never the weight itself. */
+  weightHint?: WeightHint;
+};
+
+export type ChatMessage = {
+  id: number;
+  postId: string;
+  responderId: string;
+  senderId: string;
+  body: string;
   createdAt: string;
 };
 

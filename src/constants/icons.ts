@@ -28,6 +28,17 @@ export const Icons = {
   website: icon('globe', 'language'),
   warning: icon('exclamationmark.triangle', 'error'),
   favoriteOn: icon('star.fill', 'star_rate'),
+  home: icon('house', 'home'),
+  homeOn: icon('house.fill', 'home'),
+  board: icon('list.bullet.rectangle', 'view_list'),
+  chat: icon('bubble.left.and.bubble.right', 'forum'),
+  person: icon('person.crop.circle', 'account_circle'),
+  add: icon('plus', 'add'),
+  clock: icon('clock', 'schedule'),
+  block: icon('nosign', 'block'),
+  flag: icon('flag', 'flag'),
+  send: icon('arrow.up.circle.fill', 'send'),
+  scale: icon('scalemass', 'scale'),
 } as const;
 
 export type IconName = keyof typeof Icons;

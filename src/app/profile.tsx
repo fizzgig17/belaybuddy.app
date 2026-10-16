@@ -2,9 +2,9 @@ import { useState } from 'react';
 import { ActivityIndicator, Alert, Platform } from 'react-native';
 
 import { SignIn } from '@/components/auth/sign-in';
-import { FeatureCard } from '@/components/feature-card';
 import { GymWallBanner } from '@/components/illustrations';
 import { Button } from '@/components/form';
+import { PrivacySettings } from '@/components/profile/privacy-settings';
 import { ProfileEditor } from '@/components/profile/profile-editor';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
@@ -55,12 +55,7 @@ export default function ProfileScreen() {
         Signed in as {user.email}
       </ThemedText>
       <ProfileEditor userId={user.id} />
-      <FeatureCard
-        icon="settings"
-        title="Settings & privacy"
-        description="Location sharing, blocked users, and account deletion."
-        comingSoon
-      />
+      <PrivacySettings />
       <Button title="Sign out" variant="secondary" onPress={confirmSignOut} loading={signingOut} />
     </Screen>
   );

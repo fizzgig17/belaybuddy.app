@@ -14,10 +14,12 @@ type ProfileRow = {
   years_climbing: number | null;
   has_gear: ClimberProfile['hasGear'];
   belay_certified: string[];
+  weight_kg: number | null;
+  assisted_braking: boolean;
 };
 
 const COLUMNS =
-  'id, display_name, bio, avatar_url, home_area, styles, boulder_grade, route_grade, years_climbing, has_gear, belay_certified';
+  'id, display_name, bio, avatar_url, home_area, styles, boulder_grade, route_grade, years_climbing, has_gear, belay_certified, weight_kg, assisted_braking';
 
 const EMPTY_GEAR: ClimberProfile['hasGear'] = { rope: false, quickdraws: false, rack: false, crashPad: false };
 
@@ -34,6 +36,8 @@ function fromRow(row: ProfileRow): ClimberProfile {
     yearsClimbing: row.years_climbing ?? undefined,
     hasGear: { ...EMPTY_GEAR, ...row.has_gear },
     belayCertified: row.belay_certified as BelayCert[],
+    weightKg: row.weight_kg ?? undefined,
+    assistedBraking: row.assisted_braking,
   };
 }
 
@@ -64,6 +68,8 @@ export async function updateMyProfile(userId: string, update: ProfileUpdate): Pr
       years_climbing: update.yearsClimbing ?? null,
       has_gear: update.hasGear,
       belay_certified: update.belayCertified,
+      weight_kg: update.weightKg ?? null,
+      assisted_braking: update.assistedBraking,
     })
     .eq('id', userId)
     .select(COLUMNS)

@@ -6,6 +6,7 @@ import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import AppTabs from '@/components/app-tabs';
 import { AuthProvider } from '@/lib/auth';
 import { FavoritesProvider } from '@/lib/favorites';
+import { HomeGymsProvider } from '@/lib/home-gyms';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -14,10 +15,12 @@ export default function TabLayout() {
   return (
     <AuthProvider>
       <FavoritesProvider>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <AnimatedSplashOverlay />
-          <AppTabs />
-        </ThemeProvider>
+        <HomeGymsProvider>
+          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+            <AnimatedSplashOverlay />
+            <AppTabs />
+          </ThemeProvider>
+        </HomeGymsProvider>
       </FavoritesProvider>
     </AuthProvider>
   );
