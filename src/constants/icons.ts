@@ -39,6 +39,7 @@ export const Icons = {
   flag: icon('flag', 'flag'),
   send: icon('arrow.up.circle.fill', 'send'),
   scale: icon('scalemass', 'scale'),
+  lock: icon('lock.fill', 'lock'),
 } as const;
 
 export type IconName = keyof typeof Icons;

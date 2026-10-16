@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
+import { SignInOptions } from '@/components/auth/sign-in-options';
 import { Button, Field } from '@/components/form';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -82,6 +83,7 @@ export function SignIn() {
             returnKeyType="send"
             onSubmitEditing={() => emailValid && sendCode()}
           />
+          <SignInOptions />
           <Button title="Email me a sign-in code" onPress={sendCode} disabled={!emailValid} loading={busy} />
         </>
       ) : (

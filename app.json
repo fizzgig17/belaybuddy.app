@@ -51,6 +51,12 @@
         {
           "locationWhenInUsePermission": "Belay Buddy uses your location to find nearby climbing gyms, outdoor crags, and climbing partners."
         }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Belay Buddy uses Face ID to unlock the app when you've turned that on."
+        }
       ]
     ],
     "experiments": {
