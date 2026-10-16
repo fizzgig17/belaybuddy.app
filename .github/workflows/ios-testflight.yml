@@ -224,6 +224,16 @@ jobs:
           echo "SIGN_MODE=manual" >> "$GITHUB_ENV"
           echo "PROFILE_NAME=$PNAME" >> "$GITHUB_ENV"
 
+      # Automatic signing makes Xcode create new certificates in the Apple
+      # account on every run (a fresh runner has none), which piles up
+      # "Created via API" certificates. Never fall back to it.
+      - name: Require manual signing
+        run: |
+          if [ "$SIGN_MODE" != "manual" ]; then
+            echo "::error::Signing mode is '${SIGN_MODE:-unset}', not manual, so the build was stopped before Xcode could create more certificates. Needs IOS_DIST_P12 plus either a working App Store Connect API key (the profile is created automatically) or IOS_PROFILE."
+            exit 1
+          fi
+
       - name: Archive (signed, Release)
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
