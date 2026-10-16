@@ -122,19 +122,27 @@ jobs:
           else
             echo "::warning::Email notifications are off: add SMTP_HOST, SMTP_USER and SMTP_PASS (see the top of this workflow)."
           fi
-          supabase secrets set --env-file "$f" --project-ref "$PROJECT_ID"
+          if ! supabase secrets set --env-file "$f" --project-ref "$PROJECT_ID" 2>&1 | tee "$RUNNER_TEMP/secrets.log"; then
+            rm -f "$f"
+            echo "::error::Setting function secrets failed: $(tail -n 5 "$RUNNER_TEMP/secrets.log" | tr '\n' ' ' | head -c 600)"
+            exit 1
+          fi
           rm -f "$f"
 
       - name: Point the database at the function
         run: |
           password=$(jq -rn --arg p "$DB_PASSWORD" '$p | @uri')
           echo "::add-mask::$password"
+          set +e
           psql "postgresql://postgres.$PROJECT_ID:$password@$POOLER_HOST:5432/postgres" -v ON_ERROR_STOP=1 \
             -v url="https://$PROJECT_ID.supabase.co/functions/v1/notify" -v secret="$NOTIFY_SECRET" <<'SQL'
           delete from vault.secrets where name in ('notify_url', 'notify_secret');
           select vault.create_secret(:'url', 'notify_url');
           select vault.create_secret(:'secret', 'notify_secret');
           SQL
+          status=$?
+          set -e
+          [ $status = 0 ] || { echo "::error::Couldn't write the function URL and secret to Vault (psql exit $status)"; exit 1; }
           echo "Vault updated; deliveries go to the notify function."
 
       - name: Check the function answers
