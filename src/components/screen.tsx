@@ -1,8 +1,8 @@
-import Head from 'expo-router/head';
 import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { PageTitle } from '@/components/page-title';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
@@ -19,10 +19,7 @@ type ScreenProps = {
 export function Screen({ title, subtitle, children, showTitle = true }: ScreenProps) {
   return (
     <ThemedView style={styles.container}>
-      {/* Browser tab title on the website; ignored in the native app. */}
-      <Head>
-        <title>{`${title} · Belay Buddy`}</title>
-      </Head>
+      <PageTitle title={title} />
       <SafeAreaView style={styles.safeArea} edges={showTitle ? ['top'] : []}>
         <ScrollView contentContainerStyle={styles.content}>
           {showTitle && (
