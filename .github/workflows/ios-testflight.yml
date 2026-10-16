@@ -162,11 +162,33 @@ jobs:
           security create-keychain -p "$KCPASS" "$KC"
           security set-keychain-settings -lut 21600 "$KC"
           security unlock-keychain -p "$KCPASS" "$KC"
-          printf '%s' "$IOS_DIST_P12" | base64 --decode > "$RUNNER_TEMP/dist.p12"
-          security import "$RUNNER_TEMP/dist.p12" -P "$IOS_DIST_P12_PASSWORD" -A -t cert -f pkcs12 -k "$KC"
+          # Pasted base64 often picks up line breaks or spaces; strip them first.
+          CLEAN=$(printf '%s' "$IOS_DIST_P12" | tr -d '[:space:]')
+          echo "IOS_DIST_P12: ${#CLEAN} base64 characters"
+          if ! printf '%s' "$CLEAN" | base64 --decode > "$RUNNER_TEMP/dist.p12" 2>"$RUNNER_TEMP/b64.err"; then
+            echo "::error::IOS_DIST_P12 isn't valid base64 ($(head -c 200 "$RUNNER_TEMP/b64.err")). Re-run: base64 -i Certificates.p12 | pbcopy, and paste the whole result."
+            exit 1
+          fi
+          SIZE=$(wc -c < "$RUNNER_TEMP/dist.p12" | tr -d ' ')
+          FIRST=$(xxd -p -l 1 "$RUNNER_TEMP/dist.p12")
+          echo "Decoded .p12: $SIZE bytes"
+          if [ "$SIZE" -lt 500 ] || [ "$FIRST" != "30" ]; then
+            echo "::error::IOS_DIST_P12 decodes to $SIZE bytes that don't look like a .p12 file. Paste the base64 of the exported .p12 (not the .cer, not the file name)."
+            exit 1
+          fi
+          if ! OUT=$(security import "$RUNNER_TEMP/dist.p12" -P "$IOS_DIST_P12_PASSWORD" -A -t cert -f pkcs12 -k "$KC" 2>&1); then
+            echo "::error::Importing the .p12 failed: ${OUT//$'\n'/ }. If it mentions MAC verification or the password, IOS_DIST_P12_PASSWORD doesn't match the password chosen when exporting."
+            exit 1
+          fi
+          echo "$OUT"
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KCPASS" "$KC" >/dev/null
           security list-keychains -d user -s "$KC" $(security list-keychains -d user | sed 's/"//g')
-          security find-identity -v -p codesigning "$KC"
+          IDS=$(security find-identity -v -p codesigning "$KC")
+          echo "$IDS"
+          if ! printf '%s' "$IDS" | grep -q "Apple Distribution"; then
+            echo "::error::The .p12 has no usable Apple Distribution identity (found: $(printf '%s' "$IDS" | tr '\n' ' ' | head -c 300)). Export the 'Apple Distribution: ...' item from My Certificates, including its private key."
+            exit 1
+          fi
           rm -f "$RUNNER_TEMP/dist.p12"
 
           if [ -z "$IOS_PROFILE" ]; then
