@@ -4,8 +4,10 @@
 #
 # When it runs
 #   - Every push to master (production build: prod Supabase).
+#   - A push to develop whose commit message contains [ios] (dev build:
+#     dev Supabase). Other develop pushes skip it, so they cost nothing.
 #   - By hand: Actions tab > "Upload iOS build to TestFlight" > Run workflow,
-#     choosing the branch. develop = dev Supabase, master = prod Supabase.
+#     choosing the branch (only once the workflow is on the default branch).
 #   It does NOT run on every develop push: this repo is private, and macOS
 #   minutes count heavily against GitHub's free Actions allowance.
 #
@@ -40,7 +42,7 @@ name: Upload iOS build to TestFlight
 
 on:
   push:
-    branches: [master]
+    branches: [master, develop]
   workflow_dispatch:
 
 concurrency:
@@ -49,6 +51,10 @@ concurrency:
 
 jobs:
   testflight:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.ref_name == 'master' ||
+      contains(github.event.head_commit.message, '[ios]')
     runs-on: macos-15
     timeout-minutes: 90
     env:
