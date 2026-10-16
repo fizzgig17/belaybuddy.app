@@ -20,11 +20,12 @@ export async function getDeviceLocation(): Promise<LatLng> {
   const { status } = await Location.requestForegroundPermissionsAsync();
   if (status !== 'granted') throw new LocationDeniedError();
 
-  // A recent cached fix is plenty for "what's near me" and much faster.
-  const last = await Location.getLastKnownPositionAsync({ maxAge: 10 * 60_000, requiredAccuracy: 1000 }).catch(
+  // "What's near me" only needs to be right within a few km: take a recent
+  // cached fix if there is one, otherwise a quick low-accuracy fix.
+  const last = await Location.getLastKnownPositionAsync({ maxAge: 30 * 60_000, requiredAccuracy: 3000 }).catch(
     () => null,
   );
-  const fix = last ?? (await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }));
+  const fix = last ?? (await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low }));
   return { latitude: fix.coords.latitude, longitude: fix.coords.longitude };
 }
 

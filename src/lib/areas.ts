@@ -70,22 +70,48 @@ function osmStyles(t: Record<string, string>): ClimbingStyle[] {
   return [...styles];
 }
 
+/** fetch() that gives up after `ms` (free services can hang instead of failing). */
+async function fetchWithTimeout(url: string, init: RequestInit, ms: number, outer?: AbortSignal) {
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  outer?.addEventListener('abort', abort);
+  const timer = setTimeout(abort, ms);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (e) {
+    if (controller.signal.aborted && !outer?.aborted) throw new Error('timed out');
+    throw e;
+  } finally {
+    clearTimeout(timer);
+    outer?.removeEventListener('abort', abort);
+  }
+}
+
+/** Asks every Overpass mirror at once and uses whichever answers first. */
 async function queryOverpass(query: string): Promise<OsmElement[]> {
-  let lastError: unknown;
-  for (const endpoint of OVERPASS_ENDPOINTS) {
-    try {
-      const res = await fetch(endpoint, {
+  const race = new AbortController();
+  const attempts = OVERPASS_ENDPOINTS.map(async (endpoint) => {
+    const res = await fetchWithTimeout(
+      endpoint,
+      {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...UA },
         body: `data=${encodeURIComponent(query)}`,
-      });
-      if (!res.ok) throw new Error(`Overpass returned ${res.status}`);
-      return ((await res.json()) as { elements: OsmElement[] }).elements;
-    } catch (e) {
-      lastError = e; // try the next mirror
-    }
+      },
+      12_000,
+      race.signal,
+    );
+    if (!res.ok) throw new Error(`Overpass returned ${res.status}`);
+    return ((await res.json()) as { elements: OsmElement[] }).elements;
+  });
+  try {
+    return await Promise.any(attempts);
+  } catch (e) {
+    const errors = (e as AggregateError).errors ?? [e];
+    throw errors[0] instanceof Error ? errors[0] : new Error(String(errors[0]));
+  } finally {
+    race.abort(); // stop the slower mirror
   }
-  throw lastError;
 }
 
 function osmToGym(el: OsmElement): ClimbingArea | null {
@@ -114,7 +140,7 @@ export function fetchGyms(center: LatLng, radiusKm: number): Promise<ClimbingAre
     const at = `(around:${r},${center.latitude},${center.longitude})`;
     // Indoor climbing: sport=climbing on a gym-like place. Outdoor crags are
     // also tagged sport=climbing in OSM, so require an indoor-ish tag.
-    const query = `[out:json][timeout:20];(
+    const query = `[out:json][timeout:12];(
       nwr["sport"~"climbing|bouldering"]["leisure"~"^(sports_centre|fitness_centre|sports_hall)$"]${at};
       nwr["sport"~"climbing|bouldering"]["indoor"="yes"]${at};
       nwr["sport"~"climbing|bouldering"]["building"]${at};
@@ -168,11 +194,15 @@ export function fetchCrags(center: LatLng, radiusKm: number): Promise<ClimbingAr
         metadata { lat lng isBoulder }
       }
     }`;
-    const res = await fetch(OPENBETA, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...UA },
-      body: JSON.stringify({ query, variables: { bbox: bboxAround(center, radiusKm) } }),
-    });
+    const res = await fetchWithTimeout(
+      OPENBETA,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...UA },
+        body: JSON.stringify({ query, variables: { bbox: bboxAround(center, radiusKm) } }),
+      },
+      8_000,
+    );
     if (!res.ok) throw new Error(`OpenBeta returned ${res.status}`);
     const json = (await res.json()) as { data?: { cragsWithin: OpenBetaArea[] }; errors?: { message: string }[] };
     if (json.errors?.length) throw new Error(json.errors[0].message);
@@ -184,26 +214,50 @@ export function fetchCrags(center: LatLng, radiusKm: number): Promise<ClimbingAr
 }
 
 // --- Combined ------------------------------------------------------------------
-export type NearbyResult = {
+export type NearbyState = {
+  /** Everything loaded so far, nearest first. */
   areas: NearbyArea[];
+  /** Which sources are still loading. */
+  pending: { gyms: boolean; crags: boolean };
   /** Per-source failures, so one service being down doesn't hide the other. */
   errors: { gyms?: string; crags?: string };
 };
 
-export async function fetchNearby(center: LatLng, radiusKm: number): Promise<NearbyResult> {
-  const [gyms, crags] = await Promise.allSettled([fetchGyms(center, radiusKm), fetchCrags(center, radiusKm)]);
-  const errors: NearbyResult['errors'] = {};
-  const all: ClimbingArea[] = [];
-  if (gyms.status === 'fulfilled') all.push(...gyms.value);
-  else errors.gyms = String((gyms.reason as Error)?.message ?? gyms.reason);
-  if (crags.status === 'fulfilled') all.push(...crags.value);
-  else errors.crags = String((crags.reason as Error)?.message ?? crags.reason);
+/**
+ * Loads gyms and crags in parallel and reports after each one arrives, so the
+ * list shows gyms as soon as they're in instead of waiting for the slower
+ * source. Returns a cancel function.
+ */
+export function loadNearby(center: LatLng, radiusKm: number, onUpdate: (state: NearbyState) => void): () => void {
+  let cancelled = false;
+  const found: ClimbingArea[] = [];
+  const state: NearbyState = { areas: [], pending: { gyms: true, crags: true }, errors: {} };
 
-  const areas = all
-    .map((a) => ({ ...a, distanceKm: distanceKm(center, a.location) }))
-    .filter((a) => a.distanceKm <= radiusKm)
-    .sort((a, b) => a.distanceKm - b.distanceKm);
-  return { areas, errors };
+  const publish = () => {
+    if (cancelled) return;
+    state.areas = found
+      .map((a) => ({ ...a, distanceKm: distanceKm(center, a.location) }))
+      .filter((a) => a.distanceKm <= radiusKm)
+      .sort((x, y) => x.distanceKm - y.distanceKm);
+    onUpdate({ ...state, pending: { ...state.pending }, errors: { ...state.errors } });
+  };
+
+  const run = (kind: 'gyms' | 'crags', load: Promise<ClimbingArea[]>) =>
+    load
+      .then((areas) => found.push(...areas))
+      .catch((e: unknown) => {
+        state.errors[kind] = e instanceof Error ? e.message : String(e);
+      })
+      .finally(() => {
+        state.pending[kind] = false;
+        publish();
+      });
+
+  run('gyms', fetchGyms(center, radiusKm));
+  run('crags', fetchCrags(center, radiusKm));
+  return () => {
+    cancelled = true;
+  };
 }
 
 /** Link that opens directions in the platform's maps app. */

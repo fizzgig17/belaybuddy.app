@@ -13,7 +13,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Icons } from '@/constants/icons';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { fetchNearby, type NearbyResult } from '@/lib/areas';
+import { loadNearby, type NearbyState } from '@/lib/areas';
 import { useAuth } from '@/lib/auth';
 import { useFavorites } from '@/lib/favorites';
 import { distanceKm, milesToKm } from '@/lib/geo';
@@ -44,8 +44,7 @@ export default function FindScreen() {
   const [query, setQuery] = useState('');
   const [choices, setChoices] = useState<Place[]>([]);
   const [locating, setLocating] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<NearbyResult | null>(null);
+  const [result, setResult] = useState<NearbyState | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>('all');
   const [radius, setRadius] = useState<Radius>(25);
@@ -66,28 +65,34 @@ export default function FindScreen() {
     saveLastPlace(p);
   }, []);
 
-  // Load results whenever the place or radius changes.
+  // Load results whenever the location or radius changes. Keyed on the point,
+  // not the place object, so filling in the place name doesn't reload.
+  const lat = place?.point.latitude;
+  const lng = place?.point.longitude;
   useEffect(() => {
-    if (!place) return;
-    let active = true;
-    setLoading(true);
+    if (lat == null || lng == null) return;
     setShown(PAGE);
-    fetchNearby(place.point, milesToKm(radius))
-      .then((r) => active && setResult(r))
-      .catch((e: Error) => active && setMessage(`Couldn't load climbing areas: ${e.message}`))
-      .finally(() => active && setLoading(false));
-    return () => {
-      active = false;
-    };
-  }, [place, radius]);
+    setResult({ areas: [], pending: { gyms: true, crags: true }, errors: {} });
+    return loadNearby({ latitude: lat, longitude: lng }, milesToKm(radius), setResult);
+  }, [lat, lng, radius]);
+  const loading = !!result && result.pending.gyms && result.pending.crags;
 
   async function locateMe() {
     setLocating(true);
     setMessage(null);
     try {
       const point = await getDeviceLocation();
-      const label = (await describePoint(point)) ?? 'your location';
-      choose({ point, label: `Near ${label}` });
+      // Start searching right away; name the place once the lookup returns.
+      choose({ point, label: 'Near you' });
+      describePoint(point).then((name) => {
+        if (!name) return;
+        setPlace((current) => {
+          if (current?.point !== point) return current;
+          const named = { point, label: `Near ${name}` };
+          saveLastPlace(named);
+          return named;
+        });
+      });
     } catch (e) {
       setMessage(
         e instanceof LocationDeniedError
@@ -258,7 +263,15 @@ export default function FindScreen() {
               {result?.errors.crags && (
                 <Notice text={`Crags couldn't be loaded right now (${result.errors.crags}). Try again in a minute.`} />
               )}
-              {result && visible.length === 0 && (
+              {result && (result.pending.gyms || result.pending.crags) && (
+                <View style={styles.stillLoading}>
+                  <ActivityIndicator size="small" />
+                  <ThemedText type="small" themeColor="textSecondary">
+                    Still loading {result.pending.gyms ? 'gyms' : 'crags'}…
+                  </ThemedText>
+                </View>
+              )}
+              {result && !result.pending.gyms && !result.pending.crags && visible.length === 0 && (
                 <ThemedText themeColor="textSecondary">
                   {radius < 50
                     ? `Nothing within ${radius} miles. Try a bigger distance.`
@@ -331,6 +344,7 @@ const styles = StyleSheet.create({
   },
   noticeText: { flex: 1 },
   loading: { marginVertical: Spacing.four },
+  stillLoading: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   attribution: { marginTop: Spacing.two },
   pressed: { opacity: 0.7 },
 });
