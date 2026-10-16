@@ -81,6 +81,9 @@ jobs:
             echo "::error::Deploy failed: $(tail -n 5 "$RUNNER_TEMP/deploy.log" | tr '\n' ' ' | head -c 600)"
             exit 1
           fi
+          echo "::notice::Deploy output: $(tail -n 8 "$RUNNER_TEMP/deploy.log" | tr '\n' ' ' | head -c 700)"
+          supabase functions list --project-ref "$PROJECT_ID" 2>&1 | tee "$RUNNER_TEMP/list.log"
+          echo "::notice::Functions on $TARGET: $(tr '\n' ' ' < "$RUNNER_TEMP/list.log" | head -c 500)"
 
       # A fresh shared secret each deploy, given to both the function and the
       # database (Vault), so only the database can trigger deliveries.
