@@ -1,0 +1,189 @@
+// "Gyms near here" from our own catalog (public.gyms), refreshed from
+// OpenStreetMap (Overpass) when an area is new or over a week old. If Overpass
+// is down, whatever is already saved is returned (stale: true).
+//
+// POST { lat, lng, radiusKm } -> { gyms: ClimbingArea[], stale: boolean }
+// Public: no secret needed. Rows are public map data; the function only ever
+// asks Overpass for a coarse, cached area, never the person's exact position.
+// Data © OpenStreetMap contributors (ODbL).
+
+import { createClient } from 'npm:@supabase/supabase-js@2.58.0';
+
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
+
+const ENDPOINTS = (
+  Deno.env.get('OVERPASS_URLS') ?? 'https://overpass-api.de/api/interpreter,https://overpass.kumi.systems/api/interpreter'
+).split(',');
+const FRESH_MS = 7 * 24 * 3600_000;
+const BUCKETS = [10, 25, 50, 100];
+// The cell center is snapped to 0.1 degrees (up to ~7 km off), so fetch that much extra.
+const SNAP_MARGIN_KM = 8;
+
+type OsmElement = {
+  type: string;
+  id: number;
+  lat?: number;
+  lon?: number;
+  center?: { lat: number; lon: number };
+  tags?: Record<string, string>;
+};
+
+type GymRow = {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  address: string | null;
+  styles: string[];
+  website: string | null;
+  phone: string | null;
+  opening_hours: string | null;
+  source: string;
+  source_id: string | null;
+};
+
+function address(t: Record<string, string>): string | null {
+  const street = [t['addr:housenumber'], t['addr:street']].filter(Boolean).join(' ');
+  const parts = [street, t['addr:city'], t['addr:state']].filter(Boolean);
+  return parts.length ? parts.join(', ') : null;
+}
+
+function styles(t: Record<string, string>): string[] {
+  const sport = t.sport ?? '';
+  const out = new Set<string>();
+  if (/bouldering/.test(sport) || t['climbing:boulder'] === 'yes') out.add('bouldering');
+  if (t['climbing:toprope'] === 'yes') out.add('top-rope');
+  if (t['climbing:sport'] === 'yes') out.add('lead');
+  return [...out];
+}
+
+function toRow(el: OsmElement): GymRow | null {
+  const t = el.tags ?? {};
+  const lat = el.lat ?? el.center?.lat;
+  const lon = el.lon ?? el.center?.lon;
+  if (!t.name || lat == null || lon == null) return null;
+  return {
+    id: `osm:${el.type}/${el.id}`,
+    name: t.name,
+    latitude: lat,
+    longitude: lon,
+    address: address(t),
+    styles: styles(t),
+    website: t.website ?? t['contact:website'] ?? null,
+    phone: t.phone ?? t['contact:phone'] ?? null,
+    opening_hours: t.opening_hours ?? null,
+    source: 'osm',
+    source_id: `${el.type}/${el.id}`,
+  };
+}
+
+/** Asks every Overpass mirror at once and uses whichever answers first. */
+async function overpass(query: string): Promise<OsmElement[]> {
+  const race = new AbortController();
+  const attempts = ENDPOINTS.map(async (endpoint) => {
+    const timer = setTimeout(() => race.abort(), 25_000);
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'BelayBuddy/0.1 (https://belaybuddy.app)' },
+        body: `data=${encodeURIComponent(query)}`,
+        signal: race.signal,
+      });
+      if (!res.ok) throw new Error(`Overpass returned ${res.status}`);
+      return ((await res.json()) as { elements: OsmElement[] }).elements;
+    } finally {
+      clearTimeout(timer);
+    }
+  });
+  try {
+    return await Promise.any(attempts);
+  } catch (e) {
+    const first = ((e as AggregateError).errors ?? [e])[0];
+    throw first instanceof Error ? first : new Error(String(first));
+  } finally {
+    race.abort();
+  }
+}
+
+const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response(null, { headers: CORS });
+  if (req.method !== 'POST') return json({ error: 'POST only' }, 405);
+
+  const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+  const lat = num(body.lat);
+  const lng = num(body.lng);
+  const radius = num(body.radiusKm);
+  if (lat == null || lng == null || radius == null || Math.abs(lat) > 90 || Math.abs(lng) > 180 || radius <= 0) {
+    return json({ error: 'Send lat, lng and radiusKm' }, 400);
+  }
+  const radiusKm = Math.min(radius, 100);
+
+  const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
+    auth: { persistSession: false },
+  });
+
+  const snapLat = Math.round(lat * 10) / 10;
+  const snapLng = Math.round(lng * 10) / 10;
+  const bucket = BUCKETS.find((b) => b >= radiusKm) ?? 100;
+  const cell = `${snapLat.toFixed(1)},${snapLng.toFixed(1)}:${bucket}`;
+
+  const { data: seen } = await db.from('gym_cells').select('fetched_at').eq('cell', cell).maybeSingle();
+  const fresh = seen && Date.now() - new Date(seen.fetched_at).getTime() < FRESH_MS;
+
+  let stale = false;
+  let problem = '';
+  if (!fresh) {
+    try {
+      const r = Math.round((bucket + SNAP_MARGIN_KM) * 1000);
+      const at = `(around:${r},${snapLat},${snapLng})`;
+      // Indoor climbing: sport=climbing on a gym-like place. Outdoor crags are
+      // also tagged sport=climbing in OSM, so require an indoor-ish tag.
+      const query = `[out:json][timeout:25];(
+        nwr["sport"~"climbing|bouldering"]["leisure"~"^(sports_centre|fitness_centre|sports_hall)$"]${at};
+        nwr["sport"~"climbing|bouldering"]["indoor"="yes"]${at};
+        nwr["sport"~"climbing|bouldering"]["building"]${at};
+      );out center tags 500;`;
+      const rows = new Map<string, GymRow>();
+      for (const el of await overpass(query)) {
+        const row = toRow(el);
+        if (row) rows.set(row.id, row);
+      }
+      if (rows.size) {
+        const { error } = await db.from('gyms').upsert([...rows.values()].map((r) => ({ ...r, fetched_at: new Date().toISOString() })));
+        if (error) throw new Error(`saving gyms: ${error.message}`);
+      }
+      await db.from('gym_cells').upsert({ cell, fetched_at: new Date().toISOString() });
+    } catch (e) {
+      stale = true;
+      problem = (e as Error).message;
+      console.warn('refresh failed', cell, problem);
+    }
+  }
+
+  const { data, error } = await db.rpc('nearby_gyms', { p_lat: lat, p_lng: lng, p_radius_km: radiusKm });
+  if (error) return json({ error: error.message }, 500);
+  const gyms = ((data ?? []) as GymRow[]).map((g) => ({
+    id: g.id,
+    kind: 'gym',
+    name: g.name,
+    location: { latitude: g.latitude, longitude: g.longitude },
+    address: g.address ?? undefined,
+    styles: g.styles,
+    source: g.source,
+    sourceId: g.source_id ?? undefined,
+    website: g.website ?? undefined,
+    phone: g.phone ?? undefined,
+    openingHours: g.opening_hours ?? undefined,
+  }));
+  // Nothing saved and Overpass failed: say so rather than claim "no gyms here".
+  if (stale && gyms.length === 0) return json({ error: `Gym data is unavailable right now (${problem})` }, 502);
+  return json({ gyms, stale });
+});

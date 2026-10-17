@@ -1,6 +1,8 @@
 /**
  * Finding climbing areas near a point.
- *   Gyms  — OpenStreetMap via the Overpass API (© OpenStreetMap contributors, ODbL)
+ *   Gyms  — our own catalog (Supabase `gyms`, filled from OpenStreetMap through the
+ *           `gyms` Edge Function), falling back to Overpass directly if that's down
+ *           (© OpenStreetMap contributors, ODbL)
  *   Crags — OpenBeta (openbeta.io), the open climbing route database
  * Both are free community services: results are cached per rounded location
  * so browsing back and forth doesn't re-query them.
@@ -8,6 +10,7 @@
 import { Platform } from 'react-native';
 
 import { bboxAround, coarsen, distanceKm } from '@/lib/geo';
+import { supabase } from '@/lib/supabase';
 import type { ClimbingArea, ClimbingStyle, LatLng } from '@/types/models';
 
 export type NearbyArea = ClimbingArea & { distanceKm: number };
@@ -134,8 +137,24 @@ function osmToGym(el: OsmElement): ClimbingArea | null {
   };
 }
 
+/** Gyms from our catalog. Throws if the function can't be reached. */
+async function fetchGymCatalog(center: LatLng, radiusKm: number): Promise<ClimbingArea[]> {
+  const call = supabase.functions.invoke<{ gyms: ClimbingArea[] }>('gyms', {
+    body: { lat: center.latitude, lng: center.longitude, radiusKm },
+  });
+  const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timed out')), 30_000));
+  const { data, error } = await Promise.race([call, timeout]);
+  if (error || !data?.gyms) throw new Error(error?.message ?? 'No gym data');
+  return data.gyms;
+}
+
 export function fetchGyms(center: LatLng, radiusKm: number): Promise<ClimbingArea[]> {
   return cached(cacheKey('gyms', center, radiusKm), async () => {
+    try {
+      return await fetchGymCatalog(center, radiusKm);
+    } catch {
+      // Fall through to asking OpenStreetMap directly.
+    }
     const r = Math.round(radiusKm * 1000);
     const at = `(around:${r},${center.latitude},${center.longitude})`;
     // Indoor climbing: sport=climbing on a gym-like place. Outdoor crags are

@@ -85,6 +85,11 @@ jobs:
             exit 1
           fi
           echo "::notice::Deploy output: $(tail -n 8 "$RUNNER_TEMP/deploy.log" | tr '\n' ' ' | head -c 700)"
+          # The gym catalog function (public; see supabase/functions/gyms).
+          if ! supabase functions deploy gyms --project-ref "$PROJECT_ID" --no-verify-jwt --use-api 2>&1 | tee "$RUNNER_TEMP/deploy-gyms.log"; then
+            echo "::error::Deploying gyms failed: $(tail -n 5 "$RUNNER_TEMP/deploy-gyms.log" | tr '\n' ' ' | head -c 600)"
+            exit 1
+          fi
           supabase functions list --project-ref "$PROJECT_ID" 2>&1 | tee "$RUNNER_TEMP/list.log"
           echo "::notice::Functions on $TARGET: $(tr '\n' ' ' < "$RUNNER_TEMP/list.log" | head -c 500)"
 
@@ -163,6 +168,15 @@ jobs:
           done
           echo "::error::notify didn't answer with HTTP 200. Last answer: HTTP $code $(head -c 400 "$RUNNER_TEMP/out" | tr '\n' ' ')"
           exit 1
+
+      # Not fatal: Overpass can be slow. A good answer also warms the catalog.
+      - name: Check the gyms function
+        continue-on-error: true
+        run: |
+          code=$(curl -s -m 60 -o "$RUNNER_TEMP/gyms.out" -w '%{http_code}' -X POST "https://$PROJECT_ID.supabase.co/functions/v1/gyms" \
+            -H 'Content-Type: application/json' -d '{"lat":35.78,"lng":-78.64,"radiusKm":25}')
+          echo "::notice::gyms function: HTTP $code, $(jq -c '{gyms: (.gyms | length), stale, error}' "$RUNNER_TEMP/gyms.out" 2>/dev/null || head -c 200 "$RUNNER_TEMP/gyms.out")"
+          [ "$code" = 200 ]
 
       # Recent deliveries, so a stuck or failing one is visible in the run's
       # annotations without opening any dashboard.

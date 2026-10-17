@@ -417,3 +417,6 @@ enabled = true
 # Called by the database with a shared secret (x-notify-secret), not a user JWT.
 [functions.notify]
 verify_jwt = false
+
+[functions.gyms]
+verify_jwt = false
