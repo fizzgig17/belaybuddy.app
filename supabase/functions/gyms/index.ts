@@ -132,7 +132,10 @@ async function refreshCell(db: Db, cell: string): Promise<number> {
   const [snapLat, snapLng, bucket] = [Number(m[1]), Number(m[2]), Number(m[3])];
   const started = new Date().toISOString();
   const radiusKm = bucket + SNAP_MARGIN_KM;
-  const at = `(around:${Math.round(radiusKm * 1000)},${snapLat},${snapLng})`;
+  // A bounding box is much cheaper for Overpass than an "around" circle.
+  const dLat = radiusKm / 111.32;
+  const dLng = radiusKm / (111.32 * Math.max(Math.cos((snapLat * Math.PI) / 180), 0.01));
+  const at = `(${(snapLat - dLat).toFixed(4)},${(snapLng - dLng).toFixed(4)},${(snapLat + dLat).toFixed(4)},${(snapLng + dLng).toFixed(4)})`;
   // Indoor climbing: sport=climbing on a gym-like place. Outdoor crags are
   // also tagged sport=climbing in OSM, so require an indoor-ish tag.
   const query = `[out:json][timeout:25];(
