@@ -172,17 +172,19 @@ function ShopRow({ shop }: { shop: Shop }) {
         </View>
       </View>
       <View style={styles.actions}>
-        <View style={styles.flex}>
-          <Button title="Directions" variant="secondary" onPress={() => Linking.openURL(directionsUrl(shop))} />
-        </View>
-        {shop.phone && (
-          <View style={styles.flex}>
-            <Button title="Call" variant="secondary" onPress={() => Linking.openURL(phoneUrl(shop.phone!))} />
-          </View>
-        )}
-        {shop.website && (
-          <View style={styles.flex}>
-            <Button title="Website" variant="secondary" onPress={() => Linking.openURL(shop.website!)} />
+        <Button title="Directions" variant="secondary" onPress={() => Linking.openURL(directionsUrl(shop))} />
+        {(shop.phone || shop.website) && (
+          <View style={styles.actionRow}>
+            {shop.phone && (
+              <View style={styles.flex}>
+                <Button title="Call" variant="secondary" onPress={() => Linking.openURL(phoneUrl(shop.phone!))} />
+              </View>
+            )}
+            {shop.website && (
+              <View style={styles.flex}>
+                <Button title="Website" variant="secondary" onPress={() => Linking.openURL(shop.website!)} />
+              </View>
+            )}
           </View>
         )}
       </View>
@@ -200,5 +202,6 @@ const styles = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.one + 2, marginTop: Spacing.one },
   chip: { paddingHorizontal: Spacing.two, paddingVertical: 2, borderRadius: 999 },
   chipText: { fontSize: 12, lineHeight: 16, fontWeight: 600 },
-  actions: { flexDirection: 'row', gap: Spacing.two },
+  actions: { gap: Spacing.two },
+  actionRow: { flexDirection: 'row', gap: Spacing.two },
 });
