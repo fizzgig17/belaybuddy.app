@@ -285,7 +285,7 @@ function ErrorText({ text }: { text: string }) {
 const styles = StyleSheet.create({
   container: { gap: Spacing.three },
   gap1: { gap: Spacing.one },
-  boxes: { flexDirection: 'row', gap: Spacing.two, justifyContent: 'space-between' },
+  boxes: { flexDirection: 'row', gap: Spacing.two, justifyContent: 'center' },
   box: {
     flex: 1,
     maxWidth: 56,
