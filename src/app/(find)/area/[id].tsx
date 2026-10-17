@@ -113,6 +113,13 @@ export default function AreaScreen() {
         )}
       </View>
       {user && area.kind === 'gym' && (
+        <Button
+          title="Start a climbing session here"
+          variant="secondary"
+          onPress={() => router.push({ pathname: '/partners/session', params: { areaId: area.id, name: area.name } })}
+        />
+      )}
+      {user && area.kind === 'gym' && (
         <View style={styles.actions}>
           <Pressable
             onPress={() => homeGyms.toggle(area)}

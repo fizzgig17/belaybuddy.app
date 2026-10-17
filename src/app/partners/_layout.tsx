@@ -6,6 +6,8 @@ export default function PartnersLayout() {
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="new" options={{ title: 'Post to the board' }} />
       <Stack.Screen name="post" options={{ title: 'Session' }} />
+      <Stack.Screen name="session" options={{ title: 'Climb log' }} />
+      <Stack.Screen name="sessions" options={{ title: 'Past sessions' }} />
       <Stack.Screen name="chat" options={{ title: 'Chat' }} />
       <Stack.Screen name="climber" options={{ title: 'Climber' }} />
     </Stack>
