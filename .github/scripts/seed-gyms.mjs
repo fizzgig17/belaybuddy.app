@@ -9,6 +9,8 @@
 // rounded to 0.1 degrees), so an app search near one is served from the catalog.
 import { writeFileSync } from 'node:fs';
 
+import { PLACES } from './places.mjs';
+
 const BUCKET = 25;
 const SNAP_MARGIN_KM = 8;
 const MAX_ELEMENTS = 500;
@@ -20,28 +22,6 @@ const ENDPOINTS = process.env.OVERPASS_URLS?.split(',') ?? [
   'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
 ];
 
-// Popular climbing metros [name, lat, lng].
-const PLACES = [
-  ['Boulder, CO', 40.01, -105.27], ['Denver, CO', 39.74, -104.99], ['Fort Collins, CO', 40.59, -105.08],
-  ['Colorado Springs, CO', 38.83, -104.82], ['Salt Lake City, UT', 40.76, -111.89], ['Seattle, WA', 47.61, -122.33],
-  ['Portland, OR', 45.52, -122.68], ['Bend, OR', 44.06, -121.31], ['Oakland / SF, CA', 37.8, -122.27],
-  ['San Jose, CA', 37.34, -121.89], ['Sacramento, CA', 38.58, -121.49], ['Los Angeles, CA', 34.05, -118.24],
-  ['San Diego, CA', 32.72, -117.16], ['Phoenix, AZ', 33.45, -112.07], ['Tucson, AZ', 32.22, -110.97],
-  ['Las Vegas, NV', 36.17, -115.14], ['Reno, NV', 39.53, -119.81], ['Albuquerque, NM', 35.08, -106.65],
-  ['Boise, ID', 43.62, -116.2], ['Bozeman, MT', 45.68, -111.04], ['Anchorage, AK', 61.22, -149.9],
-  ['Honolulu, HI', 21.31, -157.86], ['Austin, TX', 30.27, -97.74], ['Dallas, TX', 32.78, -96.8],
-  ['Houston, TX', 29.76, -95.37], ['Kansas City, MO', 39.1, -94.58], ['St. Louis, MO', 38.63, -90.2],
-  ['Minneapolis, MN', 44.98, -93.27], ['Madison, WI', 43.07, -89.4], ['Milwaukee, WI', 43.04, -87.91],
-  ['Chicago, IL', 41.88, -87.63], ['Indianapolis, IN', 39.77, -86.16], ['Detroit, MI', 42.33, -83.05],
-  ['Cleveland, OH', 41.5, -81.69], ['Columbus, OH', 39.96, -83.0], ['Cincinnati, OH', 39.1, -84.51],
-  ['Louisville, KY', 38.25, -85.76], ['Nashville, TN', 36.16, -86.78], ['Chattanooga, TN', 35.05, -85.31],
-  ['Atlanta, GA', 33.75, -84.39], ['Asheville, NC', 35.6, -82.55], ['Charlotte, NC', 35.23, -80.84],
-  ['Raleigh, NC', 35.78, -78.64], ['Boone, NC', 36.22, -81.67], ['Durham / Chapel Hill, NC', 35.99, -78.9], ['Richmond, VA', 37.54, -77.44],
-  ['Washington, DC', 38.91, -77.04], ['Baltimore, MD', 39.29, -76.61], ['Philadelphia, PA', 39.95, -75.17],
-  ['Pittsburgh, PA', 40.44, -79.99], ['New York, NY', 40.71, -74.01], ['Boston, MA', 42.36, -71.06],
-  ['Burlington, VT', 44.48, -73.21], ['Portland, ME', 43.66, -70.26], ['Miami, FL', 25.76, -80.19],
-  ['Orlando, FL', 28.54, -81.38], ['Tampa, FL', 27.95, -82.46],
-];
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 

@@ -1,15 +1,13 @@
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
-import { ActivityIndicator, Pressable, StyleSheet } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { SignIn } from '@/components/auth/sign-in';
 import { GymWallBanner } from '@/components/illustrations';
 import { ProfileEditor } from '@/components/profile/profile-editor';
 import { Screen } from '@/components/screen';
+import { IconButton } from '@/components/ui/icon-button';
 import { ThemedText } from '@/components/themed-text';
-import { Icons } from '@/constants/icons';
 import { Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/lib/auth';
 
 function closeProfile() {
@@ -18,21 +16,10 @@ function closeProfile() {
 }
 
 function CloseButton() {
-  const theme = useTheme();
-  return (
-    <Pressable
-      onPress={closeProfile}
-      accessibilityRole="button"
-      accessibilityLabel="Close"
-      hitSlop={12}
-      style={({ pressed }) => [styles.gear, { backgroundColor: theme.backgroundElement }, pressed && styles.pressed]}>
-      <SymbolView name={Icons.close} size={20} tintColor={theme.text} />
-    </Pressable>
-  );
+  return <IconButton icon="close" label="Close" onPress={closeProfile} />;
 }
 
 export default function ProfileScreen() {
-  const theme = useTheme();
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -56,17 +43,10 @@ export default function ProfileScreen() {
     <Screen
       title="Profile"
       action={
-        <>
-        <CloseButton />
-        <Pressable
-          onPress={() => router.push('/profile/settings')}
-          accessibilityRole="button"
-          accessibilityLabel="Settings"
-          hitSlop={12}
-          style={({ pressed }) => [styles.gear, { backgroundColor: theme.backgroundElement }, pressed && styles.pressed]}>
-          <SymbolView name={Icons.settings} size={22} tintColor={theme.text} />
-        </Pressable>
-        </>
+        <View style={styles.buttons}>
+          <IconButton icon="settings" label="Settings" onPress={() => router.push('/profile/settings')} />
+          <CloseButton />
+        </View>
       }>
       <ThemedText type="small" themeColor="textSecondary">
         Signed in as {user.email}
@@ -77,6 +57,5 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  gear: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', marginLeft: Spacing.two },
-  pressed: { opacity: 0.6 },
+  buttons: { flexDirection: 'row', gap: Spacing.two },
 });

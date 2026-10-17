@@ -5,6 +5,7 @@
  */
 import { osmAddress, queryOverpass } from '@/lib/areas';
 import { distanceKm } from '@/lib/geo';
+import { supabase } from '@/lib/supabase';
 import type { LatLng } from '@/types/models';
 
 export type Shop = {
@@ -22,7 +23,61 @@ export type Shop = {
 
 const CLIMBING_NAME = /climb|boulder|mountain|alpine|vertical|summit|outfitter/i;
 
+type ShopRow = {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  address: string | null;
+  website: string | null;
+  phone: string | null;
+  opening_hours: string | null;
+  climbing: boolean;
+};
+
+const byRelevance = (a: Shop, b: Shop) => Number(b.climbing) - Number(a.climbing) || a.distanceKm - b.distanceKm;
+
+/** Shops from our own catalog (seeded for popular areas). Empty if the area isn't seeded. */
+async function fetchShopCatalog(center: LatLng, radiusKm: number): Promise<Shop[]> {
+  const { data, error } = await supabase.rpc('nearby_shops', {
+    p_lat: center.latitude,
+    p_lng: center.longitude,
+    p_radius_km: radiusKm,
+    p_limit: 300,
+  });
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as ShopRow[]).map((r) => {
+    const location = { latitude: r.latitude, longitude: r.longitude };
+    return {
+      id: r.id,
+      name: r.name,
+      location,
+      address: r.address ?? undefined,
+      website: r.website ?? undefined,
+      phone: r.phone ?? undefined,
+      openingHours: r.opening_hours ?? undefined,
+      climbing: r.climbing,
+      distanceKm: distanceKm(center, location),
+    };
+  }).sort(byRelevance);
+}
+
+/** Catalog first (instant); live OpenStreetMap for places we haven't seeded, with one retry. */
 export async function fetchShops(center: LatLng, radiusKm: number): Promise<Shop[]> {
+  try {
+    const saved = await fetchShopCatalog(center, radiusKm);
+    if (saved.length > 0) return saved;
+  } catch {
+    // fall through to the live lookup
+  }
+  try {
+    return await fetchShopsLive(center, radiusKm);
+  } catch {
+    return fetchShopsLive(center, radiusKm);
+  }
+}
+
+async function fetchShopsLive(center: LatLng, radiusKm: number): Promise<Shop[]> {
   const at = `(around:${Math.round(radiusKm * 1000)},${center.latitude},${center.longitude})`;
   // Exact tag values keep this fast on the shared Overpass servers.
   const query = `[out:json][timeout:15];(
@@ -56,5 +111,5 @@ export async function fetchShops(center: LatLng, radiusKm: number): Promise<Shop
     });
   }
   // Climbing shops first, then nearest.
-  return shops.sort((a, b) => Number(b.climbing) - Number(a.climbing) || a.distanceKm - b.distanceKm);
+  return shops.sort(byRelevance);
 }

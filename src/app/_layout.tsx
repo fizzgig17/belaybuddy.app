@@ -1,9 +1,8 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useColorScheme } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
 import { AppLock } from '@/components/auth/app-lock';
 import { NotificationsBridge } from '@/components/notifications-bridge';
 import { AuthProvider } from '@/lib/auth';
@@ -20,7 +19,11 @@ export default function TabLayout() {
         <HomeGymsProvider>
           <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
             <AnimatedSplashOverlay />
-            <AppTabs />
+            {/* Profile and Settings sit above the tabs, opened from the buttons at the top right. */}
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="profile" options={{ presentation: 'modal' }} />
+            </Stack>
             <AppLock />
             <NotificationsBridge />
           </ThemeProvider>

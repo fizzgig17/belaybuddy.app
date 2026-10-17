@@ -38,8 +38,6 @@ export default function AppTabs() {
         <NativeTabs.Trigger.Icon sf={{ default: 'bag', selected: 'bag.fill' }} />
       </NativeTabs.Trigger>
 
-      {/* Opened from the person button at the top right of each tab. */}
-      <NativeTabs.Trigger name="profile" hidden />
     </NativeTabs>
   );
 }

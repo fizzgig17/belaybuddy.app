@@ -1,16 +1,14 @@
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
 import type { ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PageTitle } from '@/components/page-title';
 import { KeyboardDoneBar } from '@/components/form';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Icons } from '@/constants/icons';
+import { IconButton } from '@/components/ui/icon-button';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
 
 type ScreenProps = {
   title: string;
@@ -26,7 +24,6 @@ type ScreenProps = {
 
 /** Standard scrollable screen shell used by every tab. */
 export function Screen({ title, subtitle, children, showTitle = true, action, profileButton }: ScreenProps) {
-  const theme = useTheme();
   return (
     <ThemedView style={styles.container}>
       <PageTitle title={title} />
@@ -41,18 +38,10 @@ export function Screen({ title, subtitle, children, showTitle = true, action, pr
               </ThemedText>
               {action}
               {profileButton && (
-                <Pressable
-                  onPress={() => router.navigate('/profile')}
-                  accessibilityRole="button"
-                  accessibilityLabel="Profile and settings"
-                  hitSlop={10}
-                  style={({ pressed }) => [
-                    styles.profile,
-                    { backgroundColor: theme.surface, borderColor: theme.border },
-                    pressed && styles.pressed,
-                  ]}>
-                  <SymbolView name={Icons.person} size={24} tintColor={theme.accent} />
-                </Pressable>
+                <View style={styles.buttons}>
+                  <IconButton icon="settings" label="Settings" onPress={() => router.push('/profile/settings')} />
+                  <IconButton icon="person" label="Profile" onPress={() => router.push('/profile')} />
+                </View>
               )}
             </View>
           )}
@@ -69,15 +58,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   title: { flex: 1 },
-  profile: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: StyleSheet.hairlineWidth,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pressed: { opacity: 0.6 },
+  buttons: { flexDirection: 'row', gap: Spacing.two },
   safeArea: { flex: 1 },
   content: {
     padding: Spacing.three,

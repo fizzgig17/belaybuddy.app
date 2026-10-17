@@ -1,3 +1,4 @@
+import Constants from 'expo-constants';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, AppState, Linking, Platform, StyleSheet, Switch, View } from 'react-native';
@@ -28,6 +29,10 @@ const KINDS: { kind: NotificationKind; title: string; detail: string }[] = [
   { kind: 'messages', title: 'Messages', detail: 'New chat messages (emails at most every 15 minutes per chat)' },
   { kind: 'reminders', title: 'Session reminders', detail: '30 minutes before a session someone has joined' },
 ];
+
+/** "0.1.0 (49)": app version plus the build number the TestFlight build was stamped with. */
+const build = Constants.expoConfig?.ios?.buildNumber ?? Constants.expoConfig?.android?.versionCode;
+const version = `${Constants.expoConfig?.version ?? ''}${build ? ` (${build})` : ''}`.trim();
 
 export default function SettingsScreen() {
   const theme = useTheme();
@@ -233,6 +238,10 @@ export default function SettingsScreen() {
       <PrivacySettings />
 
       <Button title="Sign out" variant="secondary" onPress={confirmSignOut} loading={signingOut} />
+
+      <ThemedText type="small" themeColor="textSecondary" style={styles.version} selectable>
+        Belay Buddy {version}
+      </ThemedText>
     </Screen>
   );
 }
@@ -241,5 +250,6 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingVertical: Spacing.two },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   flex: { flex: 1, gap: Spacing.half },
+  version: { textAlign: 'center' },
   col: { width: 56, alignItems: 'center', textAlign: 'center' },
 });
