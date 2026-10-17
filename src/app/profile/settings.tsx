@@ -4,6 +4,7 @@ import { ActivityIndicator, Alert, AppState, Linking, Platform, StyleSheet, Swit
 
 import { SignInOptions } from '@/components/auth/sign-in-options';
 import { Button } from '@/components/form';
+import { AppIconPicker } from '@/components/profile/app-icon-picker';
 import { PrivacySettings } from '@/components/profile/privacy-settings';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
@@ -218,6 +219,8 @@ export default function SettingsScreen() {
         <Button title="Send me a test notification" variant="secondary" onPress={runTest} loading={testing} />
         {testMessage && <ThemedText type="small">{testMessage}</ThemedText>}
       </Section>
+
+      <AppIconPicker />
 
       <Section title="Sign-in">
         <ThemedView type="backgroundElement" style={styles.card}>
