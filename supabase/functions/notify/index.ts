@@ -106,7 +106,7 @@ async function apnsToken(): Promise<string | null> {
   return token;
 }
 
-type PushResult = 'sent' | 'gone' | 'failed' | 'skipped';
+type PushResult = { result: 'sent' | 'gone' | 'failed' | 'skipped'; reason?: string };
 
 async function sendPush(
   device: { token: string; environment: string },
@@ -115,7 +115,7 @@ async function sendPush(
 ): Promise<PushResult> {
   const jwt = await apnsToken();
   const topic = env('APNS_BUNDLE_ID') ?? 'app.belaybuddy.ios';
-  if (!jwt) return 'skipped';
+  if (!jwt) return { result: 'skipped' };
   const host = device.environment === 'sandbox' ? 'api.sandbox.push.apple.com' : 'api.push.apple.com';
   const res = await fetch(`https://${host}/3/device/${device.token}`, {
     method: 'POST',
@@ -131,10 +131,12 @@ async function sendPush(
       body: { path: msg.path },
     }),
   });
-  if (res.ok) return 'sent';
+  if (res.ok) return { result: 'sent' };
   const reason = (await res.json().catch(() => ({}))) as { reason?: string };
   console.warn('APNs', res.status, reason.reason);
-  return res.status === 410 || reason.reason === 'BadDeviceToken' || reason.reason === 'Unregistered' ? 'gone' : 'failed';
+  const why = `${res.status} ${reason.reason ?? ''}`.trim();
+  const gone = res.status === 410 || reason.reason === 'BadDeviceToken' || reason.reason === 'Unregistered';
+  return { result: gone ? 'gone' : 'failed', reason: why };
 }
 
 // --- Email -------------------------------------------------------------------
@@ -229,15 +231,18 @@ Deno.serve(async (req) => {
     let pushed = 0;
 
     if (item.send_push) {
+      if (item.kind === 'test' && !(tokens.get(item.user_id) ?? []).length) {
+        problems.push('push: no phone is registered for your account');
+      }
       for (const device of tokens.get(item.user_id) ?? []) {
         try {
-          const result = await sendPush(device, msg, `${item.post_id ?? item.kind}`);
+          const { result, reason } = await sendPush(device, msg, `${item.post_id ?? item.kind}`);
           if (result === 'sent') pushed++;
           if (result === 'gone') {
             await db.from('push_tokens').delete().eq('token', device.token);
-            problems.push('push: Apple no longer knows a phone (removed it)');
+            problems.push(`push: Apple rejected a phone's token (${reason}) and it was removed`);
           }
-          if (result === 'failed') problems.push('push failed');
+          if (result === 'failed') problems.push(`push failed (${reason})`);
           if (result === 'skipped') problems.push('push: not set up on the server');
         } catch (e) {
           problems.push(`push: ${(e as Error).message}`);

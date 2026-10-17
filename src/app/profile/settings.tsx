@@ -84,6 +84,8 @@ export default function SettingsScreen() {
     setTesting(true);
     setTestMessage(null);
     try {
+      // Make sure this phone is registered (no prompt if already allowed).
+      if (showPush && push === 'on') await enablePush().catch(() => {});
       const result = await waitForTestResult(await sendTestNotification());
       if (!result) {
         setTestMessage('Still waiting on the server. Check again in a minute.');
