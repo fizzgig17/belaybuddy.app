@@ -36,7 +36,7 @@ const PLACES = [
   ['Cleveland, OH', 41.5, -81.69], ['Columbus, OH', 39.96, -83.0], ['Cincinnati, OH', 39.1, -84.51],
   ['Louisville, KY', 38.25, -85.76], ['Nashville, TN', 36.16, -86.78], ['Chattanooga, TN', 35.05, -85.31],
   ['Atlanta, GA', 33.75, -84.39], ['Asheville, NC', 35.6, -82.55], ['Charlotte, NC', 35.23, -80.84],
-  ['Raleigh, NC', 35.78, -78.64], ['Durham / Chapel Hill, NC', 35.99, -78.9], ['Richmond, VA', 37.54, -77.44],
+  ['Raleigh, NC', 35.78, -78.64], ['Boone, NC', 36.22, -81.67], ['Durham / Chapel Hill, NC', 35.99, -78.9], ['Richmond, VA', 37.54, -77.44],
   ['Washington, DC', 38.91, -77.04], ['Baltimore, MD', 39.29, -76.61], ['Philadelphia, PA', 39.95, -75.17],
   ['Pittsburgh, PA', 40.44, -79.99], ['New York, NY', 40.71, -74.01], ['Boston, MA', 42.36, -71.06],
   ['Burlington, VT', 44.48, -73.21], ['Portland, ME', 43.66, -70.26], ['Miami, FL', 25.76, -80.19],
@@ -93,13 +93,16 @@ function toRow(el) {
 }
 
 const outPath = process.argv[2];
-const only = process.env.SEED_ONLY ? Number(process.env.SEED_ONLY) : PLACES.length;
+// SEED_FILTER="boone,asheville" seeds only areas whose name contains one of those.
+const terms = (process.env.SEED_FILTER ?? '').toLowerCase().split(',').map((t) => t.trim()).filter(Boolean);
+const chosen = terms.length ? PLACES.filter(([name]) => terms.some((t) => name.toLowerCase().includes(t))) : PLACES;
+const only = process.env.SEED_ONLY ? Number(process.env.SEED_ONLY) : chosen.length;
 const sql = [];
 const seen = new Map();
 let ok = 0;
 const failed = [];
 
-for (const [name, lat0, lng0] of PLACES.slice(0, only)) {
+for (const [name, lat0, lng0] of chosen.slice(0, only)) {
   const lat = Math.round(lat0 * 10) / 10;
   const lng = Math.round(lng0 * 10) / 10;
   const cell = `${lat.toFixed(1)},${lng.toFixed(1)}:${BUCKET}`;

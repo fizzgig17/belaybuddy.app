@@ -1,7 +1,8 @@
 # Fills the gym catalog for ~55 popular climbing metros from OpenStreetMap.
 # Run it by hand (Actions > Seed gyms > Run workflow, once this file is on the
 # default branch) and pick dev or prod, or push a commit to develop whose message
-# contains [seed] (all areas) or [seed-test] (first 3). It is safe to run again
+# contains [seed] (all areas), [seed-test] (first 3) or [seed:boone,asheville]
+# (only areas whose name contains one of those words). It is safe to run again
 # any time (it updates gyms and removes ones that are gone).
 # Overpass blocks many cloud IPs, so this runs on a CI runner, not in Supabase.
 name: Seed gyms
@@ -20,6 +21,10 @@ on:
         description: Only the first N areas (blank = all)
         required: false
 
+concurrency:
+  group: seed-gyms
+  cancel-in-progress: false
+
 jobs:
   seed:
     if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[seed')
@@ -32,6 +37,7 @@ jobs:
       PROD_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
       PROD_PROJECT_ID: ${{ secrets.PROD_PROJECT_ID }}
       POOLER_HOST: aws-0-us-east-1.pooler.supabase.com
+      COMMIT_MSG: ${{ github.event.head_commit.message }}
       SEED_ONLY: ${{ inputs.limit || (contains(github.event.head_commit.message, '[seed-test]') && '3') || '' }}
     steps:
       - uses: actions/checkout@v4
@@ -41,6 +47,8 @@ jobs:
 
       - name: Fetch gyms from OpenStreetMap
         run: |
+          # "[seed:boone,asheville]" in the commit message seeds only those areas.
+          if [[ "$COMMIT_MSG" =~ \[seed:([^]]+)\] ]]; then export SEED_FILTER="${BASH_REMATCH[1]}"; echo "Only: $SEED_FILTER"; fi
           node .github/scripts/seed-gyms.mjs "$RUNNER_TEMP/seed.sql" | tee "$RUNNER_TEMP/seed.log"
           echo "::notice::$(grep -E '^(SUMMARY|FAILED_LIST)' "$RUNNER_TEMP/seed.log" | tr '\n' ' ')"
 
