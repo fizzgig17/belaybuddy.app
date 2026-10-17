@@ -175,3 +175,8 @@ jobs:
           echo "::notice::Recent queue: ${out:-empty}"
           out=$(psql "postgresql://postgres.$PROJECT_ID:$password@$POOLER_HOST:5432/postgres" -At -c "select 'http ' || coalesce(status_code::text, 'none') || ' ' || to_char(created, 'HH24:MI:SS') || ' timed_out=' || coalesce(timed_out::text, '-') || ' ' || coalesce(error_msg, '') || ' ' || left(coalesce(content, ''), 120) from net._http_response order by id desc limit 6" 2>&1 | head -c 1500 | tr '\n' '|')
           echo "::notice::Recent function calls from the database: ${out:-none}"
+          out=$(psql "postgresql://postgres.$PROJECT_ID:$password@$POOLER_HOST:5432/postgres" -At -c "select 'token ' || platform || ' ' || environment || ' updated=' || to_char(updated_at, 'MM-DD HH24:MI:SS') || ' len=' || char_length(token) from public.push_tokens order by updated_at desc limit 6" 2>&1 | head -c 800 | tr '\n' '|')
+          echo "::notice::Registered phones: ${out:-none}"
+          out=$(psql "postgresql://postgres.$PROJECT_ID:$password@$POOLER_HOST:5432/postgres" -At -c "select has_table_privilege('service_role', 'public.push_tokens', 'select') || ' / queue update ' || has_table_privilege('service_role', 'public.notification_queue', 'update')" 2>&1 | head -c 300)
+          echo "::notice::service_role can read tokens / update queue: $out"
+
