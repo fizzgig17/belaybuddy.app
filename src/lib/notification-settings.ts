@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase';
 
-export type NotificationKind = 'responses' | 'messages' | 'reminders';
+export type NotificationKind = 'responses' | 'messages' | 'reminders' | 'friends';
 export type NotificationSettings = Record<`push_${NotificationKind}` | `email_${NotificationKind}`, boolean>;
 
 /** Same defaults as the database (a missing row means these). */
@@ -8,9 +8,11 @@ export const DEFAULT_SETTINGS: NotificationSettings = {
   push_responses: true,
   push_messages: true,
   push_reminders: true,
+  push_friends: true,
   email_responses: true,
   email_messages: true,
   email_reminders: false,
+  email_friends: true,
 };
 
 const COLUMNS = Object.keys(DEFAULT_SETTINGS).join(', ');

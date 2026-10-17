@@ -18,7 +18,7 @@ import nodemailer from 'npm:nodemailer@6.9.16';
 
 type Item = {
   id: number;
-  kind: 'response' | 'message' | 'reminder' | 'test';
+  kind: 'response' | 'message' | 'reminder' | 'test' | 'friend_request' | 'friend_accepted';
   user_id: string;
   email: string | null;
   actor_name: string;
@@ -63,6 +63,20 @@ export function compose(item: Item): { title: string; body: string; path: string
       title: 'Test notification',
       body: 'Belay Buddy notifications are working on this device.',
       path: '/profile/settings',
+    };
+  }
+  if (item.kind === 'friend_request') {
+    return {
+      title: `${item.actor_name} wants to be friends`,
+      body: 'Open Belay Buddy to accept or decline.',
+      path: '/partners/friends',
+    };
+  }
+  if (item.kind === 'friend_accepted') {
+    return {
+      title: `${item.actor_name} accepted your friend request`,
+      body: 'You can now see when each other checks in at the gym.',
+      path: '/partners/friends',
     };
   }
   const gym = item.area_name ?? 'your gym';

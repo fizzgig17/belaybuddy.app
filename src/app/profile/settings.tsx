@@ -29,6 +29,7 @@ const KINDS: { kind: NotificationKind; title: string; detail: string }[] = [
   { kind: 'responses', title: "Someone's in", detail: 'When a climber joins one of your sessions' },
   { kind: 'messages', title: 'Messages', detail: 'New chat messages (emails at most every 15 minutes per chat)' },
   { kind: 'reminders', title: 'Session reminders', detail: '30 minutes before a session someone has joined' },
+  { kind: 'friends', title: 'Friends', detail: 'Friend requests and when someone accepts yours' },
 ];
 
 /** "0.1.0 (49)": app version plus the build number the TestFlight build was stamped with. */
