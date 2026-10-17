@@ -58,7 +58,7 @@ type OsmElement = {
   tags?: Record<string, string>;
 };
 
-function osmAddress(t: Record<string, string>): string | undefined {
+export function osmAddress(t: Record<string, string>): string | undefined {
   const street = [t['addr:housenumber'], t['addr:street']].filter(Boolean).join(' ');
   const parts = [street, t['addr:city'], t['addr:state']].filter(Boolean);
   return parts.length ? parts.join(', ') : undefined;
@@ -91,7 +91,7 @@ async function fetchWithTimeout(url: string, init: RequestInit, ms: number, oute
 }
 
 /** Asks every Overpass mirror at once and uses whichever answers first. */
-async function queryOverpass(query: string): Promise<OsmElement[]> {
+export async function queryOverpass(query: string): Promise<OsmElement[]> {
   const race = new AbortController();
   const attempts = OVERPASS_ENDPOINTS.map(async (endpoint) => {
     const res = await fetchWithTimeout(
@@ -280,7 +280,7 @@ export function loadNearby(center: LatLng, radiusKm: number, onUpdate: (state: N
 }
 
 /** Link that opens directions in the platform's maps app. */
-export function directionsUrl(area: ClimbingArea): string {
+export function directionsUrl(area: Pick<ClimbingArea, 'location' | 'name'>): string {
   const { latitude, longitude } = area.location;
   const q = encodeURIComponent(area.name);
   if (Platform.OS === 'ios') return `https://maps.apple.com/?daddr=${latitude},${longitude}&q=${q}`;

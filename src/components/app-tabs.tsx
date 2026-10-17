@@ -33,10 +33,13 @@ export default function AppTabs() {
         <NativeTabs.Trigger.Icon sf={{ default: 'book', selected: 'book.fill' }} />
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="profile">
-        <NativeTabs.Trigger.Label>Profile</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf={{ default: 'person.crop.circle', selected: 'person.crop.circle.fill' }} />
+      <NativeTabs.Trigger name="shops">
+        <NativeTabs.Trigger.Label>Shops</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf={{ default: 'bag', selected: 'bag.fill' }} />
       </NativeTabs.Trigger>
+
+      {/* Opened from the person button at the top right of each tab. */}
+      <NativeTabs.Trigger name="profile" hidden />
     </NativeTabs>
   );
 }

@@ -40,6 +40,8 @@ export const Icons = {
   send: icon('arrow.up.circle.fill', 'send'),
   scale: icon('scalemass', 'scale'),
   lock: icon('lock.fill', 'lock'),
+  shop: icon('bag', 'storefront'),
+  close: icon('xmark', 'close'),
 } as const;
 
 export type IconName = keyof typeof Icons;

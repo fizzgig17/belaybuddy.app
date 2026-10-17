@@ -95,7 +95,7 @@ export default function PartnersScreen() {
 
   if (authLoading) {
     return (
-      <Screen title="Partners">
+      <Screen profileButton title="Partners">
         <ActivityIndicator />
       </Screen>
     );
@@ -103,7 +103,7 @@ export default function PartnersScreen() {
 
   if (!user) {
     return (
-      <Screen title="Partners" subtitle="Find someone to climb with at your gym, or wherever you're headed.">
+      <Screen profileButton title="Partners" subtitle="Find someone to climb with at your gym, or wherever you're headed.">
         <GymWallBanner />
         <ThemedText>
           Each gym has a belay board: post when you'll be there and what you want to climb, and see who else is
@@ -151,7 +151,7 @@ export default function PartnersScreen() {
     });
 
   return (
-    <Screen title="Partners" subtitle="Who's climbing at your gyms, and when.">
+    <Screen profileButton title="Partners" subtitle="Who's climbing at your gyms, and when.">
       {home.length === 0 && !otherGym ? (
         homeGyms.loading ? (
           <ActivityIndicator />

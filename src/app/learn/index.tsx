@@ -4,7 +4,7 @@ import { LEARN_TOPICS } from '@/content/learn';
 
 export default function LearnScreen() {
   return (
-    <Screen title="Learn" subtitle="Safety, gear, and knots.">
+    <Screen profileButton title="Learn" subtitle="Safety, gear, and knots.">
       {LEARN_TOPICS.map((topic) => (
         <FeatureCard
           key={topic.id}

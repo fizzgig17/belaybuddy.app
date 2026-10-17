@@ -134,7 +134,7 @@ export default function FindScreen() {
   const savedVisible = showAllSaved ? favorites : favorites.slice(0, 3);
 
   return (
-    <Screen title="Find" subtitle="Climbing gyms and outdoor crags near you, or wherever you're headed.">
+    <Screen profileButton title="Find" subtitle="Climbing gyms and outdoor crags near you, or wherever you're headed.">
       {!place && <CragBanner />}
 
       {/* Where to look */}

@@ -12,13 +12,32 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/lib/auth';
 
+function closeProfile() {
+  if (router.canGoBack()) router.back();
+  else router.navigate('/');
+}
+
+function CloseButton() {
+  const theme = useTheme();
+  return (
+    <Pressable
+      onPress={closeProfile}
+      accessibilityRole="button"
+      accessibilityLabel="Close"
+      hitSlop={12}
+      style={({ pressed }) => [styles.gear, { backgroundColor: theme.backgroundElement }, pressed && styles.pressed]}>
+      <SymbolView name={Icons.close} size={20} tintColor={theme.text} />
+    </Pressable>
+  );
+}
+
 export default function ProfileScreen() {
   const theme = useTheme();
   const { user, loading } = useAuth();
 
   if (loading) {
     return (
-      <Screen title="Profile">
+      <Screen title="Profile" action={<CloseButton />}>
         <ActivityIndicator />
       </Screen>
     );
@@ -26,7 +45,7 @@ export default function ProfileScreen() {
 
   if (!user) {
     return (
-      <Screen title="Profile" subtitle="Sign in to save favorites, set up your climbing profile, and find partners.">
+      <Screen title="Profile" action={<CloseButton />} subtitle="Sign in to save favorites, set up your climbing profile, and find partners.">
         <GymWallBanner />
         <SignIn />
       </Screen>
@@ -37,6 +56,8 @@ export default function ProfileScreen() {
     <Screen
       title="Profile"
       action={
+        <>
+        <CloseButton />
         <Pressable
           onPress={() => router.push('/profile/settings')}
           accessibilityRole="button"
@@ -45,6 +66,7 @@ export default function ProfileScreen() {
           style={({ pressed }) => [styles.gear, { backgroundColor: theme.backgroundElement }, pressed && styles.pressed]}>
           <SymbolView name={Icons.settings} size={22} tintColor={theme.text} />
         </Pressable>
+        </>
       }>
       <ThemedText type="small" themeColor="textSecondary">
         Signed in as {user.email}

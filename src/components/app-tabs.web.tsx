@@ -31,14 +31,22 @@ export default function AppTabs() {
           <TabTrigger name="learn" href="/learn" asChild>
             <TabButton>Learn</TabButton>
           </TabTrigger>
+          <TabTrigger name="shops" href="/shops" asChild>
+            <TabButton>Shops</TabButton>
+          </TabTrigger>
           <TabTrigger name="profile" href="/profile" asChild>
-            <TabButton>Profile</TabButton>
+            <ProfileTab />
           </TabTrigger>
         </CustomTabList>
       </TabList>
       <TabSlot style={styles.slot} />
     </Tabs>
   );
+}
+
+/** Profile isn't a tab: it's the person button at the top right of each screen. */
+function ProfileTab(_props: TabTriggerSlotProps) {
+  return null;
 }
 
 export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
