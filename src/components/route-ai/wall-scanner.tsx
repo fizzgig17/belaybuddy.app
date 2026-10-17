@@ -38,25 +38,31 @@ const SENSITIVITY_OPTIONS: { value: Sensitivity; label: string }[] = [
 export function WallScanner() {
   const theme = useTheme();
   const [photo, setPhoto] = useState<WallPhoto | null>(null);
-  const [seed, setSeed] = useState<Seed | null>(null);
+  const [seeds, setSeeds] = useState<Seed[]>([]);
+  const seed = seeds[0] ?? null;
   const [seedRgb, setSeedRgb] = useState<string>('#FFD400');
   const [sensitivity, setSensitivity] = useState<Sensitivity>('normal');
   const [auto, setAuto] = useState<Hold[]>([]);
-  const [removed, setRemoved] = useState<Set<number>>(new Set());
+  const [removedPts, setRemovedPts] = useState<[number, number][]>([]);
   const [manual, setManual] = useState<Hold[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [width, setWidth] = useState(0);
   const imageRef = useRef<View>(null);
 
-  const holds = useMemo(() => [...auto.filter((h) => !removed.has(h.id)), ...manual], [auto, removed, manual]);
+  const holds = useMemo(() => {
+    const kept = auto.filter((h) => !removedPts.some(([x, y]) => Math.abs(x - h.x) <= h.w / 2 && Math.abs(y - h.y) <= h.h / 2));
+    // A hand-added hold that detection now finds on its own isn't drawn twice.
+    const extra = manual.filter((m) => !holdAt(kept, m.x, m.y, 0.005));
+    return [...kept, ...extra];
+  }, [auto, removedPts, manual]);
   const height = photo ? (width * photo.height) / photo.width : 0;
 
   const reset = useCallback(() => {
     setPhoto(null);
-    setSeed(null);
+    setSeeds([]);
     setAuto([]);
-    setRemoved(new Set());
+    setRemovedPts([]);
     setManual([]);
     setError(null);
   }, []);
@@ -72,9 +78,9 @@ export function WallScanner() {
         return;
       }
       setPhoto(result.photo);
-      setSeed(null);
+      setSeeds([]);
       setAuto([]);
-      setRemoved(new Set());
+      setRemovedPts([]);
       setManual([]);
     } finally {
       setBusy(false);
@@ -82,12 +88,10 @@ export function WallScanner() {
   }, []);
 
   /** Runs detection after letting the spinner paint, since it takes a moment on a phone. */
-  const runDetect = useCallback((p: WallPhoto, s: Seed, level: Sensitivity) => {
+  const runDetect = useCallback((p: WallPhoto, s: Seed[], level: Sensitivity) => {
     setBusy(true);
     setTimeout(() => {
       setAuto(detectHolds(p.pixels, s, level));
-      setRemoved(new Set());
-      setManual([]);
       setBusy(false);
     }, 30);
   }, []);
@@ -100,21 +104,30 @@ export function WallScanner() {
         const { width: w, height: h, data } = photo.pixels;
         const i = (Math.round(ny * (h - 1)) * w + Math.round(nx * (w - 1))) * 4;
         setSeedRgb(`rgb(${data[i]},${data[i + 1]},${data[i + 2]})`);
-        setSeed(s);
+        setSeeds([s]);
+        setRemovedPts([]);
+        setManual([]);
         select();
-        runDetect(photo, s, sensitivity);
+        runDetect(photo, [s], sensitivity);
         return;
       }
       const hit = holdAt(holds, nx, ny);
       select();
       if (hit) {
         if (hit.manual) setManual((m) => m.filter((x) => x.id !== hit.id));
-        else setRemoved((r) => new Set(r).add(hit.id));
+        else setRemovedPts((r) => [...r, [hit.x, hit.y]]);
       } else {
-        setManual((m) => [...m, growHoldAt(photo.pixels, nx, ny, 10000 + m.length + Date.now() % 1000)]);
+        const added = growHoldAt(photo.pixels, nx, ny, 10000 + manual.length);
+        setManual((m) => [...m, added]);
+        // A missed hold teaches the match its color (e.g. a lit hold after picking a shaded one).
+        if (!added.guessed) {
+          const next = [...seeds, sampleSeed(photo.pixels, nx, ny, 2)].slice(-6);
+          setSeeds(next);
+          runDetect(photo, next, sensitivity);
+        }
       }
     },
-    [photo, seed, busy, holds, sensitivity, runDetect],
+    [photo, seed, seeds, busy, holds, manual.length, sensitivity, runDetect],
   );
 
   /** Where a press landed on the photo, as 0..1. The web doesn't report locationX/Y, so measure the element. */
@@ -160,7 +173,7 @@ export function WallScanner() {
       <ThemedText type="small" themeColor="textSecondary">
         {!seed
           ? 'Tap one hold on your route to pick its color.'
-          : 'Tap a highlighted hold to remove it, or tap one that was missed to add it.'}
+          : 'Tap a highlighted hold to remove it. Tap one that was missed to add it, and similar holds will be found too.'}
       </ThemedText>
 
       <View onLayout={onLayout} style={styles.imageWrap}>
@@ -237,11 +250,11 @@ export function WallScanner() {
             value={sensitivity}
             onChange={(level) => {
               setSensitivity(level);
-              runDetect(photo, seed, level);
+              runDetect(photo, seeds, level);
             }}
           />
           <ThemedText type="small" themeColor="textSecondary">
-            Missing holds? Try "More". Too many? Try "Fewer", or tap the extras to remove them.
+            Missing holds? Tap one of them, or try "More". Too many? Try "Fewer", or tap the extras to remove them.
           </ThemedText>
         </Card>
       )}
@@ -253,9 +266,9 @@ export function WallScanner() {
               title="Pick another color"
               variant="secondary"
               onPress={() => {
-                setSeed(null);
+                setSeeds([]);
                 setAuto([]);
-                setRemoved(new Set());
+                setRemovedPts([]);
                 setManual([]);
               }}
             />

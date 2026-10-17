@@ -17,6 +17,8 @@ export type Hold = {
   h: number;
   /** True for holds the user added by tapping. */
   manual?: boolean;
+  /** A manual hold where no coherent region grew (drawn as a small circle). */
+  guessed?: boolean;
 };
 
 export type Sensitivity = 'low' | 'normal' | 'high';
@@ -24,11 +26,11 @@ export type Sensitivity = 'low' | 'normal' | 'high';
 /** Seed color, in Lab. */
 export type Seed = { L: number; a: number; b: number };
 
-const THRESHOLD: Record<Sensitivity, number> = { low: 13, normal: 19, high: 27 };
+const THRESHOLD: Record<Sensitivity, number> = { low: 12, normal: 17, high: 20 };
 /** How much lightness differences count compared to hue/chroma differences. */
 const L_WEIGHT = 0.25;
 /** Max hue difference (degrees) for colored seeds, so a pale blue hold can't match a tan wall. */
-const HUE_TOLERANCE: Record<Sensitivity, number> = { low: 22, normal: 32, high: 45 };
+const HUE_TOLERANCE: Record<Sensitivity, number> = { low: 20, normal: 28, high: 34 };
 
 const LINEAR = new Float32Array(256).map((_, v) => {
   const c = v / 255;
@@ -193,10 +195,17 @@ function blobToHold(blob: Blob, w: number, h: number, id: number, manual?: boole
 }
 
 /** Finds every hold matching the seed color. */
-export function detectHolds(img: Pixels, seed: Seed, sensitivity: Sensitivity = 'normal'): Hold[] {
+export function detectHolds(img: Pixels, seedOrSeeds: Seed | Seed[], sensitivity: Sensitivity = 'normal'): Hold[] {
   const { width: w, height: h } = img;
   const lab = labOf(img);
-  const mask = clean(colorMask(lab, seed, THRESHOLD[sensitivity], HUE_TOLERANCE[sensitivity]), w, h);
+  // Several seeds (a lit hold, a shaded one) match the union of their colors.
+  const seeds = Array.isArray(seedOrSeeds) ? seedOrSeeds : [seedOrSeeds];
+  const joined = new Uint8Array(w * h);
+  for (const seed of seeds) {
+    const m = colorMask(lab, seed, THRESHOLD[sensitivity], HUE_TOLERANCE[sensitivity]);
+    for (let i = 0; i < m.length; i++) if (m[i]) joined[i] = 1;
+  }
+  const mask = clean(joined, w, h);
   const minArea = Math.max(24, w * h * 0.00005);
   const maxArea = w * h * 0.03;
   const holds: Hold[] = [];
@@ -257,7 +266,7 @@ export function growHoldAt(img: Pixels, nx: number, ny: number, id: number): Hol
   const minArea = Math.max(24, w * h * 0.00005);
   if (blob.area >= minArea) return blobToHold(blob, w, h, id, true);
   const r = Math.max(6, Math.min(w, h) * 0.03);
-  return { id, x: nx, y: ny, w: (2 * r) / w, h: (2 * r) / h, manual: true };
+  return { id, x: nx, y: ny, w: (2 * r) / w, h: (2 * r) / h, manual: true, guessed: true };
 }
 
 /** The hold under a tap, if any (nearest center within its box, a bit generous for fingers). */
