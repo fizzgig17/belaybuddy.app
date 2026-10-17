@@ -34,12 +34,14 @@ jobs:
           if [ "$TARGET" = prod ]; then PROJECT_ID="$PROD_PROJECT_ID"; DB_PASSWORD="$PROD_DB_PASSWORD"; else PROJECT_ID="$DEV_PROJECT_ID"; DB_PASSWORD="$DEV_DB_PASSWORD"; fi
           password=$(jq -rn --arg p "$DB_PASSWORD" '$p | @uri')
           echo "::add-mask::$password"
-          psql "postgresql://postgres.$PROJECT_ID:$password@$POOLER_HOST:5432/postgres" -v ON_ERROR_STOP=1 -v pw="$DEMO_PASSWORD" <<'SQL'
+          # psql doesn't substitute variables inside $$ bodies, so the hash goes through a session setting.
+          if ! psql "postgresql://postgres.$PROJECT_ID:$password@$POOLER_HOST:5432/postgres" -v ON_ERROR_STOP=1 -v pw="$DEMO_PASSWORD" > "$RUNNER_TEMP/demo.log" 2>&1 <<'SQL'
+          select set_config('app.demo_hash', extensions.crypt(:'pw', extensions.gen_salt('bf')), false);
           do $$
           declare
             uid uuid;
             em text := 'demo@belaybuddy.app';
-            hash text := extensions.crypt(:'pw', extensions.gen_salt('bf'));
+            hash text := current_setting('app.demo_hash');
           begin
             select id into uid from auth.users where lower(email) = em;
             if uid is null then
@@ -72,4 +74,8 @@ jobs:
               email_responses = false, email_messages = false, email_reminders = false;
           end $$;
           SQL
+          then
+            echo "::error::Demo account failed: $(grep -v '^$' "$RUNNER_TEMP/demo.log" | tail -4 | tr '\n' ' ' | sed 's/password=[^ ]*//g')"
+            exit 1
+          fi
           echo "Demo account ready on $TARGET."
