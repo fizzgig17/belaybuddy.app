@@ -301,6 +301,9 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
         <BigButton label="Flash" sub={shownGrade} color={HoldColors.yellow} dark onPress={() => log('flash')} disabled={busy} />
         <BigButton label="Attempt" sub={shownGrade} color={theme.backgroundSelected} dark onPress={() => log('attempt')} disabled={busy} />
       </View>
+      <ThemedText type="small" themeColor="textSecondary">
+        Sent: you finished it. Flash: you finished it on your first try. Attempt: you tried but didn’t finish.
+      </ThemedText>
       {error && <ThemedText type="small" style={styles.error}>{error}</ThemedText>}
 
       {recent.length > 0 && (
