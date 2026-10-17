@@ -163,6 +163,20 @@ export function SignIn() {
         />
         <Button title="Continue" onPress={sendCode} disabled={!emailValid} loading={busy} />
         {error && <ErrorText text={error} />}
+        {emailValid && email.trim().toLowerCase() !== DEMO_EMAIL && (
+          // After a refresh or a rate limit you can still use the code already in your inbox.
+          <ThemedText
+            type="smallBold"
+            accessibilityRole="button"
+            style={{ color: theme.accent }}
+            onPress={() => {
+              setError(null);
+              setCode('');
+              setStep('code');
+            }}>
+            I already have a code
+          </ThemedText>
+        )}
         <ThemedText type="small" themeColor="textSecondary">
           We'll email you a 6-digit code. No password needed. New here? This creates your account.
         </ThemedText>
