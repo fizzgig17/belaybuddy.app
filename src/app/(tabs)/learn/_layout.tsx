@@ -5,6 +5,7 @@ export default function LearnLayout() {
     <Stack>
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="[topic]" options={{ headerBackTitle: 'Learn' }} />
+      <Stack.Screen name="knot/[knot]" options={{ headerBackTitle: 'Knots', title: '' }} />
     </Stack>
   );
 }

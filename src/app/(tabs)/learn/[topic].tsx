@@ -40,7 +40,8 @@ export default function LearnTopicScreen() {
           key={article.title}
           title={article.title}
           description={article.summary}
-          comingSoon
+          href={article.knotId ? { pathname: '/learn/knot/[knot]', params: { knot: article.knotId } } : undefined}
+          comingSoon={!article.knotId}
         />
       ))}
     </Screen>

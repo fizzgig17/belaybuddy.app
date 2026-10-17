@@ -1,0 +1,122 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, Easing, StyleSheet, View } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
+
+import { Button } from '@/components/form';
+import { ThemedText } from '@/components/themed-text';
+import { Card } from '@/components/ui/group';
+import { HoldColors, Spacing } from '@/constants/theme';
+import type { Knot } from '@/content/knots';
+import { KNOT_VIEWBOX } from '@/content/knots';
+import { useTheme } from '@/hooks/use-theme';
+import { strandLayers } from '@/lib/knots/render';
+
+const STEP_MS = 1800;
+
+/** Plays a knot step by step: the rope draws itself, with a caption and Back / Next / Replay. */
+export function KnotPlayer({ knot }: { knot: Knot }) {
+  const theme = useTheme();
+  const [step, setStep] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const value = useRef(new Animated.Value(0)).current;
+  const current = useRef(0);
+
+  // Mirror the animated value into state so the SVG redraws as the rope grows.
+  useEffect(() => {
+    const id = value.addListener(({ value: v }) => {
+      current.current = v;
+      setProgress(v);
+    });
+    return () => value.removeListener(id);
+  }, [value]);
+
+  function goTo(index: number, from?: number) {
+    const target = knot.steps[index].to;
+    setStep(index);
+    if (from !== undefined) value.setValue(from);
+    Animated.timing(value, {
+      toValue: target,
+      duration: Math.max(300, Math.abs(target - current.current) * STEP_MS),
+      easing: Easing.inOut(Easing.quad),
+      useNativeDriver: false,
+    }).start();
+  }
+
+  // Start playing the first step when the knot opens.
+  useEffect(() => {
+    goTo(0, 0);
+    return () => value.stopAnimation();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [knot.id]);
+
+  const last = step === knot.steps.length - 1;
+  const mainFraction = Math.min(progress, 1);
+  const retraceFraction = Math.max(0, Math.min(progress - 1, 1));
+
+  const layers = useMemo(
+    () =>
+      strandLayers(
+        [
+          { rope: knot.rope, drawn: knot.rope.length * mainFraction, fill: theme.accent, outline: theme.text },
+          ...(knot.retrace
+            ? [
+                {
+                  rope: knot.retrace,
+                  drawn: knot.retrace.length * retraceFraction,
+                  fill: HoldColors.yellow,
+                  outline: theme.text,
+                },
+              ]
+            : []),
+        ],
+        theme.surface,
+      ),
+    [knot, mainFraction, retraceFraction, theme],
+  );
+
+  return (
+    <View style={styles.wrap}>
+      <Card style={styles.canvas}>
+        <Svg viewBox={`0 0 ${KNOT_VIEWBOX} ${KNOT_VIEWBOX}`} style={styles.svg} accessibilityLabel={`${knot.title} diagram`}>
+          {layers.map((l) => (
+            <Path
+              key={l.key}
+              d={l.d}
+              stroke={l.stroke}
+              strokeWidth={l.width}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              fill="none"
+            />
+          ))}
+        </Svg>
+      </Card>
+
+      <ThemedText type="small" themeColor="textSecondary">
+        Step {step + 1} of {knot.steps.length}
+      </ThemedText>
+      <ThemedText accessibilityLiveRegion="polite">{knot.steps[step].caption}</ThemedText>
+
+      <View style={styles.buttons}>
+        <View style={styles.flex}>
+          <Button title="Back" variant="secondary" disabled={step === 0} onPress={() => goTo(step - 1)} />
+        </View>
+        <View style={styles.flex}>
+          {last ? (
+            <Button title="Replay" onPress={() => goTo(0, 0)} />
+          ) : (
+            <Button title="Next" onPress={() => goTo(step + 1)} />
+          )}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  wrap: { gap: Spacing.three },
+  canvas: { padding: Spacing.two },
+  svg: { width: '100%', aspectRatio: 1 },
+  buttons: { flexDirection: 'row', gap: Spacing.two },
+  flex: { flex: 1 },
+});
