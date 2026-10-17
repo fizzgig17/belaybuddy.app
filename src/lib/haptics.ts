@@ -3,14 +3,14 @@ import { Platform } from 'react-native';
 
 const native = Platform.OS === 'ios';
 
-/** A light tap for presses and selections. Silent on the web and Android. */
+/** A clear tap for presses. Silent on the web and Android. */
 export function tap() {
-  if (native) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  if (native) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
 }
 
 /** For switches and chip toggles. */
 export function select() {
-  if (native) Haptics.selectionAsync().catch(() => {});
+  if (native) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
 }
 
 /** Something worked (signed in, saved). */

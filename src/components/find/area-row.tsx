@@ -76,14 +76,14 @@ export function AreaRow({ area, distanceKm, favorite, onToggleFavorite }: Props)
           <ThemedText type="small" themeColor="textSecondary" numberOfLines={2}>
             {describe(area)}
           </ThemedText>
-          {(open !== null || chips.length > 0) && (
+          {(area.kind === 'gym' || chips.length > 0) && (
             <View style={styles.chips}>
-              {open !== null && (
+              {area.kind === 'gym' && (
                 <View style={[styles.chip, { backgroundColor: open ? `${HoldColors.green}26` : theme.backgroundElement }]}>
                   <ThemedText
                     type="small"
                     style={[styles.chipText, { color: open ? HoldColors.green : theme.textSecondary }]}>
-                    {open ? 'Open now' : 'Closed now'}
+                    {open === null ? 'Hours not listed' : open ? 'Open now' : 'Closed now'}
                   </ThemedText>
                 </View>
               )}
