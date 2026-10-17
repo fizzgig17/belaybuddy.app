@@ -214,9 +214,10 @@ Deno.serve(async (req) => {
 
   // All push tokens for these users in one query.
   const userIds = [...new Set(items.filter((i) => i.send_push).map((i) => i.user_id))];
-  const { data: tokenRows } = userIds.length
+  const { data: tokenRows, error: tokenError } = userIds.length
     ? await db.from('push_tokens').select('token, user_id, environment').in('user_id', userIds)
     : { data: [] };
+  if (tokenError) console.error('push_tokens', tokenError.message);
   const tokens = new Map<string, { token: string; environment: string }[]>();
   for (const t of tokenRows ?? []) {
     tokens.set(t.user_id, [...(tokens.get(t.user_id) ?? []), t]);
@@ -232,7 +233,9 @@ Deno.serve(async (req) => {
 
     if (item.send_push) {
       if (item.kind === 'test' && !(tokens.get(item.user_id) ?? []).length) {
-        problems.push('push: no phone is registered for your account');
+        problems.push(
+          tokenError ? `push: couldn't read registered phones (${tokenError.message})` : 'push: no phone is registered for your account',
+        );
       }
       for (const device of tokens.get(item.user_id) ?? []) {
         try {
