@@ -12,6 +12,7 @@ import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { areaSlug, slugToId } from '@/lib/areas';
 import { useAuth } from '@/lib/auth';
+import { FriendsCard } from '@/components/partners/friends-card';
 import { SessionCard } from '@/components/partners/session-card';
 import { useHomeGyms } from '@/lib/home-gyms';
 import { fetchBoard, fetchCards, fetchJoinedPosts, fetchMyPosts, fetchResponders } from '@/lib/partners';
@@ -154,6 +155,7 @@ export default function PartnersScreen() {
   return (
     <Screen profileButton title="Partners" subtitle="Who's climbing at your gyms, and when.">
       <SessionCard />
+      {user && <FriendsCard />}
       {home.length === 0 && !otherGym ? (
         homeGyms.loading ? (
           <ActivityIndicator />

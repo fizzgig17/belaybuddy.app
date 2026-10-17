@@ -2,7 +2,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
-import { Button, Segmented, SingleChoice } from '@/components/form';
+import { Button, Segmented, SingleChoice, ToggleRow } from '@/components/form';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/group';
@@ -29,6 +29,7 @@ import {
 } from '@/lib/climb-log';
 import { success, tap } from '@/lib/haptics';
 import { useFavorites } from '@/lib/favorites';
+import { checkIn, checkOut } from '@/lib/friends';
 import { useHomeGyms } from '@/lib/home-gyms';
 
 const OTHER = '__other__';
@@ -120,6 +121,7 @@ function StartCard({
     { value: OTHER, label: 'Somewhere else' },
   ];
   const [picked, setPicked] = useState<string>(options[0].value);
+  const [tellFriends, setTellFriends] = useState(false);
   const [busy, setBusy] = useState(false);
 
   async function start() {
@@ -128,6 +130,8 @@ function StartCard({
     try {
       const chosen = picked === OTHER ? null : options.find((o) => o.value === picked);
       onStarted(await startSession(chosen ? { areaId: chosen.value, areaName: chosen.label } : null));
+      // Opt-in: friends see "at <place>" for 4 hours, or until you end the session.
+      if (chosen && tellFriends) await checkIn(chosen.value, chosen.label, 4).catch(() => {});
       success();
     } catch (e) {
       onError((e as Error).message);
@@ -148,6 +152,9 @@ function StartCard({
       <ThemedText type="small" themeColor="textSecondary">
         Not listed? Open the gym or crag from the Find tab and tap “Start a climbing session here”, or save it to see it here.
       </ThemedText>
+      {picked !== OTHER && (
+        <ToggleRow label="Let my friends know I’m here" value={tellFriends} onValueChange={setTellFriends} />
+      )}
       <Button title="Start session" onPress={start} loading={busy} />
       <Button title="Past sessions" variant="secondary" onPress={() => router.push('/partners/sessions')} />
     </>
@@ -156,6 +163,7 @@ function StartCard({
 
 function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: ClimbSession | null) => void }) {
   const theme = useTheme();
+  const { user } = useAuth();
   const [discipline, setDiscipline] = useState<Discipline>('boulder');
   const [grade, setGrade] = useState(lastGrade('boulder'));
   const [mod, setMod] = useState<GradeMod>('');
@@ -212,6 +220,8 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
   async function finish() {
     try {
       await endSession(session.id);
+      // Ending the session also ends a check-in made for it.
+      if (user) await checkOut(user.id).catch(() => {});
       setFinished({ ...session, endedAt: new Date().toISOString() });
     } catch (e) {
       setError((e as Error).message);

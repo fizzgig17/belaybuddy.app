@@ -9,6 +9,7 @@ export default function PartnersLayout() {
       <Stack.Screen name="session" options={{ title: 'Climb log' }} />
       <Stack.Screen name="sessions" options={{ title: 'Past sessions' }} />
       <Stack.Screen name="chat" options={{ title: 'Chat' }} />
+      <Stack.Screen name="friends" options={{ title: 'Friends' }} />
       <Stack.Screen name="climber" options={{ title: 'Climber' }} />
     </Stack>
   );

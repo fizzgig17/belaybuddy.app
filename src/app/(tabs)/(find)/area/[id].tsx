@@ -16,6 +16,7 @@ import { areaSlug, directionsUrl, editUrl, fetchAreaBySlug, phoneUrl, sourceUrl 
 import { useAuth } from '@/lib/auth';
 import { useFavorites } from '@/lib/favorites';
 import { useHomeGyms } from '@/lib/home-gyms';
+import { CheckInPanel } from '@/components/find/check-in';
 import { formatOpeningHours, hoursSearchUrl, osmPageUrl } from '@/lib/hours';
 import type { ClimbingArea } from '@/types/models';
 
@@ -112,6 +113,7 @@ export default function AreaScreen() {
         </Pressable>
         )}
       </View>
+      {user && area.kind === 'gym' && <CheckInPanel areaId={area.id} areaName={area.name} />}
       {user && (
         <Button
           title="Start a climbing session here"
