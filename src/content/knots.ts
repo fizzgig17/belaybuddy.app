@@ -1,4 +1,4 @@
-import { analyse, offset, openKnot, figureEight, trefoil, type Rope } from '@/lib/knots/geometry';
+import { analyse, offset, openKnot, figureEight, type Rope } from '@/lib/knots/geometry';
 
 /**
  * Animated knot tutorials. The shapes come from true knot curves (an overhand knot is a
@@ -21,41 +21,11 @@ export type Knot = {
 
 const VIEW = 300;
 
-function overhand(): Knot {
-  const rope = analyse(openKnot(trefoil, { cut: 1.18, gap: 0.2, tail: 50, scale: 28, cx: 150, cy: 150, spread: 0.9 }), 5);
-  return {
-    id: 'stopper',
-    title: 'Stopper knot',
-    summary: 'A simple overhand backup. Tie it in the tail after your tie-in knot.',
-    rope,
-    steps: [
-      { caption: 'Lay the end of the rope across the standing part to start a loop.', to: 0.34 },
-      { caption: 'Take the end behind the loop and bring it up through the middle.', to: 0.72 },
-      { caption: 'Pull the end and the standing part apart to snug it down tight against your main knot.', to: 1 },
-    ],
-  };
-}
-
-function figureEightStopper(): Knot {
-  const raw = openKnot(figureEight, { cut: 0, gap: 0.16, tail: 50, scale: 28, cx: 150, cy: 150, spread: 0.9 });
-  return {
-    id: 'figure-eight',
-    title: 'Figure-eight knot',
-    summary: 'The knot at the heart of the tie-in. Shown loose so you can follow the rope.',
-    rope: analyse(raw, 5),
-    steps: [
-      { caption: 'Make a bend in the rope and cross the end over the standing part.', to: 0.3 },
-      { caption: 'Wrap the end around the standing part, then pass it back through the loop.', to: 0.7 },
-      { caption: 'Dress it so each strand lies flat beside the next, then pull it tight.', to: 1 },
-    ],
-  };
-}
-
 function figureEightFollowThrough(): Knot {
-  const raw = openKnot(figureEight, { cut: 0, gap: 0.16, tail: 50, scale: 28, cx: 150, cy: 150, spread: 0.9 });
-  const rope = analyse(raw, 5);
+  const raw = openKnot(figureEight, { cut: 0, gap: 0.16, tail: 50, scale: 31, cx: 150, cy: 150, spread: 0.9 });
+  const rope = analyse(raw, 9);
   // The tail returns along the same path, one rope-width beside it, running the other way.
-  const back = analyse(offset([...raw].reverse(), 13), 5);
+  const back = analyse(offset([...raw].reverse(), 16), 9);
   return {
     id: 'figure-eight-follow-through',
     title: 'Figure-eight follow-through',
@@ -71,6 +41,6 @@ function figureEightFollowThrough(): Knot {
   };
 }
 
-export const KNOTS: Knot[] = [figureEightFollowThrough(), figureEightStopper(), overhand()];
+export const KNOTS: Knot[] = [figureEightFollowThrough()];
 export const getKnot = (id?: string) => KNOTS.find((k) => k.id === id);
 export const KNOT_VIEWBOX = VIEW;

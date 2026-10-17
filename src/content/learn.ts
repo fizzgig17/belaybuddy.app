@@ -57,8 +57,7 @@ export const LEARN_TOPICS: LearnTopic[] = [
     color: HoldColors.yellow,
     articles: [
       { title: 'Figure-eight follow-through', summary: 'The standard tie-in knot.', knotId: 'figure-eight-follow-through' },
-      { title: 'Figure-eight knot', summary: 'The knot at the heart of the tie-in, shown loose.', knotId: 'figure-eight' },
-      { title: 'Stopper knot', summary: 'Backing up the tie-in and closing the rope system.', knotId: 'stopper' },
+      { title: 'Stopper knot', summary: 'Backing up the tie-in and closing the rope system.' },
       { title: 'Clove hitch', summary: 'Adjustable attachment to a carabiner.' },
       { title: 'Munter hitch', summary: 'Belaying or lowering without a device.' },
       { title: 'Prusik', summary: 'Friction hitch for backups and ascending.' },

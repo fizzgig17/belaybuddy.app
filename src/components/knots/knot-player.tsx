@@ -5,13 +5,18 @@ import Svg, { Path } from 'react-native-svg';
 import { Button } from '@/components/form';
 import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/group';
-import { HoldColors, Spacing } from '@/constants/theme';
+import { Spacing } from '@/constants/theme';
 import type { Knot } from '@/content/knots';
 import { KNOT_VIEWBOX } from '@/content/knots';
 import { useTheme } from '@/hooks/use-theme';
 import { strandLayers } from '@/lib/knots/render';
 
 const STEP_MS = 1800;
+// Colors of a typical dynamic rope: a blue sheath, and an orange one for the returning tail.
+const ROPE_BLUE = '#2F7FD1';
+const ROPE_BLUE_DARK = '#10345A';
+const ROPE_ORANGE = '#F08A24';
+const ROPE_ORANGE_DARK = '#6B3407';
 
 /** Plays a knot step by step: the rope draws itself, with a caption and Back / Next / Replay. */
 export function KnotPlayer({ knot }: { knot: Knot }) {
@@ -57,19 +62,18 @@ export function KnotPlayer({ knot }: { knot: Knot }) {
     () =>
       strandLayers(
         [
-          { rope: knot.rope, drawn: knot.rope.length * mainFraction, fill: theme.accent, outline: theme.text },
+          { rope: knot.rope, drawn: knot.rope.length * mainFraction, fill: ROPE_BLUE, outline: ROPE_BLUE_DARK },
           ...(knot.retrace
             ? [
                 {
                   rope: knot.retrace,
                   drawn: knot.retrace.length * retraceFraction,
-                  fill: HoldColors.yellow,
-                  outline: theme.text,
+                  fill: ROPE_ORANGE,
+                  outline: ROPE_ORANGE_DARK,
                 },
               ]
             : []),
         ],
-        theme.surface,
       ),
     [knot, mainFraction, retraceFraction, theme],
   );
@@ -84,8 +88,11 @@ export function KnotPlayer({ knot }: { knot: Knot }) {
               d={l.d}
               stroke={l.stroke}
               strokeWidth={l.width}
-              strokeLinecap="round"
+              strokeLinecap={l.cap ?? 'round'}
               strokeLinejoin="round"
+              strokeOpacity={l.opacity ?? 1}
+              strokeDasharray={l.dash}
+              transform={l.dx || l.dy ? `translate(${l.dx ?? 0} ${l.dy ?? 0})` : undefined}
               fill="none"
             />
           ))}
