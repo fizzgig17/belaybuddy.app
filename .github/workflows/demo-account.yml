@@ -1,0 +1,75 @@
+# Creates (or resets the password of) the App Review demo account
+# demo@belaybuddy.app, so Apple's reviewers can sign in without an emailed code.
+# Needs the DEMO_PASSWORD secret. Runs on push to develop (dev database) or master
+# (prod database) when this file changes, or by hand from the Actions tab.
+name: Demo account
+
+on:
+  push:
+    branches: [develop, master]
+    paths: [.github/workflows/demo-account.yml]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Which database
+        type: choice
+        options: [dev, prod]
+        default: dev
+
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+    env:
+      DEMO_PASSWORD: ${{ secrets.DEMO_PASSWORD }}
+      TARGET: ${{ inputs.target || (github.ref_name == 'master' && 'prod') || 'dev' }}
+      DEV_DB_PASSWORD: ${{ secrets.DEV_DB_PASSWORD }}
+      DEV_PROJECT_ID: ${{ secrets.DEV_PROJECT_ID }}
+      PROD_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
+      PROD_PROJECT_ID: ${{ secrets.PROD_PROJECT_ID }}
+      POOLER_HOST: aws-0-us-east-1.pooler.supabase.com
+    steps:
+      - name: Create or update demo@belaybuddy.app
+        run: |
+          if [ -z "$DEMO_PASSWORD" ]; then echo "::warning::Add a DEMO_PASSWORD secret, then run this workflow again."; exit 0; fi
+          if [ "$TARGET" = prod ]; then PROJECT_ID="$PROD_PROJECT_ID"; DB_PASSWORD="$PROD_DB_PASSWORD"; else PROJECT_ID="$DEV_PROJECT_ID"; DB_PASSWORD="$DEV_DB_PASSWORD"; fi
+          password=$(jq -rn --arg p "$DB_PASSWORD" '$p | @uri')
+          echo "::add-mask::$password"
+          psql "postgresql://postgres.$PROJECT_ID:$password@$POOLER_HOST:5432/postgres" -v ON_ERROR_STOP=1 -v pw="$DEMO_PASSWORD" <<'SQL'
+          do $$
+          declare
+            uid uuid;
+            em text := 'demo@belaybuddy.app';
+            hash text := extensions.crypt(:'pw', extensions.gen_salt('bf'));
+          begin
+            select id into uid from auth.users where lower(email) = em;
+            if uid is null then
+              uid := gen_random_uuid();
+              insert into auth.users (
+                instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+                raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+                confirmation_token, recovery_token, email_change_token_new, email_change
+              ) values (
+                '00000000-0000-0000-0000-000000000000', uid, 'authenticated', 'authenticated', em, hash, now(),
+                '{"provider":"email","providers":["email"]}', '{}', now(), now(), '', '', '', ''
+              );
+              insert into auth.identities (id, user_id, provider_id, provider, identity_data, created_at, updated_at, last_sign_in_at)
+              values (gen_random_uuid(), uid, uid::text, 'email',
+                jsonb_build_object('sub', uid::text, 'email', em, 'email_verified', true), now(), now(), now());
+            else
+              update auth.users set encrypted_password = hash, email_confirmed_at = coalesce(email_confirmed_at, now()),
+                updated_at = now() where id = uid;
+            end if;
+            insert into public.profiles (id, display_name, bio, home_area, styles, boulder_grade, route_grade, years_climbing)
+            values (uid, 'Demo Climber', 'Sample account for App Review.', 'Raleigh, NC',
+              array['bouldering','top-rope'], 'V3', '5.10a', 3)
+            on conflict (id) do update set display_name = excluded.display_name, bio = excluded.bio,
+              home_area = excluded.home_area, styles = excluded.styles, updated_at = now();
+            -- No emails or pushes to the demo address.
+            insert into public.notification_settings (user_id, push_responses, push_messages, push_reminders,
+              email_responses, email_messages, email_reminders)
+            values (uid, false, false, false, false, false, false)
+            on conflict (user_id) do update set push_responses = false, push_messages = false, push_reminders = false,
+              email_responses = false, email_messages = false, email_reminders = false;
+          end $$;
+          SQL
+          echo "Demo account ready on $TARGET."

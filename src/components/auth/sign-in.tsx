@@ -15,6 +15,8 @@ const CODE_LENGTH = 6;
 /** Supabase allows one code email per minute per address. */
 const RESEND_SECONDS = 60;
 const LAST_EMAIL_KEY = 'bb.lastEmail';
+/** App Review account: signs in with a password since reviewers can't read email. */
+const DEMO_EMAIL = 'demo@belaybuddy.app';
 
 function loadLastEmail(): string {
   try {
@@ -39,7 +41,8 @@ export function SignIn() {
   const theme = useTheme();
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
-  const [step, setStep] = useState<'email' | 'code'>('email');
+  const [step, setStep] = useState<'email' | 'code' | 'password'>('email');
+  const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resendIn, setResendIn] = useState(0);
@@ -78,8 +81,13 @@ export function SignIn() {
 
   async function sendCode() {
     if (!emailValid || busy) return;
-    setBusy(true);
     setError(null);
+    if (email.trim().toLowerCase() === DEMO_EMAIL) {
+      setPassword('');
+      setStep('password');
+      return;
+    }
+    setBusy(true);
     const { error: sendError } = await supabase.auth.signInWithOtp({
       email: email.trim(),
       options: { shouldCreateUser: true },
@@ -97,6 +105,17 @@ export function SignIn() {
     setCode('');
     setStep('code');
     setResendIn(RESEND_SECONDS);
+  }
+
+  async function signInWithPassword() {
+    if (busy || !password) return;
+    setBusy(true);
+    setError(null);
+    const { error: pwError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    if (pwError) {
+      setBusy(false);
+      setError('That email or password is not right.');
+    }
   }
 
   async function verifyCode(token: string) {
@@ -146,6 +165,31 @@ export function SignIn() {
           We'll email you a 6-digit code. No password needed. New here? This creates your account.
         </ThemedText>
         <SignInOptions />
+      </View>
+    );
+  }
+
+  if (step === 'password') {
+    return (
+      <View style={styles.container}>
+        <Field
+          label={`Password for ${email.trim()}`}
+          value={password}
+          onChangeText={(v) => {
+            setPassword(v);
+            setError(null);
+          }}
+          autoFocus
+          secureTextEntry
+          autoCapitalize="none"
+          autoCorrect={false}
+          textContentType="password"
+          returnKeyType="go"
+          onSubmitEditing={signInWithPassword}
+        />
+        <Button title="Sign in" onPress={signInWithPassword} disabled={!password} loading={busy} />
+        {error && <ErrorText text={error} />}
+        <Button title="Back" variant="secondary" onPress={() => setStep('email')} disabled={busy} />
       </View>
     );
   }
