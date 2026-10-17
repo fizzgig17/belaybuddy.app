@@ -1,13 +1,15 @@
 import { router } from 'expo-router';
-import { ActivityIndicator, Platform } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, Alert, Platform } from 'react-native';
 
 import { SignIn } from '@/components/auth/sign-in';
 import { GymWallBanner } from '@/components/illustrations';
 import { ProfileEditor } from '@/components/profile/profile-editor';
+import { Button } from '@/components/form';
 import { Screen } from '@/components/screen';
 import { IconButton } from '@/components/ui/icon-button';
 import { ThemedText } from '@/components/themed-text';
-import { useAuth } from '@/lib/auth';
+import { signOut, useAuth } from '@/lib/auth';
 
 function closeProfile() {
   if (router.canGoBack()) router.back();
@@ -19,6 +21,21 @@ const closeAction = Platform.OS === 'web' ? <IconButton icon="close" label="Clos
 
 export default function ProfileScreen() {
   const { user, loading } = useAuth();
+  const [signingOut, setSigningOut] = useState(false);
+
+  async function doSignOut() {
+    setSigningOut(true);
+    await signOut();
+    setSigningOut(false);
+  }
+
+  function confirmSignOut() {
+    if (Platform.OS === 'web') return doSignOut();
+    Alert.alert('Sign out?', undefined, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign out', style: 'destructive', onPress: doSignOut },
+    ]);
+  }
 
   if (loading) {
     return (
@@ -45,6 +62,7 @@ export default function ProfileScreen() {
         Signed in as {user.email}
       </ThemedText>
       <ProfileEditor userId={user.id} />
+      <Button title="Sign out" variant="secondary" onPress={confirmSignOut} loading={signingOut} />
     </Screen>
   );
 }

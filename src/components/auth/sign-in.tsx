@@ -153,9 +153,9 @@ export function SignIn() {
           autoFocus={!email}
           autoCapitalize="none"
           autoCorrect={false}
-          autoComplete="email"
+          autoComplete="username"
           keyboardType="email-address"
-          textContentType="emailAddress"
+          textContentType="username"
           returnKeyType="send"
           onSubmitEditing={sendCode}
         />
@@ -183,6 +183,7 @@ export function SignIn() {
           secureTextEntry
           autoCapitalize="none"
           autoCorrect={false}
+          autoComplete="current-password"
           textContentType="password"
           returnKeyType="go"
           onSubmitEditing={signInWithPassword}
