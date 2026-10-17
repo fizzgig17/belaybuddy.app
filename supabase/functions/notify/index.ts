@@ -257,15 +257,19 @@ Deno.serve(async (req) => {
     // are usually per-device and not worth resending everything for.
     // A test is never retried: the person is watching and sees the error.
     const retry = item.kind !== 'test' && problems.some((p) => p.startsWith('email'));
-    await db
-      .from('notification_queue')
-      .update({
-        sent_at: retry ? null : new Date().toISOString(),
-        emailed_at: emailed ? new Date().toISOString() : null,
-        pushed,
-        error: problems.length ? problems.join('; ').slice(0, 500) : null,
-      })
-      .eq('id', item.id);
+    const outcome = {
+      sent_at: retry ? null : new Date().toISOString(),
+      emailed_at: emailed ? new Date().toISOString() : null,
+      error: problems.length ? problems.join('; ').slice(0, 500) : null,
+    };
+    let { error: saveError } = await db.from('notification_queue').update({ ...outcome, pushed }).eq('id', item.id);
+    // If the API's schema cache doesn't know the newer `pushed` column yet,
+    // still record the outcome so the notification isn't sent again.
+    if (saveError) {
+      console.error('saving result', item.id, saveError.message);
+      ({ error: saveError } = await db.from('notification_queue').update(outcome).eq('id', item.id));
+      if (saveError) console.error('saving result (retry)', item.id, saveError.message);
+    }
     if (!retry) sent++;
   }
 
