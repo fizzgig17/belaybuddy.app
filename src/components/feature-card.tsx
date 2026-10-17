@@ -1,11 +1,12 @@
 import { Link, type Href } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/group';
 import { Icons, type IconName } from '@/constants/icons';
 import { Spacing } from '@/constants/theme';
+import { openLink } from '@/lib/open-link';
 import { useTheme } from '@/hooks/use-theme';
 
 type FeatureCardProps = {
@@ -56,10 +57,7 @@ export function FeatureCard({ title, description, icon, href, externalUrl, comin
   );
 
   if (externalUrl) {
-    const open = () => {
-      if (Platform.OS === 'web') window.open(externalUrl, '_blank', 'noopener,noreferrer');
-      else void Linking.openURL(externalUrl);
-    };
+    const open = () => openLink(externalUrl);
     return (
       <Pressable accessibilityRole="link" onPress={open} style={({ pressed }) => pressed && styles.pressed}>
         {body}

@@ -1,11 +1,12 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { Linking, Platform, Pressable, StyleSheet } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 
 import { FeatureCard } from '@/components/feature-card';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { openLink } from '@/lib/open-link';
 import { getLearnTopic, LEARN_TOPICS } from '@/content/learn';
 
 /** Website: pre-render a page per topic (learn/safety.html, ...). */
@@ -47,11 +48,7 @@ export default function LearnTopicScreen() {
       {topic.credit && (
         <Pressable
           accessibilityRole="link"
-          onPress={() =>
-            Platform.OS === 'web'
-              ? window.open(topic.credit!.url, '_blank', 'noopener,noreferrer')
-              : void Linking.openURL(topic.credit!.url)
-          }>
+          onPress={() => openLink(topic.credit!.url)}>
           <ThemedText type="small" themeColor="textSecondary">
             {topic.credit.text} · animatedknots.com
           </ThemedText>
