@@ -148,7 +148,17 @@ function getMailer() {
   const pass = env('SMTP_PASS');
   if (!host || !user || !pass) return (mailer = null);
   const port = Number(env('SMTP_PORT') ?? 465);
-  mailer = nodemailer.createTransport({ host, port, secure: port === 465, auth: { user, pass } });
+  // Short timeouts: a mail server that never answers must fail in seconds,
+  // not hold up every other notification for minutes.
+  mailer = nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass },
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 20_000,
+  });
   return mailer;
 }
 

@@ -163,3 +163,15 @@ jobs:
           done
           echo "::error::notify didn't answer with HTTP 200. Last answer: HTTP $code $(head -c 400 "$RUNNER_TEMP/out" | tr '\n' ' ')"
           exit 1
+
+      # Recent deliveries, so a stuck or failing one is visible in the run's
+      # annotations without opening any dashboard.
+      - name: Show recent notification attempts
+        if: always()
+        run: |
+          password=$(jq -rn --arg p "$DB_PASSWORD" '$p | @uri')
+          q="select 'queue ' || id || ' ' || kind || ' tries=' || attempts || ' created=' || to_char(created_at, 'HH24:MI:SS') || ' claimed=' || coalesce(to_char(claimed_at, 'HH24:MI:SS'), '-') || ' sent=' || coalesce(to_char(sent_at, 'HH24:MI:SS'), '-') || ' pushed=' || coalesce(pushed::text, '-') || ' emailed=' || (emailed_at is not null) || ' error=' || coalesce(error, '-') from public.notification_queue order by id desc limit 6"
+          out=$(psql "postgresql://postgres.$PROJECT_ID:$password@$POOLER_HOST:5432/postgres" -At -c "$q" 2>&1 | head -c 1500 | tr '\n' '|')
+          echo "::notice::Recent queue: ${out:-empty}"
+          out=$(psql "postgresql://postgres.$PROJECT_ID:$password@$POOLER_HOST:5432/postgres" -At -c "select 'http ' || coalesce(status_code::text, 'none') || ' ' || to_char(created, 'HH24:MI:SS') || ' timed_out=' || coalesce(timed_out::text, '-') || ' ' || coalesce(error_msg, '') || ' ' || left(coalesce(content, ''), 120) from net._http_response order by id desc limit 6" 2>&1 | head -c 1500 | tr '\n' '|')
+          echo "::notice::Recent function calls from the database: ${out:-none}"
