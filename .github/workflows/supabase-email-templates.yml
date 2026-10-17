@@ -89,7 +89,8 @@ jobs:
           jq -n --arg host "$SMTP_HOST" --arg port "${SMTP_PORT:-465}" --arg user "$SMTP_USER" --arg pass "$SMTP_PASS" '{
             external_email_enabled: true,
             smtp_host: $host, smtp_port: $port, smtp_user: $user, smtp_pass: $pass,
-            smtp_admin_email: $user, smtp_sender_name: "Belay Buddy"
+            smtp_admin_email: $user, smtp_sender_name: "Belay Buddy",
+            rate_limit_email_sent: 100
           }' > smtp.json
           status=$(curl -sS -o smtp-response.json -w '%{http_code}' -X PATCH \
             "https://api.supabase.com/v1/projects/$PROJECT_ID/config/auth" \
@@ -100,6 +101,8 @@ jobs:
             exit 1
           fi
           echo "Custom SMTP set on $TARGET (HTTP $status)"
+          curl -sS "https://api.supabase.com/v1/projects/$PROJECT_ID/config/auth" -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            | jq -r '"::notice::Email limits now: \(.rate_limit_email_sent) emails/hour, one code per \(.smtp_max_frequency // "?") s per address"'
 
       - name: Update templates and code length on ${{ env.TARGET }}
         run: |
