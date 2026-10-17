@@ -110,6 +110,7 @@ export default function ChatScreen() {
         keyboardVerticalOffset={headerHeight}>
         <ScrollView
           ref={scroll}
+          keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.content}
           onContentSizeChange={() => scroll.current?.scrollToEnd({ animated: true })}>
           {post && (

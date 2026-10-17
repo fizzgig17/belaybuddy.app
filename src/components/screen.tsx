@@ -23,7 +23,7 @@ export function Screen({ title, subtitle, children, showTitle = true, action }: 
     <ThemedView style={styles.container}>
       <PageTitle title={title} />
       <SafeAreaView style={styles.safeArea} edges={showTitle ? ['top'] : []}>
-        <ScrollView contentContainerStyle={styles.content}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           {showTitle && (
             <View style={styles.titleRow}>
               <ThemedText type="subtitle" accessibilityRole="header" style={styles.title}>
