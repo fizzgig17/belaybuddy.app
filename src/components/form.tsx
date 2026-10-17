@@ -1,6 +1,9 @@
 import type { ReactNode } from 'react';
 import {
   ActivityIndicator,
+  InputAccessoryView,
+  Keyboard,
+  Platform,
   Pressable,
   StyleSheet,
   Switch,
@@ -13,6 +16,26 @@ import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { select, tap } from '@/lib/haptics';
+
+/** Keyboards with no Return key (and multiline fields) get a "Done" bar above the keyboard on iPhone. */
+export const DONE_BAR_ID = 'bb-done-bar';
+
+/** Render once per screen (Screen does this). */
+export function KeyboardDoneBar() {
+  const theme = useTheme();
+  if (Platform.OS !== 'ios') return null;
+  return (
+    <InputAccessoryView nativeID={DONE_BAR_ID}>
+      <View style={[styles.doneBar, { backgroundColor: theme.surface, borderTopColor: theme.border }]}>
+        <Pressable onPress={() => Keyboard.dismiss()} hitSlop={8} accessibilityRole="button" accessibilityLabel="Done">
+          <ThemedText type="smallBold" style={{ color: theme.accent }}>
+            Done
+          </ThemedText>
+        </Pressable>
+      </View>
+    </InputAccessoryView>
+  );
+}
 
 /** Labeled text field. */
 export function Field({
@@ -33,6 +56,13 @@ export function Field({
           inputProps.multiline && styles.multiline,
           style,
         ]}
+        // Single-line text fields: Return closes the keyboard unless the caller set something else.
+        returnKeyType={inputProps.multiline ? undefined : 'done'}
+        inputAccessoryViewID={
+          Platform.OS === 'ios' && (inputProps.multiline || /number|decimal|phone/.test(inputProps.keyboardType ?? ''))
+            ? DONE_BAR_ID
+            : undefined
+        }
         {...inputProps}
       />
       {hint && (
@@ -204,6 +234,13 @@ export function ToggleRow({
 
 const styles = StyleSheet.create({
   field: { gap: Spacing.one },
+  doneBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two + 2,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
   input: {
     borderRadius: Spacing.two,
     paddingHorizontal: Spacing.three,

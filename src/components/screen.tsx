@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { PageTitle } from '@/components/page-title';
+import { KeyboardDoneBar } from '@/components/form';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
@@ -23,7 +24,9 @@ export function Screen({ title, subtitle, children, showTitle = true, action }: 
     <ThemedView style={styles.container}>
       <PageTitle title={title} />
       <SafeAreaView style={styles.safeArea} edges={showTitle ? ['top'] : []}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          automaticallyAdjustKeyboardInsets>
           {showTitle && (
             <View style={styles.titleRow}>
               <ThemedText type="subtitle" accessibilityRole="header" style={styles.title}>
@@ -36,6 +39,7 @@ export function Screen({ title, subtitle, children, showTitle = true, action }: 
           {children}
         </ScrollView>
       </SafeAreaView>
+      <KeyboardDoneBar />
     </ThemedView>
   );
 }
