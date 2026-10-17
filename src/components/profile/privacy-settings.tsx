@@ -3,7 +3,7 @@ import { Alert, Platform, StyleSheet, View } from 'react-native';
 
 import { Button } from '@/components/form';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+import { Card, Section } from '@/components/ui/group';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { deleteMyAccount, fetchBlocked, unblockClimber, type BlockedClimber } from '@/lib/partners';
@@ -55,9 +55,8 @@ export function PrivacySettings() {
   }
 
   return (
-    <View style={styles.container}>
-      <ThemedText type="smallBold">Privacy & safety</ThemedText>
-      <ThemedView type="backgroundElement" style={styles.card}>
+    <Section title="Privacy & safety">
+      <Card style={styles.card}>
         <ThemedText type="smallBold">Blocked climbers</ThemedText>
         {blocked.length === 0 ? (
           <ThemedText type="small" themeColor="textSecondary">
@@ -73,7 +72,7 @@ export function PrivacySettings() {
             </View>
           ))
         )}
-      </ThemedView>
+      </Card>
       <ThemedText type="small" themeColor="textSecondary">
         Partners only ever see the gym and time you post, never your location. Your weight, if you added it, is
         never shown to anyone.
@@ -84,13 +83,12 @@ export function PrivacySettings() {
           {error}
         </ThemedText>
       )}
-    </View>
+    </Section>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { gap: Spacing.two },
-  card: { padding: Spacing.three, borderRadius: Spacing.three, gap: Spacing.two },
+  card: { gap: Spacing.two },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   flex: { flex: 1 },
 });

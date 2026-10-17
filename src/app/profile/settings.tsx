@@ -8,7 +8,7 @@ import { AppIconPicker } from '@/components/profile/app-icon-picker';
 import { PrivacySettings } from '@/components/profile/privacy-settings';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+import { Card, Group, Row, Section } from '@/components/ui/group';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { signOut, useAuth } from '@/lib/auth';
@@ -147,7 +147,7 @@ export default function SettingsScreen() {
     <Screen title="Settings" showTitle={false}>
       <Section title="Notifications">
         {showPush && push !== 'on' && (
-          <ThemedView type="backgroundElement" style={styles.card}>
+          <Card>
             <ThemedText type="small">
               {push === 'blocked'
                 ? 'Notifications are turned off for Belay Buddy in your iPhone’s Settings, so push alerts can’t arrive.'
@@ -158,11 +158,11 @@ export default function SettingsScreen() {
               variant="secondary"
               onPress={async () => (push === 'blocked' ? Linking.openSettings() : setPush(await enablePush()))}
             />
-          </ThemedView>
+          </Card>
         )}
 
-        <ThemedView type="backgroundElement" style={styles.card}>
-          <View style={styles.headerRow}>
+        <Group>
+          <Row style={styles.headerRow}>
             <View style={styles.flex} />
             {showPush && (
               <ThemedText type="small" themeColor="textSecondary" style={styles.col}>
@@ -172,12 +172,14 @@ export default function SettingsScreen() {
             <ThemedText type="small" themeColor="textSecondary" style={styles.col}>
               Email
             </ThemedText>
-          </View>
+          </Row>
           {settings === null ? (
-            <ActivityIndicator />
+            <Row>
+              <ActivityIndicator />
+            </Row>
           ) : (
             KINDS.map(({ kind, title, detail }) => (
-              <View key={kind} style={styles.row}>
+              <Row key={kind} style={styles.row}>
                 <View style={styles.flex}>
                   <ThemedText type="smallBold">{title}</ThemedText>
                   <ThemedText type="small" themeColor="textSecondary">
@@ -203,10 +205,10 @@ export default function SettingsScreen() {
                     trackColor={{ true: theme.accent, false: theme.backgroundSelected }}
                   />
                 </View>
-              </View>
+              </Row>
             ))
           )}
-        </ThemedView>
+        </Group>
         <ThemedText type="small" themeColor="textSecondary">
           Emails go to {user.email}
           {showPush ? '.' : '. Push notifications come with the iPhone app.'}
@@ -223,9 +225,9 @@ export default function SettingsScreen() {
       <AppIconPicker />
 
       <Section title="Sign-in">
-        <ThemedView type="backgroundElement" style={styles.card}>
+        <Card>
           <SignInOptions />
-        </ThemedView>
+        </Card>
       </Section>
 
       <PrivacySettings />
@@ -235,19 +237,8 @@ export default function SettingsScreen() {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <View style={styles.section}>
-      <ThemedText type="smallBold">{title}</ThemedText>
-      {children}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  section: { gap: Spacing.two },
-  card: { padding: Spacing.three, borderRadius: Spacing.three, gap: Spacing.three },
-  headerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginBottom: -Spacing.two },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingVertical: Spacing.two },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   flex: { flex: 1, gap: Spacing.half },
   col: { width: 56, alignItems: 'center', textAlign: 'center' },

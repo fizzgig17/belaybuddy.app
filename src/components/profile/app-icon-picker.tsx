@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Image, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
+import { Card, Section } from '@/components/ui/group';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { appIconsSupported, chooseAppIcon, currentAppIcon, type AppIconChoice } from '@/lib/app-icon';
@@ -33,8 +34,8 @@ export function AppIconPicker() {
   }
 
   return (
-    <View style={styles.section}>
-      <ThemedText type="smallBold">App icon</ThemedText>
+    <Section title="App icon">
+      <Card>
       <View style={styles.row}>
         {ICONS.map(({ choice, label, source }) => {
           const on = selected === choice;
@@ -61,12 +62,12 @@ export function AppIconPicker() {
           {error}
         </ThemedText>
       )}
-    </View>
+      </Card>
+    </Section>
   );
 }
 
 const styles = StyleSheet.create({
-  section: { gap: Spacing.two },
   row: { flexDirection: 'row', gap: Spacing.three },
   option: { alignItems: 'center', gap: Spacing.one },
   frame: { padding: 4, borderWidth: 3, borderRadius: 22 },

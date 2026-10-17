@@ -3,7 +3,7 @@ import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+import { Card } from '@/components/ui/group';
 import { Icons } from '@/constants/icons';
 import { HoldColors, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -39,7 +39,7 @@ export function AreaRow({ area, distanceKm, favorite, onToggleFavorite }: Props)
   const tint = area.kind === 'gym' ? HoldColors.purple : HoldColors.green;
 
   return (
-    <ThemedView type="backgroundElement" style={styles.row}>
+    <Card style={styles.row}>
       {/* Plain Pressable + router.push: Link asChild drops function styles,
           which collapsed this row's layout. */}
       <Pressable
@@ -86,7 +86,7 @@ export function AreaRow({ area, distanceKm, favorite, onToggleFavorite }: Props)
           />
         </Pressable>
       )}
-    </ThemedView>
+    </Card>
   );
 }
 
@@ -94,9 +94,10 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 0,
     paddingLeft: Spacing.three,
-    paddingRight: Spacing.three,
-    borderRadius: Spacing.three,
+    paddingRight: Spacing.two,
+    gap: 0,
   },
   main: {
     flex: 1,

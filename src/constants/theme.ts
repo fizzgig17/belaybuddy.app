@@ -14,6 +14,8 @@ export const Colors = {
     background: '#F6F8F7', // chalk
     backgroundElement: '#E7EDEB',
     backgroundSelected: '#D5E0DD',
+    surface: '#FFFFFF', // cards sit on the chalk background
+    border: '#DFE7E4',
     textSecondary: '#5A6A70',
     accent: '#0E7A80', // rope teal
     accentSoft: '#D6ECEC',
@@ -24,6 +26,8 @@ export const Colors = {
     background: '#141E23',
     backgroundElement: '#1F2D35',
     backgroundSelected: '#2A3B44',
+    surface: '#1C2A31',
+    border: '#2C3D46',
     textSecondary: '#A3B2B6',
     accent: '#46B8BD',
     accentSoft: '#173A3E',
