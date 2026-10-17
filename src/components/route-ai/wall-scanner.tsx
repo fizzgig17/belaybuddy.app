@@ -1,0 +1,281 @@
+import { useCallback, useMemo, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Image,
+  Platform,
+  Pressable,
+  StyleSheet,
+  View,
+  type GestureResponderEvent,
+  type LayoutChangeEvent,
+} from 'react-native';
+import Svg, { Rect } from 'react-native-svg';
+
+import { Button, Segmented } from '@/components/form';
+import { ThemedText } from '@/components/themed-text';
+import { Card } from '@/components/ui/group';
+import { Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
+import { select } from '@/lib/haptics';
+import {
+  detectHolds,
+  growHoldAt,
+  holdAt,
+  sampleSeed,
+  type Hold,
+  type Seed,
+  type Sensitivity,
+} from '@/lib/route-ai/detect';
+import { chooseWallPhoto, takeWallPhoto, type PickResult, type WallPhoto } from '@/lib/route-ai/photo';
+
+const SENSITIVITY_OPTIONS: { value: Sensitivity; label: string }[] = [
+  { value: 'low', label: 'Fewer' },
+  { value: 'normal', label: 'Normal' },
+  { value: 'high', label: 'More' },
+];
+
+/** The photo the person picked, with a color pick and the holds found, all on-device. */
+export function WallScanner() {
+  const theme = useTheme();
+  const [photo, setPhoto] = useState<WallPhoto | null>(null);
+  const [seed, setSeed] = useState<Seed | null>(null);
+  const [seedRgb, setSeedRgb] = useState<string>('#FFD400');
+  const [sensitivity, setSensitivity] = useState<Sensitivity>('normal');
+  const [auto, setAuto] = useState<Hold[]>([]);
+  const [removed, setRemoved] = useState<Set<number>>(new Set());
+  const [manual, setManual] = useState<Hold[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [width, setWidth] = useState(0);
+  const imageRef = useRef<View>(null);
+
+  const holds = useMemo(() => [...auto.filter((h) => !removed.has(h.id)), ...manual], [auto, removed, manual]);
+  const height = photo ? (width * photo.height) / photo.width : 0;
+
+  const reset = useCallback(() => {
+    setPhoto(null);
+    setSeed(null);
+    setAuto([]);
+    setRemoved(new Set());
+    setManual([]);
+    setError(null);
+  }, []);
+
+  const pick = useCallback(async (run: () => Promise<PickResult>) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await run();
+      if (!result) return;
+      if ('error' in result) {
+        setError(result.error);
+        return;
+      }
+      setPhoto(result.photo);
+      setSeed(null);
+      setAuto([]);
+      setRemoved(new Set());
+      setManual([]);
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+
+  /** Runs detection after letting the spinner paint, since it takes a moment on a phone. */
+  const runDetect = useCallback((p: WallPhoto, s: Seed, level: Sensitivity) => {
+    setBusy(true);
+    setTimeout(() => {
+      setAuto(detectHolds(p.pixels, s, level));
+      setRemoved(new Set());
+      setManual([]);
+      setBusy(false);
+    }, 30);
+  }, []);
+
+  const onTap = useCallback(
+    (nx: number, ny: number) => {
+      if (!photo || busy) return;
+      if (!seed) {
+        const s = sampleSeed(photo.pixels, nx, ny);
+        const { width: w, height: h, data } = photo.pixels;
+        const i = (Math.round(ny * (h - 1)) * w + Math.round(nx * (w - 1))) * 4;
+        setSeedRgb(`rgb(${data[i]},${data[i + 1]},${data[i + 2]})`);
+        setSeed(s);
+        select();
+        runDetect(photo, s, sensitivity);
+        return;
+      }
+      const hit = holdAt(holds, nx, ny);
+      select();
+      if (hit) {
+        if (hit.manual) setManual((m) => m.filter((x) => x.id !== hit.id));
+        else setRemoved((r) => new Set(r).add(hit.id));
+      } else {
+        setManual((m) => [...m, growHoldAt(photo.pixels, nx, ny, 10000 + m.length + Date.now() % 1000)]);
+      }
+    },
+    [photo, seed, busy, holds, sensitivity, runDetect],
+  );
+
+  /** Where a press landed on the photo, as 0..1. The web doesn't report locationX/Y, so measure the element. */
+  const locate = (e: GestureResponderEvent): [number, number] | null => {
+    const ne = e.nativeEvent as unknown as { locationX?: number; locationY?: number; clientX?: number; clientY?: number };
+    if (Platform.OS === 'web') {
+      const el = imageRef.current as unknown as HTMLElement | null;
+      if (!el?.getBoundingClientRect || ne.clientX == null || ne.clientY == null) return null;
+      const r = el.getBoundingClientRect();
+      return [(ne.clientX - r.left) / r.width, (ne.clientY - r.top) / r.height];
+    }
+    if (ne.locationX == null || ne.locationY == null) return null;
+    return [ne.locationX / width, ne.locationY / height];
+  };
+
+  const onLayout = (e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width);
+
+  if (!photo) {
+    return (
+      <Card style={styles.pad}>
+        <ThemedText type="smallBold">Scan a wall</ThemedText>
+        <ThemedText type="small" themeColor="textSecondary">
+          Take or choose a photo of a wall, then tap one hold on your route. Photos stay on your device.
+        </ThemedText>
+        {Platform.OS !== 'web' && <Button title="Take a photo" onPress={() => pick(takeWallPhoto)} loading={busy} />}
+        <Button
+          title="Choose a photo"
+          variant={Platform.OS === 'web' ? 'primary' : 'secondary'}
+          onPress={() => pick(chooseWallPhoto)}
+          loading={busy}
+        />
+        {error && (
+          <ThemedText type="small" style={{ color: '#C0392B' }}>
+            {error}
+          </ThemedText>
+        )}
+      </Card>
+    );
+  }
+
+  return (
+    <View style={styles.gap}>
+      <ThemedText type="small" themeColor="textSecondary">
+        {!seed
+          ? 'Tap one hold on your route to pick its color.'
+          : 'Tap a highlighted hold to remove it, or tap one that was missed to add it.'}
+      </ThemedText>
+
+      <View onLayout={onLayout} style={styles.imageWrap}>
+        {width > 0 && (
+          <Pressable
+            accessibilityLabel="Wall photo. Tap a hold."
+            ref={imageRef}
+            onPress={(e) => {
+              const at = locate(e);
+              if (at) onTap(Math.min(1, Math.max(0, at[0])), Math.min(1, Math.max(0, at[1])));
+            }}
+            style={{ width, height }}>
+            <Image source={{ uri: photo.uri }} style={{ width, height, borderRadius: Spacing.three }} />
+            <Svg width={width} height={height} style={StyleSheet.absoluteFill} pointerEvents="none">
+              {holds.map((h) => {
+                const pad = 5;
+                const x = (h.x - h.w / 2) * width - pad;
+                const y = (h.y - h.h / 2) * height - pad;
+                const w = h.w * width + pad * 2;
+                const hh = h.h * height + pad * 2;
+                return (
+                  <Rect
+                    key={h.id}
+                    x={x}
+                    y={y}
+                    width={w}
+                    height={hh}
+                    rx={8}
+                    fill="none"
+                    stroke="#FFFFFF"
+                    strokeWidth={h.manual ? 4.5 : 4.5}
+                    strokeDasharray={h.manual ? '6 4' : undefined}
+                  />
+                );
+              })}
+              {holds.map((h) => {
+                const pad = 5;
+                return (
+                  <Rect
+                    key={`i${h.id}`}
+                    x={(h.x - h.w / 2) * width - pad}
+                    y={(h.y - h.h / 2) * height - pad}
+                    width={h.w * width + pad * 2}
+                    height={h.h * height + pad * 2}
+                    rx={8}
+                    fill="none"
+                    stroke={theme.accent}
+                    strokeWidth={2.5}
+                    strokeDasharray={h.manual ? '6 4' : undefined}
+                  />
+                );
+              })}
+            </Svg>
+            {busy && (
+              <View style={[StyleSheet.absoluteFill, styles.busy]}>
+                <ActivityIndicator size="large" color="#FFFFFF" />
+              </View>
+            )}
+          </Pressable>
+        )}
+      </View>
+
+      {seed && (
+        <Card style={styles.pad}>
+          <View style={styles.countRow}>
+            <View style={[styles.swatch, { backgroundColor: seedRgb }]} />
+            <ThemedText type="smallBold">
+              {holds.length} {holds.length === 1 ? 'hold' : 'holds'} found
+            </ThemedText>
+          </View>
+          <Segmented
+            label="How many holds to find"
+            options={SENSITIVITY_OPTIONS}
+            value={sensitivity}
+            onChange={(level) => {
+              setSensitivity(level);
+              runDetect(photo, seed, level);
+            }}
+          />
+          <ThemedText type="small" themeColor="textSecondary">
+            Missing holds? Try "More". Too many? Try "Fewer", or tap the extras to remove them.
+          </ThemedText>
+        </Card>
+      )}
+
+      <View style={styles.row}>
+        {seed && (
+          <View style={styles.flex}>
+            <Button
+              title="Pick another color"
+              variant="secondary"
+              onPress={() => {
+                setSeed(null);
+                setAuto([]);
+                setRemoved(new Set());
+                setManual([]);
+              }}
+            />
+          </View>
+        )}
+        <View style={styles.flex}>
+          <Button title="New photo" variant="secondary" onPress={reset} />
+        </View>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  gap: { gap: Spacing.three },
+  pad: { padding: Spacing.three, gap: Spacing.three, borderRadius: Spacing.three },
+  imageWrap: { width: '100%' },
+  busy: { alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.35)', borderRadius: Spacing.three },
+  countRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  swatch: { width: 18, height: 18, borderRadius: 9, borderWidth: 1, borderColor: 'rgba(0,0,0,0.2)' },
+  row: { flexDirection: 'row', gap: Spacing.two },
+  flex: { flex: 1 },
+});

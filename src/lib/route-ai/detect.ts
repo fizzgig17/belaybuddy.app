@@ -1,0 +1,279 @@
+/**
+ * Hold detection for Route AI, in plain code (no AI call, no native modules): given the pixels
+ * of a wall photo and one tapped hold, find every hold of that color. Runs the same on iOS and web.
+ *
+ * Colors are compared in CIELAB, with lightness down-weighted so the same hold in shadow still
+ * matches. Positions are normalized (0..1) so they don't depend on the working image size.
+ */
+
+export type Pixels = { width: number; height: number; data: Uint8Array | Uint8ClampedArray };
+
+export type Hold = {
+  id: number;
+  /** Center and size, normalized to the image (0..1). */
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** True for holds the user added by tapping. */
+  manual?: boolean;
+};
+
+export type Sensitivity = 'low' | 'normal' | 'high';
+
+/** Seed color, in Lab. */
+export type Seed = { L: number; a: number; b: number };
+
+const THRESHOLD: Record<Sensitivity, number> = { low: 13, normal: 19, high: 27 };
+/** How much lightness differences count compared to hue/chroma differences. */
+const L_WEIGHT = 0.25;
+/** Max hue difference (degrees) for colored seeds, so a pale blue hold can't match a tan wall. */
+const HUE_TOLERANCE: Record<Sensitivity, number> = { low: 22, normal: 32, high: 45 };
+
+const LINEAR = new Float32Array(256).map((_, v) => {
+  const c = v / 255;
+  return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+});
+
+function srgbToLinear(v: number) {
+  return LINEAR[Math.max(0, Math.min(255, Math.round(v)))];
+}
+
+function labF(t: number) {
+  return t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116;
+}
+
+export function rgbToLab(r: number, g: number, b: number): Seed {
+  const R = srgbToLinear(r);
+  const G = srgbToLinear(g);
+  const B = srgbToLinear(b);
+  const X = (R * 0.4124 + G * 0.3576 + B * 0.1805) / 0.95047;
+  const Y = R * 0.2126 + G * 0.7152 + B * 0.0722;
+  const Z = (R * 0.0193 + G * 0.1192 + B * 0.9505) / 1.08883;
+  const fx = labF(X);
+  const fy = labF(Y);
+  const fz = labF(Z);
+  return { L: 116 * fy - 16, a: 500 * (fx - fy), b: 200 * (fy - fz) };
+}
+
+/** Lab for every pixel, as three flat arrays. */
+function toLab(img: Pixels) {
+  const n = img.width * img.height;
+  const L = new Float32Array(n);
+  const A = new Float32Array(n);
+  const B = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const lab = rgbToLab(img.data[i * 4], img.data[i * 4 + 1], img.data[i * 4 + 2]);
+    L[i] = lab.L;
+    A[i] = lab.a;
+    B[i] = lab.b;
+  }
+  return { L, A, B };
+}
+
+type LabImage = ReturnType<typeof toLab> & { width: number; height: number };
+
+const labCache = new WeakMap<object, LabImage>();
+function labOf(img: Pixels): LabImage {
+  let cached = labCache.get(img);
+  if (!cached) {
+    cached = { ...toLab(img), width: img.width, height: img.height };
+    labCache.set(img, cached);
+  }
+  return cached;
+}
+
+function median(values: number[]) {
+  const s = [...values].sort((x, y) => x - y);
+  return s[Math.floor(s.length / 2)];
+}
+
+/** Median color of a small patch around a tapped point (nx, ny in 0..1). */
+export function sampleSeed(img: Pixels, nx: number, ny: number, radius = 3): Seed {
+  const cx = Math.round(nx * (img.width - 1));
+  const cy = Math.round(ny * (img.height - 1));
+  const rs: number[] = [];
+  const gs: number[] = [];
+  const bs: number[] = [];
+  for (let y = Math.max(0, cy - radius); y <= Math.min(img.height - 1, cy + radius); y++) {
+    for (let x = Math.max(0, cx - radius); x <= Math.min(img.width - 1, cx + radius); x++) {
+      const i = (y * img.width + x) * 4;
+      rs.push(img.data[i]);
+      gs.push(img.data[i + 1]);
+      bs.push(img.data[i + 2]);
+    }
+  }
+  return rgbToLab(median(rs), median(gs), median(bs));
+}
+
+function colorMask(lab: LabImage, seed: Seed, threshold: number, hueTol: number) {
+  const n = lab.width * lab.height;
+  const mask = new Uint8Array(n);
+  const seedChroma = Math.hypot(seed.a, seed.b);
+  const seedHue = Math.atan2(seed.b, seed.a);
+  // Black, white and grey holds: lightness is the whole story, so it counts in full and color must stay low.
+  const neutral = seedChroma <= 5;
+  const lWeight = neutral ? 1 : L_WEIGHT;
+  for (let i = 0; i < n; i++) {
+    const dL = (lab.L[i] - seed.L) * lWeight;
+    const dA = lab.A[i] - seed.a;
+    const dB = lab.B[i] - seed.b;
+    if (Math.sqrt(dL * dL + dA * dA + dB * dB) > threshold) continue;
+    // A colorful seed must not match washed-out grey pixels, and a grey seed must not match color.
+    const chroma = Math.hypot(lab.A[i], lab.B[i]);
+    if (neutral && Math.hypot(lab.A[i], lab.B[i]) > 12) continue;
+    if (seedChroma > 5) {
+      if (chroma < seedChroma * 0.55) continue;
+      let dh = Math.abs(Math.atan2(lab.B[i], lab.A[i]) - seedHue);
+      if (dh > Math.PI) dh = 2 * Math.PI - dh;
+      if ((dh * 180) / Math.PI > hueTol) continue;
+    }
+    mask[i] = 1;
+  }
+  return mask;
+}
+
+/** 3x3 majority filter: drops isolated specks and fills pinholes without erasing small holds. */
+function clean(mask: Uint8Array, w: number, h: number) {
+  const out = new Uint8Array(mask.length);
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const i = y * w + x;
+      const n =
+        mask[i - w - 1] + mask[i - w] + mask[i - w + 1] +
+        mask[i - 1] + mask[i] + mask[i + 1] +
+        mask[i + w - 1] + mask[i + w] + mask[i + w + 1];
+      if (n >= 5) out[i] = 1;
+    }
+  }
+  return out;
+}
+
+type Blob = { area: number; minX: number; maxX: number; minY: number; maxY: number; sx: number; sy: number };
+
+function components(mask: Uint8Array, w: number, h: number): Blob[] {
+  const seen = new Uint8Array(mask.length);
+  const blobs: Blob[] = [];
+  const stack: number[] = [];
+  for (let start = 0; start < mask.length; start++) {
+    if (!mask[start] || seen[start]) continue;
+    const blob: Blob = { area: 0, minX: w, maxX: 0, minY: h, maxY: 0, sx: 0, sy: 0 };
+    stack.push(start);
+    seen[start] = 1;
+    while (stack.length) {
+      const i = stack.pop()!;
+      const x = i % w;
+      const y = (i - x) / w;
+      blob.area++;
+      blob.sx += x;
+      blob.sy += y;
+      if (x < blob.minX) blob.minX = x;
+      if (x > blob.maxX) blob.maxX = x;
+      if (y < blob.minY) blob.minY = y;
+      if (y > blob.maxY) blob.maxY = y;
+      if (x > 0 && mask[i - 1] && !seen[i - 1]) (seen[i - 1] = 1), stack.push(i - 1);
+      if (x < w - 1 && mask[i + 1] && !seen[i + 1]) (seen[i + 1] = 1), stack.push(i + 1);
+      if (y > 0 && mask[i - w] && !seen[i - w]) (seen[i - w] = 1), stack.push(i - w);
+      if (y < h - 1 && mask[i + w] && !seen[i + w]) (seen[i + w] = 1), stack.push(i + w);
+    }
+    blobs.push(blob);
+  }
+  return blobs;
+}
+
+function blobToHold(blob: Blob, w: number, h: number, id: number, manual?: boolean): Hold {
+  return {
+    id,
+    x: blob.sx / blob.area / w,
+    y: blob.sy / blob.area / h,
+    w: (blob.maxX - blob.minX + 1) / w,
+    h: (blob.maxY - blob.minY + 1) / h,
+    manual,
+  };
+}
+
+/** Finds every hold matching the seed color. */
+export function detectHolds(img: Pixels, seed: Seed, sensitivity: Sensitivity = 'normal'): Hold[] {
+  const { width: w, height: h } = img;
+  const lab = labOf(img);
+  const mask = clean(colorMask(lab, seed, THRESHOLD[sensitivity], HUE_TOLERANCE[sensitivity]), w, h);
+  const minArea = Math.max(24, w * h * 0.00005);
+  const maxArea = w * h * 0.03;
+  const holds: Hold[] = [];
+  for (const blob of components(mask, w, h)) {
+    if (blob.area < minArea || blob.area > maxArea) continue;
+    const bw = blob.maxX - blob.minX + 1;
+    const bh = blob.maxY - blob.minY + 1;
+    // Streaks (tape lines, wall seams) are long and thin or mostly empty inside their box.
+    if (Math.max(bw, bh) / Math.min(bw, bh) > 4.5) continue;
+    if (blob.area / (bw * bh) < 0.35) continue;
+    // Real holds are small next to the wall; a huge box is a shadow or a wall panel.
+    if (Math.max(bw, bh) > w * 0.2) continue;
+    holds.push(blobToHold(blob, w, h, holds.length + 1));
+  }
+  return holds;
+}
+
+/**
+ * Adds a hold the detector missed: grows a region from the tapped pixel using that pixel's own
+ * color. Falls back to a small circle if nothing coherent grows.
+ */
+export function growHoldAt(img: Pixels, nx: number, ny: number, id: number): Hold {
+  const { width: w, height: h } = img;
+  const lab = labOf(img);
+  const local = sampleSeed(img, nx, ny, 2);
+  const mask = colorMask(lab, local, THRESHOLD.normal, HUE_TOLERANCE.normal);
+  const cx = Math.round(nx * (w - 1));
+  const cy = Math.round(ny * (h - 1));
+  const maxR = Math.round(Math.min(w, h) * 0.1);
+
+  const seen = new Set<number>();
+  const stack = [cy * w + cx];
+  seen.add(stack[0]);
+  const blob: Blob = { area: 0, minX: w, maxX: 0, minY: h, maxY: 0, sx: 0, sy: 0 };
+  while (stack.length) {
+    const i = stack.pop()!;
+    const x = i % w;
+    const y = (i - x) / w;
+    blob.area++;
+    blob.sx += x;
+    blob.sy += y;
+    blob.minX = Math.min(blob.minX, x);
+    blob.maxX = Math.max(blob.maxX, x);
+    blob.minY = Math.min(blob.minY, y);
+    blob.maxY = Math.max(blob.maxY, y);
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nxp = x + dx;
+      const nyp = y + dy;
+      if (nxp < 0 || nyp < 0 || nxp >= w || nyp >= h) continue;
+      if (Math.abs(nxp - cx) > maxR || Math.abs(nyp - cy) > maxR) continue;
+      const j = nyp * w + nxp;
+      if (mask[j] && !seen.has(j)) {
+        seen.add(j);
+        stack.push(j);
+      }
+    }
+  }
+  const minArea = Math.max(24, w * h * 0.00005);
+  if (blob.area >= minArea) return blobToHold(blob, w, h, id, true);
+  const r = Math.max(6, Math.min(w, h) * 0.03);
+  return { id, x: nx, y: ny, w: (2 * r) / w, h: (2 * r) / h, manual: true };
+}
+
+/** The hold under a tap, if any (nearest center within its box, a bit generous for fingers). */
+export function holdAt(holds: Hold[], nx: number, ny: number, slack = 0.015): Hold | undefined {
+  let best: Hold | undefined;
+  let bestDist = Infinity;
+  for (const hold of holds) {
+    const dx = Math.abs(nx - hold.x);
+    const dy = Math.abs(ny - hold.y);
+    if (dx <= hold.w / 2 + slack && dy <= hold.h / 2 + slack) {
+      const d = dx * dx + dy * dy;
+      if (d < bestDist) {
+        best = hold;
+        bestDist = d;
+      }
+    }
+  }
+  return best;
+}
