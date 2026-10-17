@@ -25,17 +25,23 @@ export function KnotPlayer({ knot }: { knot: Knot }) {
   const [progress, setProgress] = useState(0);
   const value = useRef(new Animated.Value(0)).current;
   const current = useRef(0);
+  const playing = useRef(false);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   // Mirror the animated value into state so the SVG redraws as the rope grows.
   useEffect(() => {
     const id = value.addListener(({ value: v }) => {
       current.current = v;
       setProgress(v);
+      // While playing straight through, the caption follows the rope.
+      if (playing.current) setStep(knot.steps.findIndex((st) => v <= st.to + 1e-6));
     });
     return () => value.removeListener(id);
-  }, [value]);
+  }, [value, knot]);
 
   function goTo(index: number, from?: number) {
+    playing.current = false;
+    setIsPlaying(false);
     const target = knot.steps[index].to;
     setStep(index);
     if (from !== undefined) value.setValue(from);
@@ -45,6 +51,27 @@ export function KnotPlayer({ knot }: { knot: Knot }) {
       easing: Easing.inOut(Easing.quad),
       useNativeDriver: false,
     }).start();
+  }
+
+  /** Plays the whole sequence from the start without stopping. */
+  function playAll() {
+    const total = knot.steps[knot.steps.length - 1].to;
+    value.stopAnimation();
+    value.setValue(0);
+    setStep(0);
+    playing.current = true;
+    setIsPlaying(true);
+    Animated.timing(value, {
+      toValue: total,
+      duration: total * STEP_MS * 1.5,
+      easing: Easing.linear,
+      useNativeDriver: false,
+    }).start(({ finished }) => {
+      if (!finished) return;
+      playing.current = false;
+      setIsPlaying(false);
+      setStep(knot.steps.length - 1);
+    });
   }
 
   // Start playing the first step when the knot opens.
@@ -106,16 +133,17 @@ export function KnotPlayer({ knot }: { knot: Knot }) {
 
       <View style={styles.buttons}>
         <View style={styles.flex}>
-          <Button title="Back" variant="secondary" disabled={step === 0} onPress={() => goTo(step - 1)} />
+          <Button title="Back" variant="secondary" disabled={step === 0 || isPlaying} onPress={() => goTo(step - 1)} />
         </View>
         <View style={styles.flex}>
-          {last ? (
+          {last && !isPlaying ? (
             <Button title="Replay" onPress={() => goTo(0, 0)} />
           ) : (
-            <Button title="Next" onPress={() => goTo(step + 1)} />
+            <Button title="Next" disabled={isPlaying} onPress={() => goTo(step + 1)} />
           )}
         </View>
       </View>
+      <Button title={isPlaying ? 'Playing…' : 'Play all'} variant="secondary" disabled={isPlaying} onPress={playAll} />
     </View>
   );
 }

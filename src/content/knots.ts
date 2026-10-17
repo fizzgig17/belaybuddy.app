@@ -35,8 +35,11 @@ function figureEightFollowThrough(): Knot {
     steps: [
       { caption: 'Tie a loose figure-eight in the rope, leaving a long tail. (In real life, pass the tail through your harness tie-in points before you follow it back.)', to: 1 },
       { caption: 'Bring the tail back and start following the original strand, staying right beside it.', to: 1.5 },
-      { caption: 'Follow the original strand through every bend, side by side with no crossings.', to: 2 },
-      { caption: 'Pull every strand tight. Leave a tail of at least 6 inches (15 cm) and have a partner check it.', to: 2 },
+      {
+        caption:
+          'Follow the original strand through every bend, side by side with no crossings. Then pull every strand tight, leave a tail of at least 6 inches (15 cm), and have a partner check it.',
+        to: 2,
+      },
     ],
   };
 }

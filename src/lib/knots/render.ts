@@ -15,7 +15,6 @@ export type Layer = {
 export type Strand = { rope: Rope; /** Arc length drawn so far. */ drawn: number; fill: string; outline: string };
 
 export const ROPE_WIDTH = 14;
-const WINDOW = 17; // how far each side of a crossing the "on top" strand is redrawn
 const RIB = 6; // spacing of the sheath's weave marks, in px along the rope
 
 /** One piece of rope drawn like a real one: outline, body, weave marks and a soft highlight. */
@@ -30,12 +29,7 @@ function ropePiece(key: string, d: string, s: Strand): Layer[] {
   ];
 }
 
-/**
- * Layers to paint, bottom to top. First every strand so far; then, wherever a strand passes
- * over another, a short piece redrawn on top with a soft shadow around it, so the strand
- * underneath looks tucked in rather than cut. Shadows for all crossings are laid down before any
- * top pieces, so strands running side by side keep their shape.
- */
+/** Layers to paint, bottom to top: each strand as drawn so far, later strands over earlier ones. */
 export function strandLayers(strands: Strand[]): Layer[] {
   const layers: Layer[] = [];
   strands.forEach((s, i) => {
@@ -43,19 +37,5 @@ export function strandLayers(strands: Strand[]): Layer[] {
     const base = pathBetween(s.rope, 0, s.drawn);
     if (base) layers.push(...ropePiece(`b${i}`, base, s));
   });
-  const tops: { s: Strand; i: number; k: number; d: string }[] = [];
-  strands.forEach((s, i) =>
-    s.rope.overs.forEach((c, k) => {
-      if (c.s + WINDOW > s.drawn) return;
-      // Start on a weave-mark boundary so the marks line up with the rope underneath.
-      const from = Math.max(0, Math.floor((c.s - WINDOW) / RIB) * RIB);
-      const d = pathBetween(s.rope, from, c.s + WINDOW);
-      if (d) tops.push({ s, i, k, d });
-    }),
-  );
-  tops.forEach((t) =>
-    layers.push({ key: `sh${t.i}-${t.k}`, d: t.d, stroke: '#000000', width: ROPE_WIDTH + 5, opacity: 0.2, dx: 1, dy: 1.5 }),
-  );
-  tops.forEach((t) => layers.push(...ropePiece(`t${t.i}-${t.k}`, t.d, t.s)));
   return layers;
 }
