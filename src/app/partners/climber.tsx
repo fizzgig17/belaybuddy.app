@@ -6,6 +6,7 @@ import { ActivityIndicator, Alert, Platform, StyleSheet, View } from 'react-nati
 import { Button, Field, SingleChoice } from '@/components/form';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
+import { Card } from '@/components/ui/group';
 import { ThemedView } from '@/components/themed-view';
 import { Icons } from '@/constants/icons';
 import { HoldColors, Spacing } from '@/constants/theme';
@@ -125,7 +126,7 @@ export default function ClimberScreen() {
 
       {card.bio && <ThemedText>{card.bio}</ThemedText>}
 
-      <ThemedView type="backgroundElement" style={styles.card}>
+      <Card style={styles.card}>
         {card.styles.length > 0 && (
           <Row label="Climbs" value={card.styles.map((s) => STYLE_LABELS[s] ?? s).join(', ')} />
         )}
@@ -144,7 +145,7 @@ export default function ClimberScreen() {
           }
         />
         {card.assistedBraking && <Row label="Device" value="Comfortable with an assisted-braking device" />}
-      </ThemedView>
+      </Card>
 
       {card.weightHint && (
         <ThemedView type="backgroundElement" style={styles.hint}>
@@ -171,7 +172,7 @@ export default function ClimberScreen() {
 
       {!isMe &&
         (reporting ? (
-          <ThemedView type="backgroundElement" style={styles.card}>
+          <Card style={styles.card}>
             <ThemedText type="smallBold">Report {name}</ThemedText>
             <ThemedText type="small" themeColor="textSecondary">
               Reports are private. {name} isn't told who reported them.
@@ -187,7 +188,7 @@ export default function ClimberScreen() {
             />
             <Button title="Send report" onPress={submitReport} loading={busy} />
             <Button title="Cancel" variant="secondary" onPress={() => setReporting(false)} />
-          </ThemedView>
+          </Card>
         ) : (
           <View style={styles.actions}>
             <View style={styles.flex}>

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { AreaRow } from '@/components/find/area-row';
+import { AreaRowSkeleton } from '@/components/ui/skeleton';
 import { loadLastPlace, saveLastPlace } from '@/components/find/storage';
 import { Button, Segmented } from '@/components/form';
 import { CragBanner } from '@/components/illustrations';
@@ -254,7 +255,7 @@ export default function FindScreen() {
           />
 
           {loading ? (
-            <ActivityIndicator style={styles.loading} />
+            <AreaRowSkeleton />
           ) : (
             <>
               {result?.errors.gyms && (

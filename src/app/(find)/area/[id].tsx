@@ -7,6 +7,7 @@ import { Button } from '@/components/form';
 import { CragBanner, GymWallBanner } from '@/components/illustrations';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
+import { Card } from '@/components/ui/group';
 import { ThemedView } from '@/components/themed-view';
 import { Icons } from '@/constants/icons';
 import { HoldColors, Spacing } from '@/constants/theme';
@@ -154,7 +155,7 @@ export default function AreaScreen() {
         </ThemedView>
       )}
 
-      <ThemedView type="backgroundElement" style={styles.card}>
+      <Card style={styles.card}>
         {area.address && <InfoRow label="Address" value={area.address} />}
         {area.kind === 'gym' && (
           <View style={styles.infoRow}>
@@ -197,7 +198,7 @@ export default function AreaScreen() {
         {area.kind === 'crag' && area.path && area.path.length > 0 && (
           <InfoRow label="Location" value={area.path.join(' › ')} />
         )}
-      </ThemedView>
+      </Card>
 
       {area.kind === 'crag' && details && (
         <Button

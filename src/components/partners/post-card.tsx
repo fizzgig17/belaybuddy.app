@@ -3,7 +3,7 @@ import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+import { Card } from '@/components/ui/group';
 import { Icons } from '@/constants/icons';
 import { HoldColors, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -39,7 +39,7 @@ export function PostCard({ post, card, badge, showGym }: Props) {
       accessibilityRole="link"
       onPress={() => router.push({ pathname: '/partners/post', params: { id: post.id } })}
       style={({ pressed }) => pressed && styles.pressed}>
-      <ThemedView type="backgroundElement" style={styles.card}>
+      <Card style={styles.card}>
         <View style={styles.top}>
           <View style={[styles.when, post.hereNow && { backgroundColor: `${HoldColors.green}26` }]}>
             <SymbolView
@@ -80,7 +80,7 @@ export function PostCard({ post, card, badge, showGym }: Props) {
             {post.note}
           </ThemedText>
         )}
-      </ThemedView>
+      </Card>
     </Pressable>
   );
 }

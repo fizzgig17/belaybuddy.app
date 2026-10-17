@@ -12,6 +12,7 @@ import {
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { select, tap } from '@/lib/haptics';
 
 /** Labeled text field. */
 export function Field({
@@ -61,7 +62,10 @@ export function Button({ title, onPress, variant = 'primary', disabled, loading,
       accessibilityRole="button"
       accessibilityState={{ disabled: inactive, busy: loading }}
       disabled={inactive}
-      onPress={onPress}
+      onPress={() => {
+        tap();
+        onPress();
+      }}
       style={({ pressed }) => [
         styles.button,
         { backgroundColor: primary ? theme.accent : theme.backgroundElement },
@@ -107,7 +111,10 @@ export function ChipGroup<T extends string>({
               accessibilityRole="checkbox"
               accessibilityState={{ checked: on }}
               onPress={() =>
-                onChange(on ? selected.filter((v) => v !== option.value) : [...selected, option.value])
+                {
+                  select();
+                  onChange(on ? selected.filter((v) => v !== option.value) : [...selected, option.value]);
+                }
               }
               style={[
                 styles.chip,
@@ -151,7 +158,10 @@ export function SingleChoice<T extends string | number>({
               key={String(option.value)}
               accessibilityRole="radio"
               accessibilityState={{ checked: on }}
-              onPress={() => onChange(option.value)}
+              onPress={() => {
+                select();
+                onChange(option.value);
+              }}
               style={[
                 styles.chip,
                 { backgroundColor: on ? theme.accentSoft : theme.backgroundElement },
@@ -183,7 +193,11 @@ export function ToggleRow({
       <ThemedText type="small" style={styles.toggleLabel}>
         {label}
       </ThemedText>
-      <Switch value={value} onValueChange={onValueChange} trackColor={{ true: theme.accent, false: theme.backgroundSelected }} />
+      <Switch value={value} onValueChange={(v) => {
+          select();
+          onValueChange(v);
+        }}
+        trackColor={{ true: theme.accent, false: theme.backgroundSelected }} />
     </View>
   );
 }
@@ -252,7 +266,10 @@ export function Segmented<T extends string | number>({
             key={String(option.value)}
             accessibilityRole="radio"
             accessibilityState={{ checked: on }}
-            onPress={() => onChange(option.value)}
+            onPress={() => {
+                select();
+                onChange(option.value);
+              }}
             style={[segStyles.segment, on && { backgroundColor: theme.background }]}>
             <ThemedText
               type={on ? 'smallBold' : 'small'}

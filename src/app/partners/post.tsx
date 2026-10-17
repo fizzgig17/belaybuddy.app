@@ -6,7 +6,7 @@ import { Button } from '@/components/form';
 import { ClimberSummary } from '@/components/partners/climber-summary';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+import { Card } from '@/components/ui/group';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/lib/auth';
@@ -118,13 +118,13 @@ export default function PostScreen() {
         <ThemedText themeColor="textSecondary">{post.areaName}</ThemedText>
       </View>
 
-      <ThemedView type="backgroundElement" style={styles.card}>
+      <Card style={styles.card}>
         <Row label="Goal" value={GOAL_LABELS[post.goal]} />
         {post.styles.length > 0 && <Row label="Climbing" value={post.styles.map((s) => POST_STYLE_LABELS[s]).join(', ')} />}
         {grades && <Row label="Grades" value={grades} />}
         {post.mentoring && <Row label="Mentoring" value="Happy to climb with someone newer" />}
         {post.note && <Row label="Note" value={post.note} />}
-      </ThemedView>
+      </Card>
 
       {mine ? (
         <>

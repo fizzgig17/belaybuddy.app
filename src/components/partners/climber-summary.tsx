@@ -3,7 +3,7 @@ import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+import { Card } from '@/components/ui/group';
 import { Icons } from '@/constants/icons';
 import { HoldColors, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -27,7 +27,7 @@ export function ClimberSummary({
   const belay = card.belayCertified.map((b) => BELAY_LABELS[b]).join(', ');
 
   return (
-    <ThemedView type="backgroundElement" style={styles.card}>
+    <Card style={styles.card}>
       <Pressable
         accessibilityRole="link"
         onPress={() =>
@@ -72,7 +72,7 @@ export function ClimberSummary({
         <SymbolView name={Icons.chevron} size={14} tintColor={theme.textSecondary} />
       </Pressable>
       {trailing}
-    </ThemedView>
+    </Card>
   );
 }
 

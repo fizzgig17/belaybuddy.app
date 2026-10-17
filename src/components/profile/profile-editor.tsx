@@ -3,7 +3,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { Button, ChipGroup, Field, ToggleRow } from '@/components/form';
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+import { Card, Section } from '@/components/ui/group';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { fetchMyProfile, updateMyProfile, type ProfileUpdate } from '@/lib/profiles';
@@ -171,7 +171,7 @@ export function ProfileEditor({ userId }: { userId: string }) {
         onChange={(v) => set('belayCertified', v)}
       />
 
-      <ThemedView type="backgroundElement" style={styles.gear}>
+      <Card style={styles.gear}>
         <ThemedText type="smallBold">Gear you own</ThemedText>
         {(Object.keys(GEAR_LABELS) as (keyof Draft['hasGear'])[]).map((key) => (
           <ToggleRow
@@ -181,10 +181,10 @@ export function ProfileEditor({ userId }: { userId: string }) {
             onValueChange={(value) => set('hasGear', { ...draft.hasGear, [key]: value })}
           />
         ))}
-      </ThemedView>
+      </Card>
 
-      <View style={styles.section}>
-        <ThemedText type="smallBold">Partner matching</ThemedText>
+      <Section title="Partner matching">
+        <Card>
         <ToggleRow
           label="Comfortable belaying with an assisted-braking device (GriGri etc.)"
           value={draft.assistedBraking}
@@ -202,7 +202,8 @@ export function ProfileEditor({ userId }: { userId: string }) {
               : 'Enter a weight from 50 to 440 lb, or leave it empty.'
           }
         />
-      </View>
+        </Card>
+      </Section>
 
       <Button title="Save profile" onPress={save} loading={saving} disabled={!yearsValid || !weightValid} />
       {message && (
@@ -223,5 +224,5 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: Spacing.three },
   flex: { flex: 1 },
   section: { gap: Spacing.two },
-  gear: { padding: Spacing.three, borderRadius: Spacing.three, gap: Spacing.one },
+  gear: { gap: Spacing.one },
 });

@@ -72,3 +72,61 @@ export function formatOpeningHours(raw: string): HoursLine[] | null {
   }
   return lines.length ? lines : null;
 }
+
+const DAY_INDEX: Record<string, number> = { Su: 0, Mo: 1, Tu: 2, We: 3, Th: 4, Fr: 5, Sa: 6 };
+
+function dayNumbers(spec: string): number[] | null {
+  const out: number[] = [];
+  for (const part of spec.split(',').map((p) => p.trim())) {
+    const range = /^([A-Z][a-z])-([A-Z][a-z])$/.exec(part);
+    if (range && range[1] in DAY_INDEX && range[2] in DAY_INDEX) {
+      let d = DAY_INDEX[range[1]];
+      const end = DAY_INDEX[range[2]];
+      for (let i = 0; i < 7; i++) {
+        out.push(d);
+        if (d === end) break;
+        d = (d + 1) % 7;
+      }
+    } else if (part in DAY_INDEX) out.push(DAY_INDEX[part]);
+    else if (part !== 'PH') return null;
+  }
+  return out;
+}
+
+const minutes = (t: string) => {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+};
+
+/**
+ * Is the place open at `now` (device local time, which is right when you're near the gym)?
+ * Returns null when the hours are missing or too unusual to read confidently.
+ */
+export function isOpenNow(raw: string | undefined, now = new Date()): boolean | null {
+  if (!raw) return null;
+  const value = raw.trim();
+  if (value === '24/7') return true;
+  const today = now.getDay();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  let covered = false;
+  let open = false;
+  for (const rule of value.split(';').map((r) => r.trim()).filter(Boolean)) {
+    const m = /^([A-Za-z][A-Za-z,\- ]*?)\s+(.+)$/.exec(rule);
+    const dayList = m ? dayNumbers(m[1].replace(/\s/g, '')) : [0, 1, 2, 3, 4, 5, 6];
+    const spec = (m ? m[2] : rule).trim();
+    if (!dayList) return null;
+    if (!dayList.includes(today)) continue;
+    covered = true;
+    // Later rules override earlier ones for the same day, as in OSM.
+    open = false;
+    if (/^(off|closed)$/i.test(spec)) continue;
+    for (const r of spec.split(',').map((x) => x.trim())) {
+      const t = /^(\d{1,2}:\d{2})-(\d{1,2}:\d{2})\+?$/.exec(r);
+      if (!t) return null;
+      const start = minutes(t[1]);
+      const end = minutes(t[2]);
+      if (end > start ? nowMin >= start && nowMin < end : nowMin >= start || nowMin < end) open = true;
+    }
+  }
+  return covered ? open : null;
+}

@@ -3,7 +3,7 @@ import { SymbolView } from 'expo-symbols';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
+import { Card } from '@/components/ui/group';
 import { Icons, type IconName } from '@/constants/icons';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -24,7 +24,7 @@ export function FeatureCard({ title, description, icon, href, comingSoon, tint }
   const theme = useTheme();
 
   const body = (
-    <ThemedView type="backgroundElement" style={styles.card}>
+    <Card style={styles.card}>
       {icon && (
         <View
           style={[
@@ -50,7 +50,7 @@ export function FeatureCard({ title, description, icon, href, comingSoon, tint }
         </ThemedText>
       </View>
       {href && <SymbolView name={Icons.chevron} size={14} tintColor={theme.textSecondary} />}
-    </ThemedView>
+    </Card>
   );
 
   if (!href) return body;
