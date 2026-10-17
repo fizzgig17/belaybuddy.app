@@ -392,6 +392,11 @@ jobs:
           cat xcodebuild-archive.log xcodebuild-export.log 2>/dev/null | grep -E ": error: |^error: |fatal error: |\*\* (ARCHIVE|EXPORT) FAILED|Validation failed|SDK version|Undefined symbols|No profiles|No signing certificate|Provisioning profile|doesn't match|Bundle identifier" | head -n 20 | while IFS= read -r line; do
             echo "::error::${line//%/%25}"
           done
+          # Anything else that failed (e.g. a build phase script), plus the end of the log.
+          grep -iE "error|failed" xcodebuild-archive.log 2>/dev/null | grep -vE "^\s*(warning|note):" | head -n 12 | while IFS= read -r line; do
+            echo "::error::log: ${line//%/%25}"
+          done
+          echo "::error::tail: $(tail -n 12 xcodebuild-archive.log 2>/dev/null | tr '\n' '|' | head -c 1200)"
 
       - name: Remove the API key
         if: always()
