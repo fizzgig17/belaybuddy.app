@@ -66,7 +66,13 @@ for (const cap of CAPABILITIES) {
   await api('POST', '/bundleIdCapabilities', {
     data: {
       type: 'bundleIdCapabilities',
-      attributes: { capabilityType: cap },
+      attributes: {
+        capabilityType: cap,
+        // Sign in with Apple must say which kind of app this is.
+        ...(cap === 'APPLE_ID_AUTH' && {
+          settings: [{ key: 'APPLE_ID_AUTH_APP_CONSENT', options: [{ key: 'PRIMARY_APP_CONSENT' }] }],
+        }),
+      },
       relationships: { bundleId: { data: { type: 'bundleIds', id: bundle.id } } },
     },
   });
