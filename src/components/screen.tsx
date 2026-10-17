@@ -47,7 +47,9 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   content: {
     padding: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.four,
+    // The floating tab bar sits above the home indicator and is taller than BottomTabInset,
+    // so leave room for it plus some breathing space (the last button was hidden behind it).
+    paddingBottom: BottomTabInset + Spacing.six,
     gap: Spacing.three,
     width: '100%',
     maxWidth: MaxContentWidth,
