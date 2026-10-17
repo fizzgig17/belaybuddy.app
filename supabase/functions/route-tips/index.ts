@@ -150,6 +150,12 @@ Deno.serve(async (req) => {
   const { data: userData } = await supabase.auth.getUser();
   if (!userData?.user) return json({ error: 'Sign in to get technique tips.' }, 401);
 
+  // Photos only go to the AI service for people who said yes (saved on their profile).
+  const { data: profile } = await supabase.from('profiles').select('ai_consent').eq('id', userData.user.id).maybeSingle();
+  if (profile?.ai_consent !== 'allowed') {
+    return json({ error: 'Turn on AI features in Settings to use this.', code: 'ai-consent' }, 403);
+  }
+
   let body: unknown;
   try {
     body = await req.json();

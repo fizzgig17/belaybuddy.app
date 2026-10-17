@@ -261,13 +261,13 @@ export function WallScanner() {
 
   /** Asks about AI the first time a signed-in person picks a photo, then carries on either way. */
   const gate = (action: 'lidar' | 'camera' | 'library') => {
-    if (user && consent === 'unset') setPending(action);
+    if (user && (consent === 'unset' || consent === 'loading')) setPending(action);
     else runAction(action);
   };
 
   // Once they answer, start what they asked for, with the new choice in effect.
   useEffect(() => {
-    if (pending && consent !== 'unset') {
+    if (pending && consent !== 'unset' && consent !== 'loading') {
       const action = pending;
       setPending(null);
       runAction(action);
@@ -284,7 +284,7 @@ export function WallScanner() {
         <ThemedText type="small" themeColor="textSecondary">
           Take or choose a photo of a wall, then tap one hold on your route. Photos stay on your device.
         </ThemedText>
-        {pending && (
+        {pending && consent === 'unset' && (
           <View style={styles.gap}>
             <ThemedText type="smallBold">Use AI for this photo?</ThemedText>
             <ThemedText type="small" themeColor="textSecondary">

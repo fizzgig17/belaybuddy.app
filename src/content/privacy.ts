@@ -17,6 +17,7 @@ export const PRIVACY_SECTIONS: PolicySection[] = [
     body: [
       'Account: your email address, used to sign you in and send notifications you choose.',
       'Profile and activity: the name and climbing details you add, favorite gyms, home gyms, partner posts and chats, climbing sessions you log, and your notification settings.',
+      'Your AI choice: whether you allowed or declined sending photos to the AI service, and when you chose. It is saved on your account, so it follows you to other devices.',
       'Notifications: a device token (so we can send push notifications to your phone) and your time zone (so reminder times read correctly).',
       'Location: when you allow it, your phone uses its location to find gyms and shops near you. We ask our servers for a coarse area, not your exact position.',
     ],
@@ -24,7 +25,7 @@ export const PRIVACY_SECTIONS: PolicySection[] = [
   {
     title: 'Route AI and artificial intelligence',
     body: [
-      'Route AI can use an AI service, Anthropic’s Claude, to describe a wall photo and write technique tips. It only does this if you are signed in and have said yes. We ask the first time you use it, and you can change your mind any time in Settings under AI features.',
+      'Route AI can use an AI service, Anthropic’s Claude, to describe a wall photo and write technique tips. It only does this if you are signed in and have said yes. We ask the first time you use it, save your answer on your account, and check it on our server before every request. You can change your mind any time in Settings under AI features.',
       'What is sent when you use it: the wall photo (resized, with its location data removed), the positions of the holds you confirmed, and, if you used a LiDAR scan, the wall angle and rough distances between holds. We also send a smaller copy of the photo for a quick check of what it shows and whether it is suitable for all ages. Photos that are not suitable are not displayed or used.',
       'What we keep: we do not store your photos or the tips. We keep a simple daily count of how many scans you ran, to limit use. Anthropic handles what it receives under its own terms and privacy policy (anthropic.com/legal/privacy), which can include keeping it for a limited time for safety and abuse prevention.',
       'Finding holds on a photo, and measuring a wall with LiDAR, happen on your phone and do not use the AI service. If you say no, those still work.',
