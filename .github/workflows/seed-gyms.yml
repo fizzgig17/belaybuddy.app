@@ -1,0 +1,49 @@
+# Fills the gym catalog for ~55 popular climbing metros from OpenStreetMap.
+# Run it by hand (Actions > Seed gyms > Run workflow) and pick dev or prod; it
+# is safe to run again any time (it updates gyms and removes ones that are gone).
+# Overpass blocks many cloud IPs, so this runs on a CI runner, not in Supabase.
+name: Seed gyms
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Which database
+        type: choice
+        options: [dev, prod]
+        default: dev
+      limit:
+        description: Only the first N areas (blank = all)
+        required: false
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      TARGET: ${{ inputs.target }}
+      DEV_DB_PASSWORD: ${{ secrets.DEV_DB_PASSWORD }}
+      DEV_PROJECT_ID: ${{ secrets.DEV_PROJECT_ID }}
+      PROD_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
+      PROD_PROJECT_ID: ${{ secrets.PROD_PROJECT_ID }}
+      POOLER_HOST: aws-0-us-east-1.pooler.supabase.com
+      SEED_ONLY: ${{ inputs.limit }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Fetch gyms from OpenStreetMap
+        run: |
+          node .github/scripts/seed-gyms.mjs "$RUNNER_TEMP/seed.sql" | tee "$RUNNER_TEMP/seed.log"
+          echo "::notice::$(grep -E '^(SUMMARY|FAILED_LIST)' "$RUNNER_TEMP/seed.log" | tr '\n' ' ')"
+
+      - name: Save them to the ${{ inputs.target }} database
+        run: |
+          if [ "$TARGET" = prod ]; then PROJECT_ID="$PROD_PROJECT_ID"; DB_PASSWORD="$PROD_DB_PASSWORD"; else PROJECT_ID="$DEV_PROJECT_ID"; DB_PASSWORD="$DEV_DB_PASSWORD"; fi
+          password=$(jq -rn --arg p "$DB_PASSWORD" '$p | @uri')
+          echo "::add-mask::$password"
+          psql "postgresql://postgres.$PROJECT_ID:$password@$POOLER_HOST:5432/postgres" -v ON_ERROR_STOP=1 -q -f "$RUNNER_TEMP/seed.sql"
+          out=$(psql "postgresql://postgres.$PROJECT_ID:$password@$POOLER_HOST:5432/postgres" -At -c "select (select count(*) from public.gyms) || ' gyms in ' || (select count(*) from public.gym_cells) || ' areas'")
+          echo "::notice::Catalog now: $out"
