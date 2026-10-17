@@ -122,14 +122,27 @@ function rng(seed: number) {
   };
 }
 
+export type WallFailure = 'too-little-depth' | 'floor-or-ceiling';
+
+/** Same as analyseWall, but says why it failed so the screen can tell the person what to do. */
+export function measureWall(cap: RawDepthCapture): { wall: WallGeometry } | { failure: WallFailure } {
+  const result = analyse(cap);
+  return 'wall' in result || 'failure' in result ? result : { failure: 'too-little-depth' };
+}
+
 export function analyseWall(cap: RawDepthCapture): WallGeometry | null {
+  const result = analyse(cap);
+  return 'wall' in result ? result.wall : null;
+}
+
+function analyse(cap: RawDepthCapture): { wall: WallGeometry } | { failure: WallFailure } {
   const depth = floats(cap.depth);
   const confidence = cap.confidence ? bytes(cap.confidence) : null;
   const { depthWidth: dw, depthHeight: dh } = cap;
-  if (depth.length < dw * dh) return null;
+  if (depth.length < dw * dh) return { failure: 'too-little-depth' };
 
   const t = cap.transform;
-  if (t.length !== 16) return null;
+  if (t.length !== 16) return { failure: 'too-little-depth' };
   const col = (i: number): V3 => [t[i * 4], t[i * 4 + 1], t[i * 4 + 2]];
   const [X, Y, Z] = [col(0), col(1), col(2)];
   const origin: V3 = col(3);
@@ -157,7 +170,7 @@ export function analyseWall(cap: RawDepthCapture): WallGeometry | null {
       points.push(toWorld([((u + 0.5 - cx) / fx) * d, (-(v + 0.5 - cy) / fy) * d, -d]));
     }
   }
-  if (points.length < 200) return null;
+  if (points.length < 200) return { failure: 'too-little-depth' };
 
   // RANSAC for the dominant plane (the wall), then refit to everything near it.
   const rand = rng(7);
@@ -172,7 +185,7 @@ export function analyseWall(cap: RawDepthCapture): WallGeometry | null {
     const inliers = points.filter((p) => Math.abs(dot(sub(p, a), nn)) < 0.06);
     if (inliers.length > bestInliers.length) bestInliers = inliers;
   }
-  if (bestInliers.length < 150) return null;
+  if (bestInliers.length < 150) return { failure: 'too-little-depth' };
   const refit = fitPlane(bestInliers);
   const inliers = points.filter((p) => Math.abs(dot(sub(p, refit.p), refit.n)) < 0.06);
   const plane = fitPlane(inliers.length >= 150 ? inliers : bestInliers);
@@ -181,13 +194,14 @@ export function analyseWall(cap: RawDepthCapture): WallGeometry | null {
   let n = plane.n;
   if (dot(sub(origin, plane.p), n) < 0) n = [-n[0], -n[1], -n[2]];
   // Looking mostly at a floor or ceiling: there's no meaningful wall angle.
-  if (Math.abs(n[1]) > 0.95) return null;
+  if (Math.abs(n[1]) > 0.95) return { failure: 'floor-or-ceiling' };
 
   const up: V3 = [0, 1, 0];
   const uAxis = norm(cross(up, n)); // along the wall, to the right as seen from the camera
   const vAxis = cross(n, uAxis); // up the wall
 
   return {
+    wall: {
     overhangDeg: (-Math.asin(Math.max(-1, Math.min(1, n[1]))) * 180) / Math.PI,
     fit: inliers.length / points.length,
     locate(nx, ny) {
@@ -207,5 +221,6 @@ export function analyseWall(cap: RawDepthCapture): WallGeometry | null {
       const hit: V3 = [origin[0] + dir[0] * s, origin[1] + dir[1] * s, origin[2] + dir[2] * s];
       return { x: dot(hit, uAxis) * 100, y: dot(hit, vAxis) * 100 };
     },
+  },
   };
 }

@@ -36,7 +36,7 @@ import {
   numberHolds,
   type RouteTips,
 } from '@/lib/route-ai/tips';
-import { analyseWall, type WallGeometry } from '@/lib/route-ai/depth';
+import { measureWall, type WallGeometry } from '@/lib/route-ai/depth';
 import { captureWall, isLidarSupported } from '@/lib/route-ai/lidar';
 import { chooseWallPhoto, loadWallPhoto, takeWallPhoto, type PickResult, type WallPhoto } from '@/lib/route-ai/photo';
 
@@ -102,14 +102,21 @@ export function WallScanner() {
       const cap = await captureWall();
       if (!cap) return;
       const loaded = await loadWallPhoto(cap.uri);
-      const geometry = analyseWall(cap);
+      const measured = measureWall(cap);
+      const geometry = 'wall' in measured ? measured.wall : null;
       setPhoto(loaded);
       setWall(geometry);
       setSeeds([]);
       setAuto([]);
       setRemovedPts([]);
       setManual([]);
-      if (!geometry) setError('The scan could not measure the wall, so tips will use the photo only.');
+      if ('failure' in measured) {
+        setError(
+          measured.failure === 'floor-or-ceiling'
+            ? 'That scan was mostly floor or ceiling, so there is no wall angle. Tips will use the photo only. Aim at the wall to measure it.'
+            : 'Not enough depth to measure the wall. Stand 2 to 4 m back and try again. Tips will use the photo only.',
+        );
+      }
     } catch {
       setError('The LiDAR scan did not work. You can still take a regular photo.');
     } finally {
