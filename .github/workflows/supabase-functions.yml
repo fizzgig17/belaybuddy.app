@@ -14,6 +14,9 @@
 #     APNS_KEY_ID     the key's 10-character Key ID
 #     APPLE_TEAM_ID   (already set for the iOS workflow)
 #
+#   Route AI technique tips — console.anthropic.com > API keys (set a monthly spend limit there):
+#     ANTHROPIC_API_KEY   the key; also deploys the route-tips function
+#
 #   Email — the same Spacemail mailbox Supabase Auth uses:
 #     SMTP_HOST       e.g. mail.spacemail.com
 #     SMTP_PORT       465 (SSL). Supabase Edge Functions can't use port 25 or 587.
@@ -90,6 +93,11 @@ jobs:
             echo "::error::Deploying gyms failed: $(tail -n 5 "$RUNNER_TEMP/deploy-gyms.log" | tr '\n' ' ' | head -c 600)"
             exit 1
           fi
+          # Route AI technique tips (needs a signed-in user; see supabase/functions/route-tips).
+          if ! supabase functions deploy route-tips --project-ref "$PROJECT_ID" --use-api 2>&1 | tee "$RUNNER_TEMP/deploy-tips.log"; then
+            echo "::error::Deploying route-tips failed: $(tail -n 5 "$RUNNER_TEMP/deploy-tips.log" | tr '\n' ' ' | head -c 600)"
+            exit 1
+          fi
           supabase functions list --project-ref "$PROJECT_ID" 2>&1 | tee "$RUNNER_TEMP/list.log"
           echo "::notice::Functions on $TARGET: $(tr '\n' ' ' < "$RUNNER_TEMP/list.log" | head -c 500)"
 
@@ -104,6 +112,7 @@ jobs:
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           set -o pipefail
           NOTIFY_SECRET=$(openssl rand -hex 32)
@@ -133,6 +142,12 @@ jobs:
             echo "Email: on"
           else
             echo "::warning::Email notifications are off: add SMTP_HOST, SMTP_USER and SMTP_PASS (see the top of this workflow)."
+          fi
+          if [ -n "$ANTHROPIC_API_KEY" ]; then
+            echo "ANTHROPIC_API_KEY=$(printf '%s' "$ANTHROPIC_API_KEY" | tr -d '[:space:]')" >> "$f"
+            echo "Route AI tips: on"
+          else
+            echo "::warning::Route AI technique tips are off: add the ANTHROPIC_API_KEY secret."
           fi
           if ! supabase secrets set --env-file "$f" --project-ref "$PROJECT_ID" 2>&1 | tee "$RUNNER_TEMP/secrets.log"; then
             rm -f "$f"

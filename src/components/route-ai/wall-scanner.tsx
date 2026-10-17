@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -9,13 +9,15 @@ import {
   type GestureResponderEvent,
   type LayoutChangeEvent,
 } from 'react-native';
-import Svg, { Rect } from 'react-native-svg';
+import { Link } from 'expo-router';
+import Svg, { Circle, Rect, Text as SvgText } from 'react-native-svg';
 
 import { Button, Segmented } from '@/components/form';
 import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/group';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useAuth } from '@/lib/auth';
 import { select } from '@/lib/haptics';
 import {
   detectHolds,
@@ -26,6 +28,13 @@ import {
   type Seed,
   type Sensitivity,
 } from '@/lib/route-ai/detect';
+import {
+  fetchRouteTips,
+  HOLD_TYPE_LABEL,
+  MAX_TIP_HOLDS,
+  numberHolds,
+  type RouteTips,
+} from '@/lib/route-ai/tips';
 import { chooseWallPhoto, takeWallPhoto, type PickResult, type WallPhoto } from '@/lib/route-ai/photo';
 
 const SENSITIVITY_OPTIONS: { value: Sensitivity; label: string }[] = [
@@ -49,6 +58,10 @@ export function WallScanner() {
   const [error, setError] = useState<string | null>(null);
   const [width, setWidth] = useState(0);
   const imageRef = useRef<View>(null);
+  const { user } = useAuth();
+  const [tips, setTips] = useState<RouteTips | null>(null);
+  const [tipsBusy, setTipsBusy] = useState(false);
+  const [tipsError, setTipsError] = useState<string | null>(null);
 
   const holds = useMemo(() => {
     const kept = auto.filter((h) => !removedPts.some(([x, y]) => Math.abs(x - h.x) <= h.w / 2 && Math.abs(y - h.y) <= h.h / 2));
@@ -56,6 +69,13 @@ export function WallScanner() {
     const extra = manual.filter((m) => !holdAt(kept, m.x, m.y, 0.005));
     return [...kept, ...extra];
   }, [auto, removedPts, manual]);
+  const numbered = useMemo(() => numberHolds(holds), [holds]);
+  const signature = numbered.map((h) => `${h.x.toFixed(3)},${h.y.toFixed(3)}`).join('|');
+  // Tips describe a particular set of holds; editing the holds makes them stale.
+  useEffect(() => {
+    setTips(null);
+    setTipsError(null);
+  }, [signature]);
   const height = photo ? (width * photo.height) / photo.width : 0;
 
   const reset = useCallback(() => {
@@ -129,6 +149,19 @@ export function WallScanner() {
     },
     [photo, seed, seeds, busy, holds, manual.length, sensitivity, runDetect],
   );
+
+  const getTips = useCallback(async () => {
+    if (!photo) return;
+    setTipsBusy(true);
+    setTipsError(null);
+    try {
+      setTips(await fetchRouteTips(photo, numbered));
+    } catch (e) {
+      setTipsError(e instanceof Error ? e.message : 'Could not get tips.');
+    } finally {
+      setTipsBusy(false);
+    }
+  }, [photo, numbered]);
 
   /** Where a press landed on the photo, as 0..1. The web doesn't report locationX/Y, so measure the element. */
   const locate = (e: GestureResponderEvent): [number, number] | null => {
@@ -226,6 +259,17 @@ export function WallScanner() {
                   />
                 );
               })}
+              {tips &&
+                numbered.map((h) => {
+                  const cx = (h.x - h.w / 2) * width - 5;
+                  const cy = (h.y - h.h / 2) * height - 5;
+                  return [
+                    <Circle key={`c${h.n}`} cx={cx} cy={cy} r={9} fill={theme.accent} stroke="#FFFFFF" strokeWidth={1.5} />,
+                    <SvgText key={`t${h.n}`} x={cx} y={cy + 3.5} fontSize={10} fontWeight="bold" fill="#FFFFFF" textAnchor="middle">
+                      {String(h.n)}
+                    </SvgText>,
+                  ];
+                })}
             </Svg>
             {busy && (
               <View style={[StyleSheet.absoluteFill, styles.busy]}>
@@ -256,6 +300,39 @@ export function WallScanner() {
           <ThemedText type="small" themeColor="textSecondary">
             Missing holds? Tap one of them, or try "More". Too many? Try "Fewer", or tap the extras to remove them.
           </ThemedText>
+        </Card>
+      )}
+
+      {seed && holds.length >= 1 && (
+        <Card style={styles.pad}>
+          <ThemedText type="smallBold">Technique tips</ThemedText>
+          {!tips && (
+            <ThemedText type="small" themeColor="textSecondary">
+              Once the highlighted holds are your route, get a hold-by-hold read and one possible way to climb it. The
+              photo is sent to our AI service for this and is not kept.
+            </ThemedText>
+          )}
+          {!user ? (
+            <Link href="/profile" asChild>
+              <Pressable accessibilityRole="link">
+                <ThemedText type="smallBold" style={{ color: theme.accent }}>
+                  Sign in to get technique tips
+                </ThemedText>
+              </Pressable>
+            </Link>
+          ) : holds.length > MAX_TIP_HOLDS ? (
+            <ThemedText type="small" themeColor="textSecondary">
+              That's a lot of holds. Remove the extras (the most is {MAX_TIP_HOLDS}) to get tips.
+            </ThemedText>
+          ) : (
+            !tips && <Button title="Get technique tips" onPress={getTips} loading={tipsBusy} />
+          )}
+          {tipsError && (
+            <ThemedText type="small" style={{ color: '#C0392B' }}>
+              {tipsError}
+            </ThemedText>
+          )}
+          {tips && <TipsList tips={tips} />}
         </Card>
       )}
 
@@ -290,5 +367,52 @@ const styles = StyleSheet.create({
   countRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   swatch: { width: 18, height: 18, borderRadius: 9, borderWidth: 1, borderColor: 'rgba(0,0,0,0.2)' },
   row: { flexDirection: 'row', gap: Spacing.two },
+  tipRow: { flexDirection: 'row', gap: Spacing.two, alignItems: 'flex-start' },
+  badge: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   flex: { flex: 1 },
 });
+
+function TipsList({ tips }: { tips: RouteTips }) {
+  const theme = useTheme();
+  const byN = new Map(tips.holds.map((h) => [h.n, h]));
+  const ordered = [...tips.order.filter((n) => byN.has(n)), ...tips.holds.map((h) => h.n).filter((n) => !tips.order.includes(n))];
+  const rows = ordered.map((n) => byN.get(n)!).filter((h) => h.type !== 'not_a_hold');
+  const skipped = tips.holds.filter((h) => h.type === 'not_a_hold').map((h) => h.n);
+  return (
+    <View style={styles.gap}>
+      {!!tips.overview && <ThemedText type="small">{tips.overview}</ThemedText>}
+      {rows.map((h, i) => (
+        <View key={h.n} style={styles.tipRow}>
+          <View style={[styles.badge, { backgroundColor: theme.accent }]}>
+            <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
+              {h.n}
+            </ThemedText>
+          </View>
+          <View style={styles.flex}>
+            <ThemedText type="smallBold">
+              {i + 1}. {HOLD_TYPE_LABEL[h.type]}
+              {h.foot ? ' (likely a foothold)' : ''}
+            </ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              {h.tip}
+            </ThemedText>
+          </View>
+        </View>
+      ))}
+      {skipped.length > 0 && (
+        <ThemedText type="small" themeColor="textSecondary">
+          Not climbing holds: {skipped.join(', ')}. Tap those on the photo to remove them.
+        </ThemedText>
+      )}
+      {!!tips.caveats && (
+        <ThemedText type="small" themeColor="textSecondary">
+          {tips.caveats}
+        </ThemedText>
+      )}
+      <ThemedText type="small" themeColor="textSecondary">
+        This is one possible way to climb it, not the only way, and it's no substitute for instruction from a
+        qualified climbing instructor. Numbers match the circles on the photo.
+      </ThemedText>
+    </View>
+  );
+}
