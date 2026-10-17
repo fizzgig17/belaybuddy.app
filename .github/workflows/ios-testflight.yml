@@ -119,6 +119,10 @@ jobs:
       - name: Set the build number
         run: |
           jq --arg n "$BUILD_NUMBER" '.expo.ios.buildNumber = $n' app.json > app.json.tmp && mv app.json.tmp app.json
+          # Development builds get their own name on the home screen.
+          if [ "$GITHUB_REF_NAME" != "master" ]; then
+            jq '.expo.name = "Belay Buddy Dev"' app.json > app.json.tmp && mv app.json.tmp app.json
+          fi
           echo "Version $(jq -r .expo.version app.json) ($BUILD_NUMBER), $TARGET"
 
       - uses: ruby/setup-ruby@v1

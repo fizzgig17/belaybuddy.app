@@ -16,7 +16,7 @@ import { areaSlug, directionsUrl, editUrl, fetchAreaBySlug, phoneUrl, sourceUrl 
 import { useAuth } from '@/lib/auth';
 import { useFavorites } from '@/lib/favorites';
 import { useHomeGyms } from '@/lib/home-gyms';
-import { formatOpeningHours } from '@/lib/hours';
+import { formatOpeningHours, hoursSearchUrl, osmPageUrl } from '@/lib/hours';
 import type { ClimbingArea } from '@/types/models';
 
 function kindLabel(area: ClimbingArea) {
@@ -184,6 +184,22 @@ export default function AreaScreen() {
               </ThemedText>
             )}
           </View>
+        )}
+        {area.kind === 'gym' && !area.openingHours && (
+          <>
+            <LinkRow
+              label="Find hours"
+              value="Search the web"
+              onPress={() => Linking.openURL(hoursSearchUrl(area.name, area.address))}
+            />
+            {osmPageUrl(area.id) && (
+              <LinkRow
+                label="Know the hours?"
+                value="Add them on OpenStreetMap"
+                onPress={() => Linking.openURL(osmPageUrl(area.id)!)}
+              />
+            )}
+          </>
         )}
         {area.phone && (
           <LinkRow label="Phone" value={area.phone} onPress={() => Linking.openURL(phoneUrl(area.phone!))} />

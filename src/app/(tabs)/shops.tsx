@@ -13,7 +13,7 @@ import { HoldColors, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { directionsUrl, phoneUrl } from '@/lib/areas';
 import { formatDistance, milesToKm } from '@/lib/geo';
-import { isOpenNow } from '@/lib/hours';
+import { hoursSearchUrl, isOpenNow } from '@/lib/hours';
 import { describePoint, getDeviceLocation, LocationDeniedError, type Place } from '@/lib/location';
 import { fetchShops, type Shop } from '@/lib/shops';
 
@@ -173,6 +173,13 @@ function ShopRow({ shop }: { shop: Shop }) {
       </View>
       <View style={styles.actions}>
         <Button title="Directions" variant="secondary" onPress={() => Linking.openURL(directionsUrl(shop))} />
+        {open === null && !shop.openingHours && (
+          <Button
+            title="Look up hours"
+            variant="secondary"
+            onPress={() => Linking.openURL(hoursSearchUrl(shop.name, shop.address))}
+          />
+        )}
         {(shop.phone || shop.website) && (
           <View style={styles.actionRow}>
             {shop.phone && (

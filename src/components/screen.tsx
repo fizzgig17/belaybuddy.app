@@ -3,6 +3,8 @@ import type { ReactNode } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { IS_DEV_BUILD } from '@/components/dev-banner';
+
 import { PageTitle } from '@/components/page-title';
 import { KeyboardDoneBar } from '@/components/form';
 import { ThemedText } from '@/components/themed-text';
@@ -27,7 +29,7 @@ export function Screen({ title, subtitle, children, showTitle = true, action, pr
   return (
     <ThemedView style={styles.container}>
       <PageTitle title={title} />
-      <SafeAreaView style={styles.safeArea} edges={showTitle ? ['top'] : []}>
+      <SafeAreaView style={styles.safeArea} edges={showTitle && !IS_DEV_BUILD ? ['top'] : []}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           automaticallyAdjustKeyboardInsets>

@@ -1,0 +1,33 @@
+import { StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { ThemedText } from '@/components/themed-text';
+import { supabaseConfig } from '@/lib/supabase-config';
+
+/** True in the development app and on dev.belaybuddy.app; false in production. */
+export const IS_DEV_BUILD = supabaseConfig.appEnv !== 'prod';
+
+/**
+ * Orange strip across the top of every screen in the dev build so nobody
+ * mistakes it for the real app. It also covers the status-bar area, so screens
+ * below it skip their own top inset (see Screen).
+ */
+export function DevBanner() {
+  const insets = useSafeAreaInsets();
+  if (!IS_DEV_BUILD) return null;
+  return (
+    <View
+      accessibilityRole="header"
+      accessibilityLabel="Development build"
+      style={[styles.bar, { paddingTop: insets.top + 2 }]}>
+      <ThemedText type="smallBold" style={styles.text}>
+        DEV BUILD · test data, not the real app
+      </ThemedText>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  bar: { backgroundColor: '#F59E0B', alignItems: 'center', paddingBottom: 3 },
+  text: { color: '#1F2D35', fontSize: 12, lineHeight: 16 },
+});

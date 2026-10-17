@@ -130,3 +130,14 @@ export function isOpenNow(raw: string | undefined, now = new Date()): boolean | 
   }
   return covered ? open : null;
 }
+
+/** A web search for a place's hours: free, and opens in the browser. */
+export function hoursSearchUrl(name: string, address?: string): string {
+  return `https://www.google.com/search?q=${encodeURIComponent(`${name} ${address ?? ''} hours`.trim())}`;
+}
+
+/** The OpenStreetMap page for an "osm:way/123" style id, where anyone can fix or add hours. */
+export function osmPageUrl(id: string): string | null {
+  const m = /^osm:(node|way|relation)\/(\d+)$/.exec(id);
+  return m ? `https://www.openstreetmap.org/${m[1]}/${m[2]}` : null;
+}
