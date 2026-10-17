@@ -145,7 +145,7 @@ jobs:
           fi
           if [ -n "$ANTHROPIC_API_KEY" ]; then
             echo "ANTHROPIC_API_KEY=$(printf '%s' "$ANTHROPIC_API_KEY" | tr -d '[:space:]')" >> "$f"
-            echo "Route AI tips: on"
+            echo "::notice::Route AI tips: on"
           else
             echo "::warning::Route AI technique tips are off: add the ANTHROPIC_API_KEY secret."
           fi
