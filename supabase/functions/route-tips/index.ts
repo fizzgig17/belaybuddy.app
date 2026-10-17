@@ -135,8 +135,24 @@ Deno.serve(async (req) => {
     }),
   });
   if (!res.ok) {
-    console.error('Anthropic error', res.status, (await res.text()).slice(0, 300));
-    return json({ error: 'The tip service is busy. Try again in a moment.' }, 502);
+    const text = (await res.text()).slice(0, 400);
+    console.error('Anthropic error', res.status, text);
+    let reason = '';
+    try {
+      reason = JSON.parse(text)?.error?.message ?? '';
+    } catch {
+      // Not JSON; leave the reason empty.
+    }
+    // 429/529 mean busy or overloaded; anything else is a setup problem worth seeing while we build this.
+    const busy = res.status === 429 || res.status === 529 || res.status >= 500;
+    return json(
+      {
+        error: busy
+          ? 'The tip service is busy. Try again in a moment.'
+          : `The tip service could not run (${res.status}${reason ? `: ${reason.slice(0, 160)}` : ''}).`,
+      },
+      502,
+    );
   }
   const data = await res.json();
   const block = (data.content ?? []).find((c: { type: string }) => c.type === 'tool_use');
