@@ -22,6 +22,7 @@ const ENDPOINTS = (
 ).split(',');
 const FRESH_MS = 7 * 24 * 3600_000;
 const BUCKETS = [10, 25, 50, 100];
+const MAX_ELEMENTS = 500;
 // The cell center is snapped to 0.1 degrees (up to ~7 km off), so fetch that much extra.
 const SNAP_MARGIN_KM = 8;
 
@@ -111,6 +112,49 @@ async function overpass(query: string): Promise<OsmElement[]> {
   }
 }
 
+const makeDb = () =>
+  createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
+    auth: { persistSession: false },
+  });
+type Db = ReturnType<typeof makeDb>;
+
+/** Fetches one cell ("lat,lng:bucket") from Overpass and saves it. Returns how many gyms it found. */
+async function refreshCell(db: Db, cell: string): Promise<number> {
+  const m = /^(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?):(\d+)$/.exec(cell);
+  if (!m) throw new Error(`bad cell ${cell}`);
+  const [snapLat, snapLng, bucket] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const started = new Date().toISOString();
+  const radiusKm = bucket + SNAP_MARGIN_KM;
+  const at = `(around:${Math.round(radiusKm * 1000)},${snapLat},${snapLng})`;
+  // Indoor climbing: sport=climbing on a gym-like place. Outdoor crags are
+  // also tagged sport=climbing in OSM, so require an indoor-ish tag.
+  const query = `[out:json][timeout:25];(
+    nwr["sport"~"climbing|bouldering"]["leisure"~"^(sports_centre|fitness_centre|sports_hall)$"]${at};
+    nwr["sport"~"climbing|bouldering"]["indoor"="yes"]${at};
+    nwr["sport"~"climbing|bouldering"]["building"]${at};
+  );out center tags ${MAX_ELEMENTS};`;
+  const elements = await overpass(query);
+  const rows = new Map<string, GymRow>();
+  for (const el of elements) {
+    const row = toRow(el);
+    if (row) rows.set(row.id, row);
+  }
+  if (rows.size) {
+    const { error } = await db.from('gyms').upsert([...rows.values()].map((r) => ({ ...r, fetched_at: started })));
+    if (error) throw new Error(`saving gyms: ${error.message}`);
+  }
+  // Gyms in this circle that OpenStreetMap no longer returns are gone. Only
+  // trust that when the answer wasn't cut off at the element limit.
+  if (elements.length < MAX_ELEMENTS) {
+    const { error } = await db.rpc('prune_gyms', { p_lat: snapLat, p_lng: snapLng, p_radius_km: radiusKm, p_before: started });
+    if (error) console.warn('prune failed', error.message);
+  }
+  await db.from('gym_cells').upsert({ cell, fetched_at: new Date().toISOString() });
+  return rows.size;
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
 
 Deno.serve(async (req) => {
@@ -118,6 +162,24 @@ Deno.serve(async (req) => {
   if (req.method !== 'POST') return json({ error: 'POST only' }, 405);
 
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
+
+  // Scheduled refresh (from the database, hourly): protected by the shared secret.
+  if (Array.isArray(body.refreshCells)) {
+    const secret = Deno.env.get('NOTIFY_SECRET');
+    if (!secret || req.headers.get('x-notify-secret') !== secret) return json({ error: 'Forbidden' }, 403);
+    const admin = makeDb();
+    const results: Record<string, string> = {};
+    for (const cell of body.refreshCells.slice(0, 5).map(String)) {
+      await admin.from('gym_cells').update({ last_try_at: new Date().toISOString() }).eq('cell', cell);
+      try {
+        results[cell] = `${await refreshCell(admin, cell)} gyms`;
+      } catch (e) {
+        results[cell] = `failed: ${(e as Error).message}`;
+      }
+      await sleep(Number(Deno.env.get('GYMS_PAUSE_MS') ?? 3000)); // be kind to Overpass
+    }
+    return json({ refreshed: results });
+  }
   const lat = num(body.lat);
   const lng = num(body.lng);
   const radius = num(body.radiusKm);
@@ -126,9 +188,7 @@ Deno.serve(async (req) => {
   }
   const radiusKm = Math.min(radius, 100);
 
-  const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
-    auth: { persistSession: false },
-  });
+  const db = makeDb();
 
   const snapLat = Math.round(lat * 10) / 10;
   const snapLng = Math.round(lng * 10) / 10;
@@ -142,25 +202,7 @@ Deno.serve(async (req) => {
   let problem = '';
   if (!fresh) {
     try {
-      const r = Math.round((bucket + SNAP_MARGIN_KM) * 1000);
-      const at = `(around:${r},${snapLat},${snapLng})`;
-      // Indoor climbing: sport=climbing on a gym-like place. Outdoor crags are
-      // also tagged sport=climbing in OSM, so require an indoor-ish tag.
-      const query = `[out:json][timeout:25];(
-        nwr["sport"~"climbing|bouldering"]["leisure"~"^(sports_centre|fitness_centre|sports_hall)$"]${at};
-        nwr["sport"~"climbing|bouldering"]["indoor"="yes"]${at};
-        nwr["sport"~"climbing|bouldering"]["building"]${at};
-      );out center tags 500;`;
-      const rows = new Map<string, GymRow>();
-      for (const el of await overpass(query)) {
-        const row = toRow(el);
-        if (row) rows.set(row.id, row);
-      }
-      if (rows.size) {
-        const { error } = await db.from('gyms').upsert([...rows.values()].map((r) => ({ ...r, fetched_at: new Date().toISOString() })));
-        if (error) throw new Error(`saving gyms: ${error.message}`);
-      }
-      await db.from('gym_cells').upsert({ cell, fetched_at: new Date().toISOString() });
+      await refreshCell(db, cell);
     } catch (e) {
       stale = true;
       problem = (e as Error).message;

@@ -193,4 +193,6 @@ jobs:
           echo "::notice::Registered phones: ${out:-none}"
           out=$(psql "postgresql://postgres.$PROJECT_ID:$password@$POOLER_HOST:5432/postgres" -At -c "select has_table_privilege('service_role', 'public.push_tokens', 'select') || ' / queue update ' || has_table_privilege('service_role', 'public.notification_queue', 'update')" 2>&1 | head -c 300)
           echo "::notice::service_role can read tokens / update queue: $out"
+          out=$(psql "postgresql://postgres.$PROJECT_ID:$password@$POOLER_HOST:5432/postgres" -At -c "select (select count(*) from public.gyms) || ' gyms, ' || (select count(*) from public.gym_cells) || ' areas, oldest fetch ' || coalesce((select to_char(min(fetched_at), 'MM-DD HH24:MI') from public.gym_cells), '-') || ', refresh job ' || coalesce((select schedule from cron.job where jobname = 'belay-buddy-gym-refresh'), 'missing')" 2>&1 | head -c 400)
+          echo "::notice::Gym catalog: ${out:-n/a}"
 
