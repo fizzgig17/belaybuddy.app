@@ -135,7 +135,15 @@ export type Summary = {
   hardestRoute: string | null;
 };
 
-const rank = (d: Discipline, grade: string) => gradesFor(d).indexOf(grade);
+/** Gyms often grade 5.10- / 5.10+ or V4-; a modifier sorts just below / above its base grade. */
+export type GradeMod = '' | '-' | '+';
+const MOD_ORDER: Record<GradeMod, number> = { '-': 0, '': 1, '+': 2 };
+
+const rank = (d: Discipline, grade: string) => {
+  const mod = (/[+-]$/.exec(grade)?.[0] ?? '') as GradeMod;
+  const i = gradesFor(d).indexOf(mod ? grade.slice(0, -1) : grade);
+  return i < 0 ? -1 : i * 3 + MOD_ORDER[mod];
+};
 
 export function summarize(logs: ClimbLog[]): Summary {
   const s: Summary = { climbs: logs.length, sends: 0, flashes: 0, attempts: 0, hardestBoulder: null, hardestRoute: null };

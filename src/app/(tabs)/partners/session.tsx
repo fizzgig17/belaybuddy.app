@@ -22,6 +22,7 @@ import {
   startSession,
   summarize,
   type ClimbLog,
+  type GradeMod,
   type ClimbSession,
   type Discipline,
   type Result,
@@ -148,6 +149,7 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
   const theme = useTheme();
   const [discipline, setDiscipline] = useState<Discipline>('boulder');
   const [grade, setGrade] = useState(lastGrade('boulder'));
+  const [mod, setMod] = useState<GradeMod>('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now());
@@ -161,19 +163,24 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
   function pickDiscipline(d: Discipline) {
     setDiscipline(d);
     setGrade(lastGrade(d));
+    setMod('');
   }
   function pickGrade(g: string) {
     tap();
     setGrade(g);
+    setMod('');
     rememberGrade(discipline, g);
   }
+
+  // What gets logged and shown on the buttons: "5.10+", "V4-".
+  const shownGrade = grade + mod;
 
   async function log(result: Result) {
     if (busy) return;
     setBusy(true);
     setError(null);
     try {
-      const entry = await logClimb(session.id, discipline, grade, result);
+      const entry = await logClimb(session.id, discipline, shownGrade, result);
       onChange({ ...session, logs: [...session.logs, entry] });
       if (result === 'attempt') tap();
       else success();
@@ -275,10 +282,24 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
         })}
       </ScrollView>
 
+      <Segmented
+        label="Minus, exact or plus"
+        value={mod}
+        onChange={(m) => {
+          tap();
+          setMod(m);
+        }}
+        options={[
+          { value: '-', label: `${grade} −` },
+          { value: '', label: grade },
+          { value: '+', label: `${grade} +` },
+        ]}
+      />
+
       <View style={styles.big}>
-        <BigButton label="Sent" sub={grade} color={HoldColors.green} onPress={() => log('send')} disabled={busy} />
-        <BigButton label="Flash" sub={grade} color={HoldColors.yellow} dark onPress={() => log('flash')} disabled={busy} />
-        <BigButton label="Attempt" sub={grade} color={theme.backgroundSelected} dark onPress={() => log('attempt')} disabled={busy} />
+        <BigButton label="Sent" sub={shownGrade} color={HoldColors.green} onPress={() => log('send')} disabled={busy} />
+        <BigButton label="Flash" sub={shownGrade} color={HoldColors.yellow} dark onPress={() => log('flash')} disabled={busy} />
+        <BigButton label="Attempt" sub={shownGrade} color={theme.backgroundSelected} dark onPress={() => log('attempt')} disabled={busy} />
       </View>
       {error && <ThemedText type="small" style={styles.error}>{error}</ThemedText>}
 

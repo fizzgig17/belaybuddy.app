@@ -1,0 +1,97 @@
+# Switches on the sign-in providers in Supabase through the Management API, so
+# nothing is set by hand in the dashboard.
+#   push to develop -> belaybuddy-dev
+#   push to master  -> belaybuddy-prod
+#
+#   Apple   the iPhone app signs in with Apple's system sheet, so Supabase only
+#           needs the app's bundle id (no secret). The website has no Apple
+#           button yet (that would need an Apple Services ID and key).
+#   Google  needs a Google Cloud "OAuth client ID" of type Web application.
+#           Add its two values as repository secrets: GOOGLE_CLIENT_ID and
+#           GOOGLE_CLIENT_SECRET. Its "Authorized redirect URI" must be
+#           https://<project ref>.supabase.co/auth/v1/callback (the run prints
+#           it). Until both secrets exist, Google stays off and the apps hide
+#           the button.
+#
+# Also allows the redirects those sign-ins return to: the app's belaybuddy://
+# link and the website. Existing allowed redirects are kept.
+# Uses the same secrets as supabase-email-templates.yml.
+name: Supabase sign-in providers
+
+on:
+  push:
+    branches: [develop, master]
+    paths:
+      - '.github/workflows/supabase-auth-providers.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: supabase-auth-providers-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  providers:
+    if: github.ref_name == 'develop' || github.ref_name == 'master'
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      DEV_PROJECT_ID: ${{ secrets.DEV_PROJECT_ID }}
+      PROD_PROJECT_ID: ${{ secrets.PROD_PROJECT_ID }}
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      TARGET: ${{ github.ref_name == 'master' && 'belaybuddy-prod' || 'belaybuddy-dev' }}
+      SITE: ${{ github.ref_name == 'master' && 'https://belaybuddy.app' || 'https://dev.belaybuddy.app' }}
+      APP_BUNDLE_ID: app.belaybuddy.ios
+    steps:
+      - name: Check secrets
+        run: |
+          if [ "$TARGET" = belaybuddy-prod ]; then PROJECT_ID="$PROD_PROJECT_ID"; else PROJECT_ID="$DEV_PROJECT_ID"; fi
+          echo "PROJECT_ID=$PROJECT_ID" >> "$GITHUB_ENV"
+          token=$(printf '%s' "$SUPABASE_ACCESS_TOKEN" | tr -d '[:space:]')
+          echo "::add-mask::$token"
+          echo "SUPABASE_ACCESS_TOKEN=$token" >> "$GITHUB_ENV"
+          if [ -z "$token" ] || [ -z "$PROJECT_ID" ]; then
+            echo "::error::Missing SUPABASE_ACCESS_TOKEN or the project id secret for $TARGET"
+            exit 1
+          fi
+
+      - name: Build request
+        run: |
+          curl -sS -o current.json -w 'Read current settings: HTTP %{http_code}\n' \
+            "https://api.supabase.com/v1/projects/$PROJECT_ID/config/auth" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN"
+          # Keep whatever redirects are already allowed and add ours.
+          allow=$(jq -r --arg site "$SITE/**" '
+            ((.uri_allow_list // "") | split(",") | map(select(length > 0))) + ["belaybuddy://**", $site]
+            | unique | join(",")' current.json)
+          jq -n --arg allow "$allow" --arg bundle "$APP_BUNDLE_ID" '{
+            uri_allow_list: $allow,
+            external_apple_enabled: true,
+            external_apple_client_id: $bundle
+          }' > body.json
+          if [ -n "$GOOGLE_CLIENT_ID" ] && [ -n "$GOOGLE_CLIENT_SECRET" ]; then
+            gid=$(printf '%s' "$GOOGLE_CLIENT_ID" | tr -d '[:space:]')
+            gsecret=$(printf '%s' "$GOOGLE_CLIENT_SECRET" | tr -d '[:space:]')
+            echo "::add-mask::$gsecret"
+            jq --arg id "$gid" --arg secret "$gsecret" \
+              '. + {external_google_enabled: true, external_google_client_id: $id, external_google_secret: $secret}' \
+              body.json > body2.json && mv body2.json body.json
+            echo "Google: on"
+          else
+            echo "::notice::Google is off: add the GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET secrets and run this workflow again."
+          fi
+          jq '.uri_allow_list' body.json
+
+      - name: Update providers on ${{ env.TARGET }}
+        run: |
+          status=$(curl -sS -o response.json -w '%{http_code}' -X PATCH \
+            "https://api.supabase.com/v1/projects/$PROJECT_ID/config/auth" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data @body.json)
+          if [ "$status" -ge 300 ]; then
+            detail=$(jq -c '{message, error} | with_entries(select(.value != null))' response.json 2>/dev/null || head -c 300 response.json)
+            echo "::error::Supabase returned HTTP $status: $detail"
+            exit 1
+          fi
+          echo "::notice::Providers set on $TARGET (HTTP $status). Google redirect URI to register: https://$PROJECT_ID.supabase.co/auth/v1/callback"

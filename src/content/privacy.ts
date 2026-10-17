@@ -15,7 +15,7 @@ export const PRIVACY_SECTIONS: PolicySection[] = [
   {
     title: 'What we collect',
     body: [
-      'Account: your email address, used to sign you in and send notifications you choose.',
+      'Account: your email address, used to sign you in and send notifications you choose. If you sign in with Apple or Google, they tell us your email address (Apple may give a private relay address instead) and a sign-in ID. We never see your Apple or Google password.',
       'Profile and activity: the name and climbing details you add, favorite gyms, home gyms, partner posts and chats, climbing sessions you log, and your notification settings.',
       'Your AI choice: whether you allowed or declined sending photos to the AI service, and when you chose. It is saved on your account, so it follows you to other devices.',
       'Notifications: a device token (so we can send push notifications to your phone) and your time zone (so reminder times read correctly).',
@@ -38,7 +38,8 @@ export const PRIVACY_SECTIONS: PolicySection[] = [
       'Supabase hosts our database, sign-in, and server functions.',
       'Apple delivers push notifications and distributes the iPhone app.',
       'Our email provider sends sign-in codes and the email notifications you choose.',
-      'OpenStreetMap, through the Overpass service, supplies gym and shop listings. We send it a coarse area, never your identity.',
+      'Apple and Google, if you choose to sign in with them, confirm who you are under their own privacy policies.',
+      'OpenStreetMap, through the Overpass service, supplies gym and shop listings, and OpenBeta supplies outdoor crags. We send them a coarse area, never your identity.',
       'Anthropic handles Route AI requests, as described above.',
       'We do not sell your data and we do not show ads.',
     ],

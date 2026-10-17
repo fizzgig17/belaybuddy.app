@@ -93,6 +93,11 @@ jobs:
             echo "::error::Deploying gyms failed: $(tail -n 5 "$RUNNER_TEMP/deploy-gyms.log" | tr '\n' ' ' | head -c 600)"
             exit 1
           fi
+          # The crag catalog function (public; see supabase/functions/crags).
+          if ! supabase functions deploy crags --project-ref "$PROJECT_ID" --no-verify-jwt --use-api 2>&1 | tee "$RUNNER_TEMP/deploy-crags.log"; then
+            echo "::error::Deploying crags failed: $(tail -n 5 "$RUNNER_TEMP/deploy-crags.log" | tr '\n' ' ' | head -c 600)"
+            exit 1
+          fi
           # Route AI technique tips (needs a signed-in user; see supabase/functions/route-tips).
           if ! supabase functions deploy route-tips --project-ref "$PROJECT_ID" --use-api 2>&1 | tee "$RUNNER_TEMP/deploy-tips.log"; then
             echo "::error::Deploying route-tips failed: $(tail -n 5 "$RUNNER_TEMP/deploy-tips.log" | tr '\n' ' ' | head -c 600)"
@@ -191,6 +196,15 @@ jobs:
           code=$(curl -s -m 60 -o "$RUNNER_TEMP/gyms.out" -w '%{http_code}' -X POST "https://$PROJECT_ID.supabase.co/functions/v1/gyms" \
             -H 'Content-Type: application/json' -d '{"lat":35.78,"lng":-78.64,"radiusKm":25}')
           echo "::notice::gyms function: HTTP $code, $(jq -c '{gyms: (.gyms | length), stale, error}' "$RUNNER_TEMP/gyms.out" 2>/dev/null || head -c 200 "$RUNNER_TEMP/gyms.out")"
+          [ "$code" = 200 ]
+
+      # Not fatal: OpenBeta can be slow. A good answer also warms the catalog.
+      - name: Check the crags function
+        continue-on-error: true
+        run: |
+          code=$(curl -s -m 60 -o "$RUNNER_TEMP/crags.out" -w '%{http_code}' -X POST "https://$PROJECT_ID.supabase.co/functions/v1/crags" \
+            -H 'Content-Type: application/json' -d '{"lat":36.1,"lng":-81.7,"radiusKm":50}')
+          echo "::notice::crags function: HTTP $code, $(jq -c '{crags: (.crags | length), stale, error}' "$RUNNER_TEMP/crags.out" 2>/dev/null || head -c 200 "$RUNNER_TEMP/crags.out")"
           [ "$code" = 200 ]
 
       # Recent deliveries, so a stuck or failing one is visible in the run's

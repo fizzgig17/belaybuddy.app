@@ -11,6 +11,7 @@
       "icon": "./assets/icons/icon-a.png",
       "bundleIdentifier": "app.belaybuddy.ios",
       "supportsTablet": false,
+      "usesAppleSignIn": true,
       "infoPlist": {
         "NSCameraUsageDescription": "Belay Buddy uses the camera to photograph gym walls so Route AI can highlight the holds on a route.",
         "NSPhotoLibraryUsageDescription": "Belay Buddy lets you pick wall photos from your library for Route AI.",
@@ -57,6 +58,7 @@
           "faceIDPermission": "Belay Buddy uses Face ID to unlock the app when you've turned that on."
         }
       ],
+      "expo-apple-authentication",
       [
         "expo-notifications",
         {

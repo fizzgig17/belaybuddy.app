@@ -1,5 +1,5 @@
 // Makes sure the App ID has the capabilities the app needs (Push
-// Notifications) and that there's a current App Store provisioning profile
+// Notifications, Sign in with Apple) and that there's a current App Store provisioning profile
 // for it signed with our distribution certificate, then writes that profile
 // to disk. Uses the App Store Connect API key the workflow already has.
 //
@@ -15,7 +15,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 
 const [bundleIdentifier, certSerial, outPath] = process.argv.slice(2);
 const PROFILE_NAME = 'Belay Buddy CI App Store';
-const CAPABILITIES = ['PUSH_NOTIFICATIONS'];
+const CAPABILITIES = ['PUSH_NOTIFICATIONS', 'APPLE_ID_AUTH'];
 const API = 'https://api.appstoreconnect.apple.com/v1';
 
 function token() {

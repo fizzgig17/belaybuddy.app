@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { SignInOptions } from '@/components/auth/sign-in-options';
+import { SocialButtons } from '@/components/auth/social-buttons';
 import { Button, Field } from '@/components/form';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
@@ -142,6 +143,7 @@ export function SignIn() {
   if (step === 'email') {
     return (
       <View style={styles.container}>
+        <SocialButtons onError={setError} />
         <Field
           label="Email"
           placeholder="you@example.com"

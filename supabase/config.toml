@@ -420,3 +420,6 @@ verify_jwt = false
 
 [functions.gyms]
 verify_jwt = false
+
+[functions.crags]
+verify_jwt = false

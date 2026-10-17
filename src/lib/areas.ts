@@ -3,7 +3,9 @@
  *   Gyms  — our own catalog (Supabase `gyms`, filled from OpenStreetMap through the
  *           `gyms` Edge Function), falling back to Overpass directly if that's down
  *           (© OpenStreetMap contributors, ODbL)
- *   Crags — OpenBeta (openbeta.io), the open climbing route database
+ *   Crags — our own catalog (Supabase `crags`, filled from OpenBeta through the
+ *           `crags` Edge Function), falling back to OpenBeta directly if that's down
+ *           (openbeta.io, the open climbing route database)
  * Both are free community services: results are cached per rounded location
  * so browsing back and forth doesn't re-query them.
  */
@@ -205,8 +207,24 @@ function openBetaToCrag(a: OpenBetaArea): ClimbingArea | null {
   };
 }
 
+/** Crags from our catalog. Throws if the function can't be reached. */
+async function fetchCragCatalog(center: LatLng, radiusKm: number): Promise<ClimbingArea[]> {
+  const call = supabase.functions.invoke<{ crags: ClimbingArea[] }>('crags', {
+    body: { lat: center.latitude, lng: center.longitude, radiusKm },
+  });
+  const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timed out')), 30_000));
+  const { data, error } = await Promise.race([call, timeout]);
+  if (error || !data?.crags) throw new Error(error?.message ?? 'No crag data');
+  return data.crags;
+}
+
 export function fetchCrags(center: LatLng, radiusKm: number): Promise<ClimbingArea[]> {
   return cached(cacheKey('crags', center, radiusKm), async () => {
+    try {
+      return await fetchCragCatalog(center, radiusKm);
+    } catch {
+      // Fall through to asking OpenBeta directly.
+    }
     const query = `query Crags($bbox: [Float]) {
       cragsWithin(filter: { bbox: $bbox, zoom: 14 }) {
         uuid areaName totalClimbs pathTokens
