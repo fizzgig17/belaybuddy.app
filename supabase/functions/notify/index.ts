@@ -221,6 +221,7 @@ Deno.serve(async (req) => {
   }
 
   let sent = 0;
+  const saveErrors: string[] = [];
   for (const item of items) {
     const msg = compose(item);
     const problems: string[] = [];
@@ -257,21 +258,19 @@ Deno.serve(async (req) => {
     // are usually per-device and not worth resending everything for.
     // A test is never retried: the person is watching and sees the error.
     const retry = item.kind !== 'test' && problems.some((p) => p.startsWith('email'));
-    const outcome = {
-      sent_at: retry ? null : new Date().toISOString(),
-      emailed_at: emailed ? new Date().toISOString() : null,
-      error: problems.length ? problems.join('; ').slice(0, 500) : null,
-    };
-    let { error: saveError } = await db.from('notification_queue').update({ ...outcome, pushed }).eq('id', item.id);
-    // If the API's schema cache doesn't know the newer `pushed` column yet,
-    // still record the outcome so the notification isn't sent again.
+    const { error: saveError } = await db.rpc('finish_notification', {
+      p_id: item.id,
+      p_retry: retry,
+      p_emailed: emailed,
+      p_pushed: pushed,
+      p_error: problems.length ? problems.join('; ') : null,
+    });
     if (saveError) {
       console.error('saving result', item.id, saveError.message);
-      ({ error: saveError } = await db.from('notification_queue').update(outcome).eq('id', item.id));
-      if (saveError) console.error('saving result (retry)', item.id, saveError.message);
+      saveErrors.push(`${item.id}: ${saveError.message}`);
     }
     if (!retry) sent++;
   }
 
-  return Response.json({ sent, claimed: items.length });
+  return Response.json({ sent, claimed: items.length, saveErrors });
 });
