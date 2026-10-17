@@ -112,7 +112,7 @@ export default function AreaScreen() {
         </Pressable>
         )}
       </View>
-      {user && area.kind === 'gym' && (
+      {user && (
         <Button
           title="Start a climbing session here"
           variant="secondary"

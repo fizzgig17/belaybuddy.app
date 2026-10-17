@@ -28,6 +28,7 @@ import {
   type Result,
 } from '@/lib/climb-log';
 import { success, tap } from '@/lib/haptics';
+import { useFavorites } from '@/lib/favorites';
 import { useHomeGyms } from '@/lib/home-gyms';
 
 const OTHER = '__other__';
@@ -108,10 +109,15 @@ function StartCard({
   onError: (m: string | null) => void;
 }) {
   const { homeGyms } = useHomeGyms();
+  const { favorites } = useFavorites();
+  // Where you can start: the place you came from, home gyms, then saved gyms and crags.
+  const places = new Map<string, string>();
+  if (presetArea) places.set(presetArea.areaId, presetArea.areaName);
+  for (const g of homeGyms) if (!places.has(g.areaId)) places.set(g.areaId, g.name);
+  for (const f of favorites) if (!places.has(f.areaId)) places.set(f.areaId, f.name);
   const options = [
-    ...(presetArea ? [{ value: presetArea.areaId, label: presetArea.areaName }] : []),
-    ...homeGyms.filter((g) => g.areaId !== presetArea?.areaId).map((g) => ({ value: g.areaId, label: g.name })),
-    { value: OTHER, label: 'Outdoors / somewhere else' },
+    ...[...places].map(([value, label]) => ({ value, label })),
+    { value: OTHER, label: 'Somewhere else' },
   ];
   const [picked, setPicked] = useState<string>(options[0].value);
   const [busy, setBusy] = useState(false);
@@ -139,6 +145,9 @@ function StartCard({
         Log each climb with one tap while you climb. Only you can see your log.
       </ThemedText>
       <SingleChoice label="Where are you climbing?" showLabel options={options} value={picked} onChange={setPicked} />
+      <ThemedText type="small" themeColor="textSecondary">
+        Not listed? Open the gym or crag from the Find tab and tap “Start a climbing session here”, or save it to see it here.
+      </ThemedText>
       <Button title="Start session" onPress={start} loading={busy} />
       <Button title="Past sessions" variant="secondary" onPress={() => router.push('/partners/sessions')} />
     </>
