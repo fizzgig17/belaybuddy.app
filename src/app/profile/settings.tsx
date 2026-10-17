@@ -85,7 +85,14 @@ export default function SettingsScreen() {
     setTestMessage(null);
     try {
       // Make sure this phone is registered (no prompt if already allowed).
-      if (showPush && push === 'on') await enablePush().catch(() => {});
+      let registerProblem: string | null = null;
+      if (showPush && push === 'on') {
+        try {
+          await enablePush();
+        } catch (e) {
+          registerProblem = (e as Error).message;
+        }
+      }
       const result = await waitForTestResult(await sendTestNotification());
       if (!result) {
         setTestMessage('Still waiting on the server. Check again in a minute.');
@@ -98,7 +105,16 @@ export default function SettingsScreen() {
               : 'No push: this phone isn’t set up for push yet.'
           : null;
         const mail = result.emailed ? `Email sent to ${user?.email}.` : 'No email went out.';
-        setTestMessage([pushLine, mail, result.error ? `Problem: ${result.error}.` : null].filter(Boolean).join(' '));
+        setTestMessage(
+          [
+            pushLine,
+            mail,
+            registerProblem ? `Couldn’t register this phone: ${registerProblem}.` : null,
+            result.error ? `Problem: ${result.error}.` : null,
+          ]
+            .filter(Boolean)
+            .join(' '),
+        );
       }
     } catch (e) {
       setTestMessage((e as Error).message);
