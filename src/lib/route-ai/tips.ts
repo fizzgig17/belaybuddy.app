@@ -15,7 +15,9 @@ export type HoldTip = {
   foot: boolean;
 };
 
-export type RouteTips = { overview: string; order: number[]; holds: HoldTip[]; caveats: string };
+export type RouteTips = { overview: string; order: number[]; holds: HoldTip[]; caveats: string; unsafe?: boolean };
+
+export type PhotoCheck = { kind: 'climbing_wall' | 'other' | 'unsafe' | 'unknown'; what: string };
 
 /** Numbers holds from the bottom of the photo up, left to right on ties. */
 export function numberHolds(holds: Hold[]): NumberedHold[] {
@@ -26,14 +28,26 @@ export function numberHolds(holds: Hold[]): NumberedHold[] {
 
 export const MAX_TIP_HOLDS = 60;
 
-async function sendableImage(photo: WallPhoto): Promise<string> {
-  const small = await ImageManipulator.manipulateAsync(photo.uri, [{ resize: { width: 1024 } }], {
+async function sendableImage(photo: WallPhoto, width = 1024): Promise<string> {
+  const small = await ImageManipulator.manipulateAsync(photo.uri, [{ resize: { width } }], {
     compress: 0.7,
     format: ImageManipulator.SaveFormat.JPEG,
     base64: true,
   });
   if (!small.base64) throw new Error('Could not prepare the photo.');
   return small.base64;
+}
+
+/** Quick look at what a photo shows, before it is displayed or used. Never throws: an unknown result means "carry on". */
+export async function checkPhoto(photo: WallPhoto): Promise<PhotoCheck> {
+  try {
+    const image = await sendableImage(photo, 512);
+    const { data, error } = await supabase.functions.invoke<PhotoCheck>('route-tips', { body: { mode: 'check', image } });
+    if (error || !data?.kind) return { kind: 'unknown', what: '' };
+    return data;
+  } catch {
+    return { kind: 'unknown', what: '' };
+  }
 }
 
 /** Asks the route-tips function for technique tips. Throws an Error with a message safe to show. */
@@ -75,6 +89,7 @@ export async function fetchRouteTips(
     }
     throw new Error(message);
   }
+  if (data?.unsafe) return { overview: '', order: [], holds: [], caveats: '', unsafe: true };
   if (!data?.holds) throw new Error('Could not get tips. Try again.');
   return data;
 }

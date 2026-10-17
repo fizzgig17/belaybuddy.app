@@ -30,7 +30,9 @@ import {
   type Sensitivity,
 } from '@/lib/route-ai/detect';
 import {
+  checkPhoto,
   fetchRouteTips,
+  type PhotoCheck,
   HOLD_TYPE_LABEL,
   MAX_TIP_HOLDS,
   numberHolds,
@@ -63,6 +65,8 @@ export function WallScanner() {
   const imageRef = useRef<View>(null);
   const autoCount = useRef(0);
   const [wall, setWall] = useState<WallGeometry | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [look, setLook] = useState<PhotoCheck | null>(null);
   const lidar = useMemo(() => isLidarSupported(), []);
   const { user } = useAuth();
   const [tips, setTips] = useState<RouteTips | null>(null);
@@ -91,8 +95,37 @@ export function WallScanner() {
     setRemovedPts([]);
     setManual([]);
     setWall(null);
+    setLook(null);
     setError(null);
   }, []);
+
+  /**
+   * Takes a loaded photo into the screen. Signed-in people get a quick check first: it says what the
+   * photo shows, and a photo that isn't suitable for all ages is dropped without ever being displayed.
+   */
+  const accept = useCallback(
+    async (loaded: WallPhoto, geometry: WallGeometry | null) => {
+      setLook(null);
+      if (user) {
+        setChecking(true);
+        const result = await checkPhoto(loaded);
+        setChecking(false);
+        if (result.kind === 'unsafe') {
+          setError("That photo can't be used in Route AI. Please choose a different one.");
+          return false;
+        }
+        setLook(result);
+      }
+      setPhoto(loaded);
+      setWall(geometry);
+      setSeeds([]);
+      setAuto([]);
+      setRemovedPts([]);
+      setManual([]);
+      return true;
+    },
+    [user],
+  );
 
   /** LiDAR path: capture, then measure the wall and use the photo like any other. */
   const scanWithLidar = useCallback(async () => {
@@ -104,12 +137,7 @@ export function WallScanner() {
       const loaded = await loadWallPhoto(cap.uri);
       const measured = measureWall(cap);
       const geometry = 'wall' in measured ? measured.wall : null;
-      setPhoto(loaded);
-      setWall(geometry);
-      setSeeds([]);
-      setAuto([]);
-      setRemovedPts([]);
-      setManual([]);
+      if (!(await accept(loaded, geometry))) return;
       if ('failure' in measured) {
         setError(
           measured.failure === 'floor-or-ceiling'
@@ -122,7 +150,7 @@ export function WallScanner() {
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [accept]);
 
   const pick = useCallback(async (run: () => Promise<PickResult>) => {
     setBusy(true);
@@ -134,16 +162,11 @@ export function WallScanner() {
         setError(result.error);
         return;
       }
-      setPhoto(result.photo);
-      setWall(null);
-      setSeeds([]);
-      setAuto([]);
-      setRemovedPts([]);
-      setManual([]);
+      await accept(result.photo, null);
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [accept]);
 
   /** Runs detection after letting the spinner paint, since it takes a moment on a phone. */
   const runDetect = useCallback((p: WallPhoto, s: Seed[], level: Sensitivity, previous?: Seed[]) => {
@@ -159,7 +182,7 @@ export function WallScanner() {
       setAuto(found);
       setBusy(false);
     }, 30);
-  }, []);
+  }, [accept]);
 
   const onTap = useCallback(
     (nx: number, ny: number) => {
@@ -201,13 +224,19 @@ export function WallScanner() {
     setTipsBusy(true);
     setTipsError(null);
     try {
-      setTips(await fetchRouteTips(photo, numbered, wall));
+      const result = await fetchRouteTips(photo, numbered, wall);
+      if (result.unsafe) {
+        reset();
+        setError("That photo can't be used in Route AI. Please choose a different one.");
+        return;
+      }
+      setTips(result);
     } catch (e) {
       setTipsError(e instanceof Error ? e.message : 'Could not get tips.');
     } finally {
       setTipsBusy(false);
     }
-  }, [photo, numbered, wall]);
+  }, [photo, numbered, wall, reset]);
 
   /** Where a press landed on the photo, as 0..1. The web doesn't report locationX/Y, so measure the element. */
   const locate = (e: GestureResponderEvent): [number, number] | null => {
@@ -231,6 +260,11 @@ export function WallScanner() {
         <ThemedText type="small" themeColor="textSecondary">
           Take or choose a photo of a wall, then tap one hold on your route. Photos stay on your device.
         </ThemedText>
+        {checking && (
+          <ThemedText type="small" themeColor="textSecondary">
+            Checking the photo…
+          </ThemedText>
+        )}
         {lidar && <Button title="Scan with LiDAR" onPress={scanWithLidar} loading={busy} />}
         {Platform.OS !== 'web' && (
           <Button
@@ -262,6 +296,13 @@ export function WallScanner() {
           ? 'Tap one hold on your route to pick its color.'
           : 'Tap a highlighted hold to remove it. Tap one that was missed to add it, and similar holds will be found too.'}
       </ThemedText>
+      {look && look.what !== '' && (
+        <ThemedText type="small" themeColor="textSecondary">
+          {look.kind === 'other'
+            ? `This looks like ${look.what}, not a climbing wall. Route AI works on climbing walls.`
+            : `This looks like ${look.what}.`}
+        </ThemedText>
+      )}
       {error && (
         <ThemedText type="small" style={{ color: '#C0392B' }}>
           {error}

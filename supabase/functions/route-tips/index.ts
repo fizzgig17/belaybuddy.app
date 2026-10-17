@@ -17,7 +17,9 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 
 const MODEL = Deno.env.get('ROUTE_AI_MODEL') ?? 'claude-sonnet-5-5';
-const DAILY_LIMIT = Number(Deno.env.get('ROUTE_AI_DAILY_LIMIT') ?? '20');
+// A scan uses two calls: a quick photo check, then the tips.
+const DAILY_LIMIT = Number(Deno.env.get('ROUTE_AI_DAILY_LIMIT') ?? '40');
+const CHECK_MODEL = Deno.env.get('ROUTE_AI_CHECK_MODEL') ?? 'claude-haiku-5-5';
 const MAX_HOLDS = 60;
 const MAX_IMAGE_CHARS = 2_000_000; // base64 characters, about 1.5 MB
 
@@ -31,6 +33,7 @@ For each hold, say what type it looks like and how a climber might use it. Then 
 Always give your answer by calling the report_route tool, once.
 
 Rules:
+- If the photo has nudity, sexual content, graphic violence, or anything not suitable for all ages, set unsafe to true, leave everything else empty, and do not describe it.
 - Only describe what you can see. If you cannot tell, use the type "unclear" and say so. If a listed item is not a climbing hold (a rope, a quickdraw, a person, a shadow), use "not_a_hold".
 - This is one possible way to climb the route, not the only way and not instruction. Never give safety, belay, or rope advice.
 - Keep each tip to one or two short sentences: grip, where to put weight, which way to face or reach.
@@ -62,8 +65,30 @@ const TOOL = {
         },
       },
       caveats: { type: 'string', description: 'What you were unsure about, if anything.' },
+      unsafe: { type: 'boolean', description: 'True if the photo is not suitable for all ages. Then leave the rest empty.' },
     },
     required: ['overview', 'order', 'holds'],
+  },
+};
+
+
+const CHECK_SYSTEM = `You look at a photo someone chose for a climbing app and say what it shows.
+Always answer by calling the report_photo tool, once.
+- kind "climbing_wall": an indoor climbing wall, bouldering wall, or outdoor rock face with climbing holds or routes.
+- kind "other": anything else.
+- kind "unsafe": nudity, sexual content, graphic violence, or anything not suitable for all ages. Leave "what" empty and never describe it.
+"what" is a short, plain, G-rated description (under 12 words), like "an indoor climbing wall with colorful holds" or "a ceiling fan". Do not identify or name any person.`;
+
+const CHECK_TOOL = {
+  name: 'report_photo',
+  description: 'Report what the photo shows.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      kind: { type: 'string', enum: ['climbing_wall', 'other', 'unsafe'] },
+      what: { type: 'string' },
+    },
+    required: ['kind', 'what'],
   },
 };
 
@@ -125,12 +150,50 @@ Deno.serve(async (req) => {
   const { data: userData } = await supabase.auth.getUser();
   if (!userData?.user) return json({ error: 'Sign in to get technique tips.' }, 401);
 
-  let parsed;
+  let body: unknown;
   try {
-    parsed = validate(await req.json());
+    body = await req.json();
   } catch {
     return json({ error: 'Bad request.' }, 400);
   }
+
+  if ((body as { mode?: unknown })?.mode === 'check') {
+    const image = (body as { image?: unknown }).image;
+    if (typeof image !== 'string' || image.length < 100 || image.length > MAX_IMAGE_CHARS) {
+      return json({ error: 'Send a photo.' }, 400);
+    }
+    const { data: ok } = await supabase.rpc('take_route_ai_quota', { p_limit: DAILY_LIMIT });
+    if (!ok) return json({ error: `You have used today's scans. Try again tomorrow.` }, 429);
+    const checkRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model: CHECK_MODEL,
+        max_tokens: 300,
+        system: CHECK_SYSTEM,
+        tools: [CHECK_TOOL],
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: image.replace(/^data:image\/\w+;base64,/, '') } },
+              { type: 'text', text: 'What does this photo show?' },
+            ],
+          },
+        ],
+      }),
+    });
+    if (!checkRes.ok) {
+      console.error('Anthropic check error', checkRes.status, (await checkRes.text()).slice(0, 300));
+      return json({ kind: 'unknown', what: '' });
+    }
+    const checkData = await checkRes.json();
+    const out = (checkData.content ?? []).find((c: { type: string }) => c.type === 'tool_use')?.input;
+    const kind = ['climbing_wall', 'other', 'unsafe'].includes(out?.kind) ? out.kind : 'unknown';
+    return json({ kind, what: kind === 'unsafe' ? '' : String(out?.what ?? '').slice(0, 120) });
+  }
+
+  const parsed = validate(body);
   if (typeof parsed === 'string') return json({ error: parsed }, 400);
 
   const { data: allowed, error: quotaError } = await supabase.rpc('take_route_ai_quota', { p_limit: DAILY_LIMIT });
@@ -179,6 +242,7 @@ Deno.serve(async (req) => {
   const data = await res.json();
   const block = (data.content ?? []).find((c: { type: string }) => c.type === 'tool_use');
   const out = block?.input;
+  if (out?.unsafe === true) return json({ unsafe: true });
   if (!out || !Array.isArray(out.holds)) return json({ error: 'Could not read the tips. Try again.' }, 502);
 
   const known = new Set(parsed.holds.map((h) => h.n));
