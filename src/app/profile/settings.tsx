@@ -281,6 +281,13 @@ function AiSettings() {
             </ThemedText>
           </Pressable>
         </Link>
+        <Link href="/terms" asChild>
+          <Pressable accessibilityRole="link">
+            <ThemedText type="smallBold" style={{ color: theme.accent }}>
+              Terms of use
+            </ThemedText>
+          </Pressable>
+        </Link>
       </Card>
     </Section>
   );

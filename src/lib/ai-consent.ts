@@ -12,6 +12,7 @@ import { supabase } from '@/lib/supabase';
 export type AiConsent = 'loading' | 'unset' | 'allowed' | 'denied';
 
 const cache = new Map<string, Exclude<AiConsent, 'loading'>>();
+const acks = new Map<string, boolean>();
 const inFlight = new Set<string>();
 const listeners = new Set<() => void>();
 const notify = () => listeners.forEach((l) => l());
@@ -25,8 +26,9 @@ async function load(userId: string) {
   if (cache.has(userId) || inFlight.has(userId)) return;
   inFlight.add(userId);
   try {
-    const { data } = await supabase.from('profiles').select('ai_consent').eq('id', userId).maybeSingle();
+    const { data } = await supabase.from('profiles').select('ai_consent, tips_ack_at').eq('id', userId).maybeSingle();
     const v = data?.ai_consent;
+    acks.set(userId, !!data?.tips_ack_at);
     cache.set(userId, v === 'allowed' || v === 'denied' ? v : 'unset');
   } catch {
     cache.set(userId, 'unset');
@@ -69,5 +71,23 @@ export function useAiConsent() {
     [userId],
   );
 
-  return { consent, set, signedIn: !!userId };
+  const acknowledged = useSyncExternalStore(
+    subscribe,
+    () => (userId ? (acks.get(userId) ?? false) : false),
+    () => false,
+  );
+
+  /** Saves that the person understands tips are suggestions and they climb at their own risk. */
+  const acknowledge = useCallback(async () => {
+    if (!userId) return;
+    acks.set(userId, true);
+    notify();
+    const { error } = await supabase.from('profiles').update({ tips_ack_at: new Date().toISOString() }).eq('id', userId);
+    if (error) {
+      acks.set(userId, false);
+      notify();
+    }
+  }, [userId]);
+
+  return { consent, set, signedIn: !!userId, acknowledged, acknowledge };
 }

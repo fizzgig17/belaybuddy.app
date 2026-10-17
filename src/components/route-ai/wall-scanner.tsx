@@ -70,7 +70,7 @@ export function WallScanner() {
   const [look, setLook] = useState<PhotoCheck | null>(null);
   const lidar = useMemo(() => isLidarSupported(), []);
   const { user } = useAuth();
-  const { consent, set: setConsent } = useAiConsent();
+  const { consent, set: setConsent, acknowledged, acknowledge } = useAiConsent();
   const [pending, setPending] = useState<'lidar' | 'camera' | 'library' | null>(null);
   const [tips, setTips] = useState<RouteTips | null>(null);
   const [tipsBusy, setTipsBusy] = useState(false);
@@ -474,6 +474,15 @@ export function WallScanner() {
             </ThemedText>
           ) : consent !== 'allowed' ? (
             <Button title="Turn on AI for tips" variant="secondary" onPress={() => setConsent('allowed')} />
+          ) : !acknowledged ? (
+            <View style={styles.gap}>
+              <ThemedText type="small">
+                Tips are AI-generated suggestions about grip and body position, not instruction. They can be wrong.
+                Climbing is dangerous. You climb at your own risk and judgment, and should ask a gym staff member or
+                instructor about anything that feels unsafe.
+              </ThemedText>
+              <Button title="I understand" onPress={acknowledge} />
+            </View>
           ) : (
             !tips && <Button title="Get technique tips" onPress={getTips} loading={tipsBusy} />
           )}

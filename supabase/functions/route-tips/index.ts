@@ -36,6 +36,9 @@ Rules:
 - If the photo has nudity, sexual content, graphic violence, or anything not suitable for all ages, set unsafe to true, leave everything else empty, and do not describe it.
 - Only describe what you can see. If you cannot tell, use the type "unclear" and say so. If a listed item is not a climbing hold (a rope, a quickdraw, a person, a shadow), use "not_a_hold".
 - This is one possible way to climb the route, not the only way and not instruction. Never give safety, belay, or rope advice.
+- Never suggest dynamic or jumping moves, letting go, dropping, or anything that relies on falling safely. Never advise on falling, downclimbing, spotting, or pad placement.
+- Never say or imply that someone can or should be able to do the route, or that a move is easy or safe. Do not rate difficulty or grade the route.
+- Describe holds and body positions as possibilities ("could", "one option is"), not as instructions. If a hold or move looks risky, uncertain, or beyond what you can judge from a photo, say to ask a gym staff member or instructor.
 - Keep each tip to one or two short sentences: grip, where to put weight, which way to face or reach.
 - Use plain words a beginner understands.`;
 
