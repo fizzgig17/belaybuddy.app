@@ -286,3 +286,18 @@ export function holdAt(holds: Hold[], nx: number, ny: number, slack = 0.015): Ho
   }
   return best;
 }
+
+/**
+ * Whether a tapped pixel's color is close enough to the first seed to be the same kind of hold.
+ * A tap on a shadow or the bare wall would otherwise teach the match a color that fills the photo
+ * with false holds.
+ */
+export function isSimilarSeed(base: Seed, candidate: Seed): boolean {
+  const baseChroma = Math.hypot(base.a, base.b);
+  const candChroma = Math.hypot(candidate.a, candidate.b);
+  if (baseChroma <= 5) return candChroma <= 8 && Math.abs(base.L - candidate.L) <= 35;
+  if (candChroma < Math.max(8, baseChroma * 0.5)) return false;
+  let dh = Math.abs(Math.atan2(candidate.b, candidate.a) - Math.atan2(base.b, base.a));
+  if (dh > Math.PI) dh = 2 * Math.PI - dh;
+  return (dh * 180) / Math.PI <= 45;
+}

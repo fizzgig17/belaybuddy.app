@@ -28,6 +28,8 @@ You are given the photo and a numbered list of holds the climber says belong to 
 
 For each hold, say what type it looks like and how a climber might use it. Then give one possible order to climb the holds, usually bottom to top.
 
+Always give your answer by calling the report_route tool, once.
+
 Rules:
 - Only describe what you can see. If you cannot tell, use the type "unclear" and say so. If a listed item is not a climbing hold (a rope, a quickdraw, a person, a shadow), use "not_a_hold".
 - This is one possible way to climb the route, not the only way and not instruction. Never give safety, belay, or rope advice.
@@ -122,7 +124,6 @@ Deno.serve(async (req) => {
       max_tokens: 3000,
       system: SYSTEM,
       tools: [TOOL],
-      tool_choice: { type: 'tool', name: TOOL.name },
       messages: [
         {
           role: 'user',

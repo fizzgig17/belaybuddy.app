@@ -23,6 +23,7 @@ import {
   detectHolds,
   growHoldAt,
   holdAt,
+  isSimilarSeed,
   sampleSeed,
   type Hold,
   type Seed,
@@ -58,6 +59,7 @@ export function WallScanner() {
   const [error, setError] = useState<string | null>(null);
   const [width, setWidth] = useState(0);
   const imageRef = useRef<View>(null);
+  const autoCount = useRef(0);
   const { user } = useAuth();
   const [tips, setTips] = useState<RouteTips | null>(null);
   const [tipsBusy, setTipsBusy] = useState(false);
@@ -108,10 +110,17 @@ export function WallScanner() {
   }, []);
 
   /** Runs detection after letting the spinner paint, since it takes a moment on a phone. */
-  const runDetect = useCallback((p: WallPhoto, s: Seed[], level: Sensitivity) => {
+  const runDetect = useCallback((p: WallPhoto, s: Seed[], level: Sensitivity, previous?: Seed[]) => {
     setBusy(true);
     setTimeout(() => {
-      setAuto(detectHolds(p.pixels, s, level));
+      let found = detectHolds(p.pixels, s, level);
+      // Adding a color that makes the count balloon means it matched the wall: undo that color.
+      if (previous && previous.length && found.length > autoCount.current * 1.5 + 6) {
+        found = detectHolds(p.pixels, previous, level);
+        setSeeds(previous);
+      }
+      autoCount.current = found.length;
+      setAuto(found);
       setBusy(false);
     }, 30);
   }, []);
@@ -140,10 +149,11 @@ export function WallScanner() {
         const added = growHoldAt(photo.pixels, nx, ny, 10000 + manual.length);
         setManual((m) => [...m, added]);
         // A missed hold teaches the match its color (e.g. a lit hold after picking a shaded one).
-        if (!added.guessed) {
-          const next = [...seeds, sampleSeed(photo.pixels, nx, ny, 2)].slice(-6);
+        const tapped = sampleSeed(photo.pixels, nx, ny, 2);
+        if (!added.guessed && isSimilarSeed(seeds[0], tapped)) {
+          const next = [...seeds, tapped].slice(0, 6);
           setSeeds(next);
-          runDetect(photo, next, sensitivity);
+          runDetect(photo, next, sensitivity, seeds);
         }
       }
     },
