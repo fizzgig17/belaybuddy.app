@@ -30,7 +30,7 @@ function loadLastEmail(): string {
 /** Plain-language versions of the errors people actually hit. */
 function friendly(message: string): string {
   if (/expired|invalid/i.test(message)) return "That code didn't work. Check the newest email, or send a new code.";
-  if (/rate|seconds|security purposes/i.test(message)) return 'Please wait a minute before asking for another code.';
+  if (/rate limit|only request this after|security purposes/i.test(message)) return 'Please wait a minute before asking for another code.';
   return message;
 }
 
@@ -95,7 +95,9 @@ export function SignIn() {
     });
     setBusy(false);
     if (sendError) {
-      setError(friendly(sendError.message));
+      // Show the real reason when it isn't one we recognise, so it can be fixed.
+      const code = (sendError as { code?: string }).code;
+      setError(friendly(sendError.message) + (code && !/wait a minute/.test(friendly(sendError.message)) ? ` (${code})` : ''));
       return;
     }
     try {
