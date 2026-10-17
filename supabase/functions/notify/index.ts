@@ -18,7 +18,7 @@ import nodemailer from 'npm:nodemailer@6.9.16';
 
 type Item = {
   id: number;
-  kind: 'response' | 'message' | 'reminder';
+  kind: 'response' | 'message' | 'reminder' | 'test';
   user_id: string;
   email: string | null;
   actor_name: string;
@@ -58,6 +58,13 @@ function when(item: Item): string {
 
 /** Title, body, and the app path a tap should open. */
 export function compose(item: Item): { title: string; body: string; path: string } {
+  if (item.kind === 'test') {
+    return {
+      title: 'Test notification',
+      body: 'Belay Buddy notifications are working on this device.',
+      path: '/profile/settings',
+    };
+  }
   const gym = item.area_name ?? 'your gym';
   const postPath = `/partners/post?id=${item.post_id}`;
   if (item.kind === 'response') {
@@ -208,13 +215,19 @@ Deno.serve(async (req) => {
     const msg = compose(item);
     const problems: string[] = [];
     let emailed = false;
+    let pushed = 0;
 
     if (item.send_push) {
       for (const device of tokens.get(item.user_id) ?? []) {
         try {
-          const result = await sendPush(device, msg, `${item.post_id}`);
-          if (result === 'gone') await db.from('push_tokens').delete().eq('token', device.token);
+          const result = await sendPush(device, msg, `${item.post_id ?? item.kind}`);
+          if (result === 'sent') pushed++;
+          if (result === 'gone') {
+            await db.from('push_tokens').delete().eq('token', device.token);
+            problems.push('push: Apple no longer knows a phone (removed it)');
+          }
           if (result === 'failed') problems.push('push failed');
+          if (result === 'skipped') problems.push('push: not set up on the server');
         } catch (e) {
           problems.push(`push: ${(e as Error).message}`);
         }
@@ -224,6 +237,7 @@ Deno.serve(async (req) => {
     if (item.send_email && item.email) {
       try {
         emailed = await sendEmail(item.email, msg, item.kind);
+        if (!emailed) problems.push('no email server configured');
       } catch (e) {
         problems.push(`email: ${(e as Error).message}`);
       }
@@ -231,12 +245,14 @@ Deno.serve(async (req) => {
 
     // Retry (up to 5 attempts) only if email failed outright; push failures
     // are usually per-device and not worth resending everything for.
-    const retry = problems.some((p) => p.startsWith('email'));
+    // A test is never retried: the person is watching and sees the error.
+    const retry = item.kind !== 'test' && problems.some((p) => p.startsWith('email'));
     await db
       .from('notification_queue')
       .update({
         sent_at: retry ? null : new Date().toISOString(),
         emailed_at: emailed ? new Date().toISOString() : null,
+        pushed,
         error: problems.length ? problems.join('; ').slice(0, 500) : null,
       })
       .eq('id', item.id);

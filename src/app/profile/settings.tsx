@@ -15,6 +15,8 @@ import {
   DEFAULT_SETTINGS,
   fetchNotificationSettings,
   saveNotificationSettings,
+  sendTestNotification,
+  waitForTestResult,
   type NotificationKind,
   type NotificationSettings,
 } from '@/lib/notification-settings';
@@ -33,6 +35,8 @@ export default function SettingsScreen() {
   const [push, setPush] = useState<PushStatus>(pushSupported ? 'off' : 'unsupported');
   const [error, setError] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testMessage, setTestMessage] = useState<string | null>(null);
 
   const refreshPush = useCallback(() => {
     getPushStatus().then(setPush);
@@ -73,6 +77,31 @@ export default function SettingsScreen() {
     } catch (e) {
       setSettings(settings);
       setError((e as Error).message);
+    }
+  }
+
+  async function runTest() {
+    setTesting(true);
+    setTestMessage(null);
+    try {
+      const result = await waitForTestResult(await sendTestNotification());
+      if (!result) {
+        setTestMessage('Still waiting on the server. Check again in a minute.');
+      } else {
+        const pushLine = showPush
+          ? result.pushed
+            ? `Push sent to ${result.pushed} ${result.pushed === 1 ? 'phone' : 'phones'}.`
+            : push === 'on'
+              ? 'No push went out.'
+              : 'No push: this phone isn’t set up for push yet.'
+          : null;
+        const mail = result.emailed ? `Email sent to ${user?.email}.` : 'No email went out.';
+        setTestMessage([pushLine, mail, result.error ? `Problem: ${result.error}.` : null].filter(Boolean).join(' '));
+      }
+    } catch (e) {
+      setTestMessage((e as Error).message);
+    } finally {
+      setTesting(false);
     }
   }
 
@@ -168,6 +197,8 @@ export default function SettingsScreen() {
             {error}
           </ThemedText>
         )}
+        <Button title="Send me a test notification" variant="secondary" onPress={runTest} loading={testing} />
+        {testMessage && <ThemedText type="small">{testMessage}</ThemedText>}
       </Section>
 
       <Section title="Sign-in">

@@ -42,3 +42,24 @@ export async function syncTimezone(userId: string) {
   if (!timezone) return;
   await supabase.from('notification_settings').upsert({ user_id: userId, timezone }, { onConflict: 'user_id' });
 }
+
+export type TestResult = { done: boolean; pushed: number | null; emailed: boolean; error: string | null };
+
+/** Queues a test push and email for the signed-in user; returns its id. */
+export async function sendTestNotification(): Promise<number> {
+  const { data, error } = await supabase.rpc('send_test_notification');
+  if (error) throw error;
+  return data as number;
+}
+
+/** Waits (up to ~25 s) for the server to try delivering a test. */
+export async function waitForTestResult(id: number): Promise<TestResult | null> {
+  for (let i = 0; i < 25; i++) {
+    const { data, error } = await supabase.rpc('test_notification_result', { p_id: id });
+    if (error) throw error;
+    const row = (data as TestResult[] | null)?.[0];
+    if (row?.done) return row;
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  return null;
+}
