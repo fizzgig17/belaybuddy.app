@@ -139,9 +139,13 @@ async function refreshCell(db: Db, cell: string): Promise<number> {
   // Indoor climbing: sport=climbing on a gym-like place. Outdoor crags are
   // also tagged sport=climbing in OSM, so require an indoor-ish tag.
   const query = `[out:json][timeout:25];(
-    nwr["sport"~"climbing|bouldering"]["leisure"~"^(sports_centre|fitness_centre|sports_hall)$"]${at};
-    nwr["sport"~"climbing|bouldering"]["indoor"="yes"]${at};
-    nwr["sport"~"climbing|bouldering"]["building"]${at};
+${['climbing', 'bouldering']
+  .flatMap((sport) => [
+    `nwr["sport"="${sport}"]["leisure"~"^(sports_centre|fitness_centre|sports_hall)$"]${at};`,
+    `nwr["sport"="${sport}"]["indoor"="yes"]${at};`,
+    `nwr["sport"="${sport}"]["building"]${at};`,
+  ])
+  .join('\n')}
   );out center tags ${MAX_ELEMENTS};`;
   const elements = await overpass(query);
   const rows = new Map<string, GymRow>();

@@ -109,9 +109,13 @@ for (const [name, lat0, lng0] of PLACES.slice(0, only)) {
   const dLng = radiusKm / (111.32 * Math.max(Math.cos((lat * Math.PI) / 180), 0.01));
   const at = `(${(lat - dLat).toFixed(4)},${(lng - dLng).toFixed(4)},${(lat + dLat).toFixed(4)},${(lng + dLng).toFixed(4)})`;
   const query = `[out:json][timeout:50];(
-    nwr["sport"~"climbing|bouldering"]["leisure"~"^(sports_centre|fitness_centre|sports_hall)$"]${at};
-    nwr["sport"~"climbing|bouldering"]["indoor"="yes"]${at};
-    nwr["sport"~"climbing|bouldering"]["building"]${at};
+${['climbing', 'bouldering']
+  .flatMap((sport) => [
+    `nwr["sport"="${sport}"]["leisure"~"^(sports_centre|fitness_centre|sports_hall)$"]${at};`,
+    `nwr["sport"="${sport}"]["indoor"="yes"]${at};`,
+    `nwr["sport"="${sport}"]["building"]${at};`,
+  ])
+  .join('\n')}
   );out center tags ${MAX_ELEMENTS};`;
   try {
     const started = new Date().toISOString();
