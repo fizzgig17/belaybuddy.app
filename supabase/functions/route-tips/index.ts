@@ -67,10 +67,11 @@ const TOOL = {
   },
 };
 
-type HoldIn = { n: number; x: number; y: number; w: number; h: number };
+type HoldIn = { n: number; x: number; y: number; w: number; h: number; xCm?: number; yCm?: number };
+type Wall = { overhangDeg: number };
 
-function validate(body: unknown): { image: string; holds: HoldIn[] } | string {
-  const b = body as { image?: unknown; holds?: unknown };
+function validate(body: unknown): { image: string; holds: HoldIn[]; wall?: Wall } | string {
+  const b = body as { image?: unknown; holds?: unknown; wall?: { overhangDeg?: unknown } };
   if (typeof b?.image !== 'string' || b.image.length < 100) return 'Send a photo.';
   if (b.image.length > MAX_IMAGE_CHARS) return 'That photo is too large.';
   if (!Array.isArray(b.holds) || b.holds.length < 1) return 'Pick at least one hold.';
@@ -79,14 +80,34 @@ function validate(body: unknown): { image: string; holds: HoldIn[] } | string {
   for (const h of b.holds as Record<string, unknown>[]) {
     const vals = [h.n, h.x, h.y, h.w, h.h];
     if (!vals.every((v) => typeof v === 'number' && Number.isFinite(v))) return 'Bad hold data.';
-    holds.push({ n: Math.round(h.n as number), x: h.x as number, y: h.y as number, w: h.w as number, h: h.h as number });
+    const hold: HoldIn = { n: Math.round(h.n as number), x: h.x as number, y: h.y as number, w: h.w as number, h: h.h as number };
+    if (typeof h.xCm === 'number' && typeof h.yCm === 'number' && Number.isFinite(h.xCm) && Number.isFinite(h.yCm)) {
+      hold.xCm = Math.round(h.xCm);
+      hold.yCm = Math.round(h.yCm);
+    }
+    holds.push(hold);
   }
-  return { image: b.image.replace(/^data:image\/\w+;base64,/, ''), holds };
+  const wall =
+    typeof b.wall?.overhangDeg === 'number' && Number.isFinite(b.wall.overhangDeg)
+      ? { overhangDeg: Math.max(-60, Math.min(90, Math.round(b.wall.overhangDeg))) }
+      : undefined;
+  return { image: b.image.replace(/^data:image\/\w+;base64,/, ''), holds, wall };
 }
 
-function describe(holds: HoldIn[]) {
+function describe(holds: HoldIn[], wall?: Wall) {
   const f = (v: number) => v.toFixed(2);
-  return holds.map((h) => `${h.n}: x=${f(h.x)} y=${f(h.y)} w=${f(h.w)} h=${f(h.h)}`).join('\n');
+  const lines = holds.map(
+    (h) =>
+      `${h.n}: x=${f(h.x)} y=${f(h.y)} w=${f(h.w)} h=${f(h.h)}` +
+      (h.xCm != null ? ` | measured: ${h.xCm} cm right, ${h.yCm} cm up the wall from hold 1` : ''),
+  );
+  let text = `Holds on this route:\n${lines.join('\n')}`;
+  if (wall) {
+    const a = wall.overhangDeg;
+    const kind = Math.abs(a) < 5 ? 'about vertical' : a > 0 ? `overhanging by about ${a} degrees` : `a slab leaning back about ${-a} degrees`;
+    text += `\n\nA phone LiDAR scan measured the wall as ${kind}. The "measured" distances are real distances along the wall (approximate, a few centimeters off). Use them to judge reaches and how far apart moves are, and say when a move looks long or short.`;
+  }
+  return text;
 }
 
 Deno.serve(async (req) => {
@@ -129,7 +150,7 @@ Deno.serve(async (req) => {
           role: 'user',
           content: [
             { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: parsed.image } },
-            { type: 'text', text: `Holds on this route:\n${describe(parsed.holds)}` },
+            { type: 'text', text: describe(parsed.holds, parsed.wall) },
           ],
         },
       ],

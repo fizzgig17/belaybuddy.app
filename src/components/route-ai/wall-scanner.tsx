@@ -36,7 +36,9 @@ import {
   numberHolds,
   type RouteTips,
 } from '@/lib/route-ai/tips';
-import { chooseWallPhoto, takeWallPhoto, type PickResult, type WallPhoto } from '@/lib/route-ai/photo';
+import { analyseWall, type WallGeometry } from '@/lib/route-ai/depth';
+import { captureWall, isLidarSupported } from '@/lib/route-ai/lidar';
+import { chooseWallPhoto, loadWallPhoto, takeWallPhoto, type PickResult, type WallPhoto } from '@/lib/route-ai/photo';
 
 const SENSITIVITY_OPTIONS: { value: Sensitivity; label: string }[] = [
   { value: 'low', label: 'Fewer' },
@@ -60,6 +62,8 @@ export function WallScanner() {
   const [width, setWidth] = useState(0);
   const imageRef = useRef<View>(null);
   const autoCount = useRef(0);
+  const [wall, setWall] = useState<WallGeometry | null>(null);
+  const lidar = useMemo(() => isLidarSupported(), []);
   const { user } = useAuth();
   const [tips, setTips] = useState<RouteTips | null>(null);
   const [tipsBusy, setTipsBusy] = useState(false);
@@ -86,7 +90,31 @@ export function WallScanner() {
     setAuto([]);
     setRemovedPts([]);
     setManual([]);
+    setWall(null);
     setError(null);
+  }, []);
+
+  /** LiDAR path: capture, then measure the wall and use the photo like any other. */
+  const scanWithLidar = useCallback(async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const cap = await captureWall();
+      if (!cap) return;
+      const loaded = await loadWallPhoto(cap.uri);
+      const geometry = analyseWall(cap);
+      setPhoto(loaded);
+      setWall(geometry);
+      setSeeds([]);
+      setAuto([]);
+      setRemovedPts([]);
+      setManual([]);
+      if (!geometry) setError('The scan could not measure the wall, so tips will use the photo only.');
+    } catch {
+      setError('The LiDAR scan did not work. You can still take a regular photo.');
+    } finally {
+      setBusy(false);
+    }
   }, []);
 
   const pick = useCallback(async (run: () => Promise<PickResult>) => {
@@ -100,6 +128,7 @@ export function WallScanner() {
         return;
       }
       setPhoto(result.photo);
+      setWall(null);
       setSeeds([]);
       setAuto([]);
       setRemovedPts([]);
@@ -165,13 +194,13 @@ export function WallScanner() {
     setTipsBusy(true);
     setTipsError(null);
     try {
-      setTips(await fetchRouteTips(photo, numbered));
+      setTips(await fetchRouteTips(photo, numbered, wall));
     } catch (e) {
       setTipsError(e instanceof Error ? e.message : 'Could not get tips.');
     } finally {
       setTipsBusy(false);
     }
-  }, [photo, numbered]);
+  }, [photo, numbered, wall]);
 
   /** Where a press landed on the photo, as 0..1. The web doesn't report locationX/Y, so measure the element. */
   const locate = (e: GestureResponderEvent): [number, number] | null => {
@@ -195,7 +224,15 @@ export function WallScanner() {
         <ThemedText type="small" themeColor="textSecondary">
           Take or choose a photo of a wall, then tap one hold on your route. Photos stay on your device.
         </ThemedText>
-        {Platform.OS !== 'web' && <Button title="Take a photo" onPress={() => pick(takeWallPhoto)} loading={busy} />}
+        {lidar && <Button title="Scan with LiDAR" onPress={scanWithLidar} loading={busy} />}
+        {Platform.OS !== 'web' && (
+          <Button
+            title="Take a photo"
+            variant={lidar ? 'secondary' : 'primary'}
+            onPress={() => pick(takeWallPhoto)}
+            loading={busy}
+          />
+        )}
         <Button
           title="Choose a photo"
           variant={Platform.OS === 'web' ? 'primary' : 'secondary'}
@@ -218,6 +255,11 @@ export function WallScanner() {
           ? 'Tap one hold on your route to pick its color.'
           : 'Tap a highlighted hold to remove it. Tap one that was missed to add it, and similar holds will be found too.'}
       </ThemedText>
+      {error && (
+        <ThemedText type="small" style={{ color: '#C0392B' }}>
+          {error}
+        </ThemedText>
+      )}
 
       <View onLayout={onLayout} style={styles.imageWrap}>
         {width > 0 && (
@@ -298,6 +340,11 @@ export function WallScanner() {
               {holds.length} {holds.length === 1 ? 'hold' : 'holds'} found
             </ThemedText>
           </View>
+          {wall && (
+            <ThemedText type="small" themeColor="textSecondary">
+              LiDAR: {wallLabel(wall.overhangDeg)}. Tips will use real distances.
+            </ThemedText>
+          )}
           <Segmented
             label="How many holds to find"
             options={SENSITIVITY_OPTIONS}
@@ -425,4 +472,10 @@ function TipsList({ tips }: { tips: RouteTips }) {
       </ThemedText>
     </View>
   );
+}
+
+function wallLabel(deg: number) {
+  const a = Math.round(deg);
+  if (Math.abs(a) < 5) return 'wall is about vertical';
+  return a > 0 ? `wall overhangs about ${a}°` : `wall is a slab, leaning back about ${-a}°`;
 }

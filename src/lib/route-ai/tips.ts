@@ -3,6 +3,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import { supabase } from '@/lib/supabase';
 
 import type { Hold } from './detect';
+import type { WallGeometry } from './depth';
 import type { WallPhoto } from './photo';
 
 export type NumberedHold = Hold & { n: number };
@@ -36,12 +37,30 @@ async function sendableImage(photo: WallPhoto): Promise<string> {
 }
 
 /** Asks the route-tips function for technique tips. Throws an Error with a message safe to show. */
-export async function fetchRouteTips(photo: WallPhoto, holds: NumberedHold[]): Promise<RouteTips> {
+export async function fetchRouteTips(
+  photo: WallPhoto,
+  holds: NumberedHold[],
+  wall?: WallGeometry | null,
+): Promise<RouteTips> {
   const image = await sendableImage(photo);
+  // With a LiDAR scan, give each hold real wall coordinates (cm), measured from the lowest hold.
+  const located = wall ? holds.map((h) => wall.locate(h.x, h.y)) : [];
+  const base = located[0];
   const { data, error } = await supabase.functions.invoke<RouteTips>('route-tips', {
     body: {
       image,
-      holds: holds.map((h) => ({ n: h.n, x: h.x, y: h.y, w: h.w, h: h.h })),
+      holds: holds.map((h, i) => {
+        const at = located[i];
+        return {
+          n: h.n,
+          x: h.x,
+          y: h.y,
+          w: h.w,
+          h: h.h,
+          ...(at && base ? { xCm: at.x - base.x, yCm: at.y - base.y } : {}),
+        };
+      }),
+      ...(wall ? { wall: { overhangDeg: wall.overhangDeg } } : {}),
     },
   });
   if (error) {
