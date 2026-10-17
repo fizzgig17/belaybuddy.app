@@ -1,11 +1,12 @@
 import Constants from 'expo-constants';
-import { router } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, AppState, Linking, Platform, StyleSheet, Switch, View } from 'react-native';
+import { ActivityIndicator, Alert, AppState, Linking, Platform, Pressable, StyleSheet, Switch, View } from 'react-native';
 
 import { SignInOptions } from '@/components/auth/sign-in-options';
-import { Button } from '@/components/form';
+import { Button, ToggleRow } from '@/components/form';
 import { AppIconPicker } from '@/components/profile/app-icon-picker';
+import { useAiConsent } from '@/lib/ai-consent';
 import { PrivacySettings } from '@/components/profile/privacy-settings';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
@@ -235,6 +236,8 @@ export default function SettingsScreen() {
         </Card>
       </Section>
 
+      <AiSettings />
+
       <PrivacySettings />
 
       <Button title="Sign out" variant="secondary" onPress={confirmSignOut} loading={signingOut} />
@@ -253,3 +256,32 @@ const styles = StyleSheet.create({
   version: { textAlign: 'center' },
   col: { width: 56, alignItems: 'center', textAlign: 'center' },
 });
+
+/** The AI choice (Route AI photo check and technique tips) and a link to the privacy policy. */
+function AiSettings() {
+  const theme = useTheme();
+  const { consent, set, signedIn } = useAiConsent();
+  return (
+    <Section title="AI features">
+      <Card style={{ padding: Spacing.three, gap: Spacing.two, borderRadius: Spacing.three }}>
+        <ToggleRow
+          label="Use AI for Route AI photos and tips"
+          value={consent === 'allowed'}
+          onValueChange={(on) => set(on ? 'allowed' : 'denied')}
+        />
+        <ThemedText type="small" themeColor="textSecondary">
+          {signedIn
+            ? 'When on, Route AI sends your wall photo to an AI service (Anthropic’s Claude) to describe it and write technique tips. Photos and tips are not stored by us. Finding holds and LiDAR measuring stay on your phone either way.'
+            : 'Sign in to use AI features. Finding holds and LiDAR measuring work without them.'}
+        </ThemedText>
+        <Link href="/privacy" asChild>
+          <Pressable accessibilityRole="link">
+            <ThemedText type="smallBold" style={{ color: theme.accent }}>
+              Privacy policy
+            </ThemedText>
+          </Pressable>
+        </Link>
+      </Card>
+    </Section>
+  );
+}

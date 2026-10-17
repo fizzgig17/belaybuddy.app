@@ -23,6 +23,7 @@ export default function TabLayout() {
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="(tabs)" />
               <Stack.Screen name="profile" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="privacy" />
             </Stack>
             <AppLock />
             <NotificationsBridge />

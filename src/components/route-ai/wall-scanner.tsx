@@ -17,6 +17,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/group';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useAiConsent } from '@/lib/ai-consent';
 import { useAuth } from '@/lib/auth';
 import { select } from '@/lib/haptics';
 import {
@@ -69,6 +70,8 @@ export function WallScanner() {
   const [look, setLook] = useState<PhotoCheck | null>(null);
   const lidar = useMemo(() => isLidarSupported(), []);
   const { user } = useAuth();
+  const { consent, set: setConsent } = useAiConsent();
+  const [pending, setPending] = useState<'lidar' | 'camera' | 'library' | null>(null);
   const [tips, setTips] = useState<RouteTips | null>(null);
   const [tipsBusy, setTipsBusy] = useState(false);
   const [tipsError, setTipsError] = useState<string | null>(null);
@@ -106,7 +109,7 @@ export function WallScanner() {
   const accept = useCallback(
     async (loaded: WallPhoto, geometry: WallGeometry | null) => {
       setLook(null);
-      if (user) {
+      if (user && consent === 'allowed') {
         setChecking(true);
         const result = await checkPhoto(loaded);
         setChecking(false);
@@ -124,7 +127,7 @@ export function WallScanner() {
       setManual([]);
       return true;
     },
-    [user],
+    [user, consent],
   );
 
   /** LiDAR path: capture, then measure the wall and use the photo like any other. */
@@ -251,6 +254,27 @@ export function WallScanner() {
     return [ne.locationX / width, ne.locationY / height];
   };
 
+  const runAction = (action: 'lidar' | 'camera' | 'library') => {
+    if (action === 'lidar') void scanWithLidar();
+    else void pick(action === 'camera' ? takeWallPhoto : chooseWallPhoto);
+  };
+
+  /** Asks about AI the first time a signed-in person picks a photo, then carries on either way. */
+  const gate = (action: 'lidar' | 'camera' | 'library') => {
+    if (user && consent === 'unset') setPending(action);
+    else runAction(action);
+  };
+
+  // Once they answer, start what they asked for, with the new choice in effect.
+  useEffect(() => {
+    if (pending && consent !== 'unset') {
+      const action = pending;
+      setPending(null);
+      runAction(action);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [consent, pending]);
+
   const onLayout = (e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width);
 
   if (!photo) {
@@ -260,24 +284,43 @@ export function WallScanner() {
         <ThemedText type="small" themeColor="textSecondary">
           Take or choose a photo of a wall, then tap one hold on your route. Photos stay on your device.
         </ThemedText>
+        {pending && (
+          <View style={styles.gap}>
+            <ThemedText type="smallBold">Use AI for this photo?</ThemedText>
+            <ThemedText type="small" themeColor="textSecondary">
+              Route AI can send your photo to an AI service (Anthropic’s Claude) to say what it shows and write
+              technique tips. We don’t store it. Finding holds works on your phone either way. You can change this
+              any time in Settings.
+            </ThemedText>
+            <Link href="/privacy" asChild>
+              <Pressable accessibilityRole="link">
+                <ThemedText type="smallBold" style={{ color: theme.accent }}>
+                  Privacy policy
+                </ThemedText>
+              </Pressable>
+            </Link>
+            <Button title="Allow AI" onPress={() => setConsent('allowed')} />
+            <Button title="Not now" variant="secondary" onPress={() => setConsent('denied')} />
+          </View>
+        )}
         {checking && (
           <ThemedText type="small" themeColor="textSecondary">
             Checking the photo…
           </ThemedText>
         )}
-        {lidar && <Button title="Scan with LiDAR" onPress={scanWithLidar} loading={busy} />}
+        {lidar && <Button title="Scan with LiDAR" onPress={() => gate('lidar')} loading={busy} />}
         {Platform.OS !== 'web' && (
           <Button
             title="Take a photo"
             variant={lidar ? 'secondary' : 'primary'}
-            onPress={() => pick(takeWallPhoto)}
+            onPress={() => gate('camera')}
             loading={busy}
           />
         )}
         <Button
           title="Choose a photo"
           variant={Platform.OS === 'web' ? 'primary' : 'secondary'}
-          onPress={() => pick(chooseWallPhoto)}
+          onPress={() => gate('library')}
           loading={busy}
         />
         {error && (
@@ -414,7 +457,7 @@ export function WallScanner() {
           {!tips && (
             <ThemedText type="small" themeColor="textSecondary">
               Once the highlighted holds are your route, get a hold-by-hold read and one possible way to climb it. The
-              photo is sent to our AI service for this and is not kept.
+              photo is sent to an AI service (Anthropic’s Claude) for this and is not kept by us.
             </ThemedText>
           )}
           {!user ? (
@@ -429,12 +472,19 @@ export function WallScanner() {
             <ThemedText type="small" themeColor="textSecondary">
               That's a lot of holds. Remove the extras (the most is {MAX_TIP_HOLDS}) to get tips.
             </ThemedText>
+          ) : consent !== 'allowed' ? (
+            <Button title="Turn on AI for tips" variant="secondary" onPress={() => setConsent('allowed')} />
           ) : (
             !tips && <Button title="Get technique tips" onPress={getTips} loading={tipsBusy} />
           )}
           {tipsError && (
             <ThemedText type="small" style={{ color: '#C0392B' }}>
               {tipsError}
+            </ThemedText>
+          )}
+          {tips && (
+            <ThemedText type="small" style={{ color: theme.accent }}>
+              AI-generated tips
             </ThemedText>
           )}
           {tips && <TipsList tips={tips} />}
