@@ -17,7 +17,9 @@ export type LearnTopic = {
   /** Topic color, like route tape in a gym. */
   color: string;
   /** Planned articles; content to be written. */
-  articles: { title: string; summary: string; /** Set when an animated tutorial exists (see content/knots.ts). */ knotId?: string }[];
+  articles: { title: string; summary: string; /** Opens an external page (e.g. Animated Knots by Grog). */ url?: string }[];
+  /** Credit line shown under the articles. */
+  credit?: { text: string; url: string };
 };
 
 export const LEARN_TOPICS: LearnTopic[] = [
@@ -52,16 +54,17 @@ export const LEARN_TOPICS: LearnTopic[] = [
   {
     id: 'knots',
     title: 'Knots',
-    summary: 'Step-by-step diagrams for the essential climbing knots.',
+    summary: 'Animated how-tos for the essential climbing knots.',
     icon: 'knot',
     color: HoldColors.yellow,
     articles: [
-      { title: 'Figure-eight follow-through', summary: 'The standard tie-in knot.', knotId: 'figure-eight-follow-through' },
-      { title: 'Stopper knot', summary: 'Backing up the tie-in and closing the rope system.' },
-      { title: 'Clove hitch', summary: 'Adjustable attachment to a carabiner.' },
-      { title: 'Munter hitch', summary: 'Belaying or lowering without a device.' },
-      { title: 'Prusik', summary: 'Friction hitch for backups and ascending.' },
+      { title: 'Figure-eight follow-through', summary: 'The standard tie-in knot.', url: 'https://www.animatedknots.com/figure-8-follow-through-loop-knot' },
+      { title: 'Stopper knot', summary: 'Backing up the tie-in and closing the rope system.', url: 'https://www.animatedknots.com/double-overhand-stopper-knot' },
+      { title: 'Clove hitch', summary: 'Adjustable attachment to a carabiner.', url: 'https://www.animatedknots.com/clove-hitch-knot-rope-end' },
+      { title: 'Munter hitch', summary: 'Belaying or lowering without a device.', url: 'https://www.animatedknots.com/munter-mule-combination-hitch-knot' },
+      { title: 'Prusik', summary: 'Friction hitch for backups and ascending.', url: 'https://www.animatedknots.com/prusik-knot' },
     ],
+    credit: { text: 'Animations by Animated Knots by Grog', url: 'https://www.animatedknots.com' },
   },
 ];
 

@@ -1,5 +1,5 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { StyleSheet } from 'react-native';
+import { Linking, Platform, Pressable, StyleSheet } from 'react-native';
 
 import { FeatureCard } from '@/components/feature-card';
 import { Screen } from '@/components/screen';
@@ -40,10 +40,23 @@ export default function LearnTopicScreen() {
           key={article.title}
           title={article.title}
           description={article.summary}
-          href={article.knotId ? { pathname: '/learn/knot/[knot]', params: { knot: article.knotId } } : undefined}
-          comingSoon={!article.knotId}
+          externalUrl={article.url}
+          comingSoon={!article.url}
         />
       ))}
+      {topic.credit && (
+        <Pressable
+          accessibilityRole="link"
+          onPress={() =>
+            Platform.OS === 'web'
+              ? window.open(topic.credit!.url, '_blank', 'noopener,noreferrer')
+              : void Linking.openURL(topic.credit!.url)
+          }>
+          <ThemedText type="small" themeColor="textSecondary">
+            {topic.credit.text} · animatedknots.com
+          </ThemedText>
+        </Pressable>
+      )}
     </Screen>
   );
 }

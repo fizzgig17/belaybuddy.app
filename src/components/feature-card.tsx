@@ -1,6 +1,6 @@
 import { Link, type Href } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/group';
@@ -14,13 +14,15 @@ type FeatureCardProps = {
   icon?: IconName;
   /** Optional route; when set, the card is tappable. */
   href?: Href;
+  /** External web page; opens in the browser. */
+  externalUrl?: string;
   /** Shows a "Coming soon" tag for features that are only stubbed. */
   comingSoon?: boolean;
   /** Icon color, e.g. a hold color to color-code a topic. Defaults to the accent. */
   tint?: string;
 };
 
-export function FeatureCard({ title, description, icon, href, comingSoon, tint }: FeatureCardProps) {
+export function FeatureCard({ title, description, icon, href, externalUrl, comingSoon, tint }: FeatureCardProps) {
   const theme = useTheme();
 
   const body = (
@@ -49,9 +51,21 @@ export function FeatureCard({ title, description, icon, href, comingSoon, tint }
           {description}
         </ThemedText>
       </View>
-      {href && <SymbolView name={Icons.chevron} size={14} tintColor={theme.textSecondary} />}
+      {(href || externalUrl) && <SymbolView name={Icons.chevron} size={14} tintColor={theme.textSecondary} />}
     </Card>
   );
+
+  if (externalUrl) {
+    const open = () => {
+      if (Platform.OS === 'web') window.open(externalUrl, '_blank', 'noopener,noreferrer');
+      else void Linking.openURL(externalUrl);
+    };
+    return (
+      <Pressable accessibilityRole="link" onPress={open} style={({ pressed }) => pressed && styles.pressed}>
+        {body}
+      </Pressable>
+    );
+  }
 
   if (!href) return body;
 
