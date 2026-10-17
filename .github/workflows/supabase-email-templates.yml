@@ -32,6 +32,10 @@ jobs:
       DEV_PROJECT_ID: ${{ secrets.DEV_PROJECT_ID }}
       PROD_PROJECT_ID: ${{ secrets.PROD_PROJECT_ID }}
       TARGET: ${{ github.ref_name == 'master' && 'belaybuddy-prod' || 'belaybuddy-dev' }}
+      SMTP_HOST: ${{ secrets.SMTP_HOST }}
+      SMTP_PORT: ${{ secrets.SMTP_PORT }}
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASS: ${{ secrets.SMTP_PASS }}
     steps:
       - uses: actions/checkout@v4
 
@@ -70,6 +74,32 @@ jobs:
               mailer_templates_magic_link_content: $mc
             }' > body.json
           jq 'with_entries(.value |= (if type == "string" then .[0:60] + "…" else . end))' body.json
+
+      # Supabase refuses template changes (and limits sign-in emails to a few an
+      # hour) on the default email provider, so production gets the same Spacemail
+      # mailbox as the notification emails. The dev project was set up by hand.
+      - name: Set the email sender on production
+        if: github.ref_name == 'master'
+        run: |
+          if [ -z "$SMTP_HOST" ] || [ -z "$SMTP_USER" ] || [ -z "$SMTP_PASS" ]; then
+            echo "::error::Add the SMTP_HOST, SMTP_USER and SMTP_PASS secrets (SMTP_PORT 465) so production can send sign-in emails."
+            exit 1
+          fi
+          echo "::add-mask::$SMTP_PASS"
+          jq -n --arg host "$SMTP_HOST" --arg port "${SMTP_PORT:-465}" --arg user "$SMTP_USER" --arg pass "$SMTP_PASS" '{
+            external_email_enabled: true,
+            smtp_host: $host, smtp_port: $port, smtp_user: $user, smtp_pass: $pass,
+            smtp_admin_email: $user, smtp_sender_name: "Belay Buddy"
+          }' > smtp.json
+          status=$(curl -sS -o smtp-response.json -w '%{http_code}' -X PATCH \
+            "https://api.supabase.com/v1/projects/$PROJECT_ID/config/auth" \
+            -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+            -H "Content-Type: application/json" --data @smtp.json)
+          if [ "$status" -ge 300 ]; then
+            echo "::error::Supabase returned HTTP $status setting SMTP: $(head -c 300 smtp-response.json)"
+            exit 1
+          fi
+          echo "Custom SMTP set on $TARGET (HTTP $status)"
 
       - name: Update templates and code length on ${{ env.TARGET }}
         run: |
