@@ -18,7 +18,8 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 
 const ENDPOINTS = (
-  Deno.env.get('OVERPASS_URLS') ?? 'https://overpass-api.de/api/interpreter,https://overpass.kumi.systems/api/interpreter'
+  Deno.env.get('OVERPASS_URLS') ??
+    'https://overpass-api.de/api/interpreter,https://overpass.kumi.systems/api/interpreter,https://overpass.private.coffee/api/interpreter,https://maps.mail.ru/osm/tools/overpass/api/interpreter'
 ).split(',');
 const FRESH_MS = 7 * 24 * 3600_000;
 const BUCKETS = [10, 25, 50, 100];
@@ -92,11 +93,16 @@ async function overpass(query: string): Promise<OsmElement[]> {
     try {
       const res = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': 'BelayBuddy/0.1 (https://belaybuddy.app)' },
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          Accept: 'application/json',
+          'User-Agent': 'BelayBuddy/0.1 (https://belaybuddy.app; support@belaybuddy.app)',
+          Referer: 'https://belaybuddy.app/',
+        },
         body: `data=${encodeURIComponent(query)}`,
         signal: race.signal,
       });
-      if (!res.ok) throw new Error(`Overpass returned ${res.status}`);
+      if (!res.ok) throw new Error(`${new URL(endpoint).hostname} returned ${res.status}`);
       return ((await res.json()) as { elements: OsmElement[] }).elements;
     } finally {
       clearTimeout(timer);
@@ -105,8 +111,9 @@ async function overpass(query: string): Promise<OsmElement[]> {
   try {
     return await Promise.any(attempts);
   } catch (e) {
-    const first = ((e as AggregateError).errors ?? [e])[0];
-    throw first instanceof Error ? first : new Error(String(first));
+    // Say what every mirror answered, so a block or outage is easy to spot.
+    const all = ((e as AggregateError).errors ?? [e]).map((x: unknown) => (x instanceof Error ? x.message : String(x)));
+    throw new Error(all.join('; '));
   } finally {
     race.abort();
   }
