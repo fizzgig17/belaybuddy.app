@@ -15,7 +15,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 
 const [bundleIdentifier, certSerial, outPath] = process.argv.slice(2);
 const PROFILE_NAME = 'Belay Buddy CI App Store';
-const CAPABILITIES = ['PUSH_NOTIFICATIONS', 'APPLE_ID_AUTH'];
+const CAPABILITIES = ['PUSH_NOTIFICATIONS', 'APPLE_ID_AUTH', 'ASSOCIATED_DOMAINS'];
 const API = 'https://api.appstoreconnect.apple.com/v1';
 
 function token() {

@@ -1,3 +1,4 @@
+import { AppCard } from '@/components/app-card';
 import * as Clipboard from 'expo-clipboard';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Pressable, StyleSheet, TextInput, View } from 'react-native';
@@ -145,6 +146,7 @@ export function SignIn() {
   if (step === 'email') {
     return (
       <View style={styles.container}>
+        <AppCard />
         <SocialButtons onError={setError} />
         <Field
           label="Email"

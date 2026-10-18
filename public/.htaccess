@@ -21,6 +21,11 @@
     Header always set Strict-Transport-Security "max-age=31536000"
 </IfModule>
 
+# iOS fetches this to decide which links open the app (universal links).
+<Files "apple-app-site-association">
+    ForceType application/json
+</Files>
+
 ErrorDocument 404 /+not-found.html
 
 # /learn is a folder (learn/index.html); serve it at /learn without Apache

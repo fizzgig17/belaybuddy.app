@@ -2,6 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator } from 'react-native';
 
+import { AppCard } from '@/components/app-card';
 import { Button } from '@/components/form';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
@@ -49,6 +50,7 @@ export default function FriendLink() {
   return (
     <Screen title="Add a friend" showTitle={false}>
       <ThemedText type="subtitle" accessibilityRole="header">Add a friend</ThemedText>
+      <AppCard path={`friend/${code}`} />
       {loading || busy ? (
         <ActivityIndicator />
       ) : !user ? (
