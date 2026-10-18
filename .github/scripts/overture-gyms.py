@@ -24,6 +24,10 @@ GYM = re.compile(r'^(rock_climbing_gym|climbing_gym|bouldering_gym|indoor_climbi
 # A place named like a climbing gym in one of these categories counts too (many gyms are
 # filed under a general fitness category).
 NAME_OK = re.compile(r'^(gym|fitness_center|sports_club\w*|sports_and_recreation|sports_and_recreation_venue|recreation_center|sports_recreation\w*|active_life|amateur_sports_team|community_center|fitness_trainer|sports_and_fitness_instruction|yoga_studio)$')
+# Overture files many real gyms (e.g. "RocVentures Climbing Gym") under rock_climbing_spot, the
+# outdoor category too. Those count when the name reads like a gym, or it has a website and climb in the name.
+SPOT_GYM_NAME = re.compile(r'\b(gym|gyms|climbing (center|centre|club|co|studio|wall|walls|lab|zone|academy|cafe)|rock (gym|club)|bouldering|boulder (gym|lab|project|co|club|barn)|rocventures|vertical (world|endeavors)|climb( |-)?(zone|nasium|on|fit))\b', re.I)
+SPOT_NOT_GYM = re.compile(r'\b(state park|national|crag|trail|trailhead|wall$|boulders$|rocks$|falls|mountain|canyon|cliffs?|boulder field|area)\b', re.I)
 COUNTRIES = {'US', 'CA'}
 MIN_ROWS = 100  # fewer than this means something is wrong; don't replace the data
 COVERAGE = [  # id, min_lat, max_lat, min_lng, max_lng
@@ -89,6 +93,7 @@ def main(out_path: str) -> None:
     print('Probe:', json.dumps([{k: p[k] for k in ('name', 'category', 'country', 'confidence', 'lat', 'lng')} for p in probe][:12], default=str))
     seen_categories = Counter()
     name_categories = Counter()
+    spot_names = []
     rows = {}
     for p in found:
         cats = [p['category'] or ''] + list(p['alt'] or [])
@@ -96,7 +101,12 @@ def main(out_path: str) -> None:
         by_name = bool(re.search(r'climb|boulder|belay', p['name'] or '', re.I)) and bool(NAME_OK.match(p['category'] or ''))
         if not by_name:
             name_categories[p['category']] += 1
-        if not (any(GYM.match(c) for c in cats) or by_name):
+        spot_gym = (p['category'] == 'rock_climbing_spot'
+                    and (bool(SPOT_GYM_NAME.search(p['name'] or '')) or (bool(p['website']) and bool(re.search(r'climb', p['name'] or '', re.I))))
+                    and not SPOT_NOT_GYM.search(p['name'] or ''))
+        if spot_gym:
+            spot_names.append(p['name'])
+        if not (any(GYM.match(c) for c in cats) or by_name or spot_gym):
             continue
         if p['country'] and p['country'] not in COUNTRIES:
             continue
@@ -113,6 +123,7 @@ def main(out_path: str) -> None:
         }
     print('Categories seen:', dict(seen_categories.most_common(25)))
     print('Left out:', dict(name_categories.most_common(25)))
+    print('Spots taken as gyms:', len(spot_names), '; sample:', '; '.join(spot_names[:40]))
     print(f'SUMMARY {len(rows)} gyms from release {release}')
 
     body = json.dumps(list(rows.values())).replace('$json$', '')
