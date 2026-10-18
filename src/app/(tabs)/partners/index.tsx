@@ -11,6 +11,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
 import { areaSlug, slugToId } from '@/lib/areas';
+import { useLiveRefresh } from '@/lib/live';
 import { useAuth } from '@/lib/auth';
 import { FriendsCard } from '@/components/partners/friends-card';
 import { SessionCard } from '@/components/partners/session-card';
@@ -98,6 +99,8 @@ export default function PartnersScreen() {
       };
     }, [load]),
   );
+
+  useLiveRefresh(['belay_posts', 'post_responses'], load, Boolean(userId));
 
   if (authLoading) {
     return (

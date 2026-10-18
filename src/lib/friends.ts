@@ -51,19 +51,20 @@ export function useFriends() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const refresh = useCallback(async () => {
+  // refresh(true) reloads quietly (live updates): no spinner.
+  const refresh = useCallback(async (silent?: unknown) => {
     if (!user) {
       setFriends([]);
       return;
     }
-    setLoading(true);
+    if (silent !== true) setLoading(true);
     try {
       setFriends(await fetchFriends());
       setError(null);
     } catch (e) {
       setError((e as Error).message);
     } finally {
-      setLoading(false);
+      if (silent !== true) setLoading(false);
     }
   }, [user]);
 

@@ -11,6 +11,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/group';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useLiveRefresh } from '@/lib/live';
 import { useAuth } from '@/lib/auth';
 import {
   addFriendByCode,
@@ -40,6 +41,8 @@ function describeAdd(status: string, name: string): string {
 export default function FriendsScreen() {
   const { user, loading: authLoading } = useAuth();
   const { friends, incoming, outgoing, loading, error, refresh } = useFriends();
+
+  useLiveRefresh(['friendships', 'checkins'], () => refresh(true), Boolean(user));
 
   useFocusEffect(
     useCallback(() => {
