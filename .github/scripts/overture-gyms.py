@@ -52,18 +52,28 @@ def main(out_path: str) -> None:
     con = duckdb.connect()
     con.execute('INSTALL httpfs; LOAD httpfs;')
     con.execute("SET s3_region='us-west-2';")
-    cols = {r[0] for r in con.execute(f"DESCRIBE SELECT * FROM read_parquet('{path}', hive_partitioning=1)").fetchall()}
-    print('Columns:', ', '.join(sorted(cols)))
+    described = con.execute(f"DESCRIBE SELECT * FROM read_parquet('{path}', hive_partitioning=1)").fetchall()
+    cols = {r[0] for r in described}
+    for r in described:
+        if r[0] in ('categories', 'taxonomy', 'basic_category', 'addresses'):
+            print(f'Column {r[0]}: {r[1]}')
+    # Releases since mid-2026 replace `categories` with `taxonomy`.
+    if 'taxonomy' in cols:
+        primary = 'taxonomy.primary'
+        others = "list_concat(coalesce(taxonomy.hierarchy, []::VARCHAR[]), coalesce(taxonomy.alternates, []::VARCHAR[]))"
+    else:
+        primary = 'categories.primary'
+        others = "coalesce(categories.alternate, []::VARCHAR[])"
     status = "AND coalesce(operating_status, 'open') <> 'closed' AND coalesce(operating_status, 'open') <> 'permanently_closed'" if 'operating_status' in cols else ''
     sql = f"""
-      SELECT id, names.primary AS name, categories.primary AS category, categories.alternate AS alt,
+      SELECT id, names.primary AS name, {primary} AS category, {others} AS alt,
              addresses[1].freeform AS street, addresses[1].locality AS city, addresses[1].region AS region,
              addresses[1].country AS country, websites[1] AS website, phones[1] AS phone,
              (bbox.xmin + bbox.xmax) / 2 AS lng, (bbox.ymin + bbox.ymax) / 2 AS lat, confidence
       FROM read_parquet('{path}', hive_partitioning=1)
       WHERE bbox.xmin BETWEEN -180 AND -50 AND bbox.ymin BETWEEN 14 AND 72
-        AND (categories.primary ILIKE '%climb%' OR categories.primary ILIKE '%boulder%'
-             OR len(list_filter(coalesce(categories.alternate, []::VARCHAR[]), x -> x ILIKE '%climb%' OR x ILIKE '%boulder%')) > 0)
+        AND ({primary} ILIKE '%climb%' OR {primary} ILIKE '%boulder%'
+             OR len(list_filter({others}, x -> x ILIKE '%climb%' OR x ILIKE '%boulder%')) > 0)
         {status}
     """
     result = con.execute(sql)

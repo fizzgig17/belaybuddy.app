@@ -43,7 +43,7 @@ jobs:
       - name: Read gyms from Overture Maps
         run: |
           if ! python3 .github/scripts/overture-gyms.py "$RUNNER_TEMP/overture.sql" > "$RUNNER_TEMP/overture.log" 2>&1; then
-            echo "::error::Overture read failed: $(tail -c 900 "$RUNNER_TEMP/overture.log" | tr '\n' ' ')"
+            echo "::error::Overture read failed: $(tail -c 2500 "$RUNNER_TEMP/overture.log" | tr '\n' ' ')"
             exit 1
           fi
           for pat in 'Overture release' 'SUMMARY' 'Categories seen' 'places mention'; do echo "::notice::$(grep -E "^$pat" "$RUNNER_TEMP/overture.log" | head -c 700)"; done
