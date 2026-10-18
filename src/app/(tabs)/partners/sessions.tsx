@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, View } from 'react-native';
+import ReanimatedSwipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 
 import { Button } from '@/components/form';
 import { Screen } from '@/components/screen';
@@ -10,6 +11,7 @@ import { Card } from '@/components/ui/group';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/lib/auth';
+import { select, success, tap } from '@/lib/haptics';
 import {
   deleteSession,
   describeSummary,
@@ -35,30 +37,92 @@ export default function SessionsScreen() {
     }, [user]),
   );
 
-  async function remove(id: string) {
-    const go = async () => {
-      try {
-        await deleteSession(id);
-        setSessions((s) => s?.filter((x) => x.id !== id) ?? null);
-      } catch (e) {
-        setError((e as Error).message);
-      }
-    };
-    if (Platform.OS === 'web') return go();
-    Alert.alert('Delete this session?', 'Its climbs are deleted too.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: go },
+  // Selecting several: long-press a session (or tap "Select"), tap to add or remove.
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const swipers = useRef(new Map<string, SwipeableMethods>());
+
+  const stopSelecting = () => {
+    setSelecting(false);
+    setSelected(new Set());
+  };
+  const toggle = (id: string) => {
+    select();
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const startSelecting = (id?: string) => {
+    tap();
+    setSelecting(true);
+    setSelected(new Set(id ? [id] : []));
+  };
+
+  async function deleteMany(ids: string[]) {
+    const results = await Promise.allSettled(ids.map((id) => deleteSession(id)));
+    const gone = new Set(ids.filter((_, i) => results[i].status === 'fulfilled'));
+    setSessions((s) => s?.filter((x) => !gone.has(x.id)) ?? null);
+    const failed = results.find((r) => r.status === 'rejected') as PromiseRejectedResult | undefined;
+    if (failed) setError((failed.reason as Error).message);
+    else success();
+    stopSelecting();
+  }
+
+  function confirmDelete(ids: string[], onCancel?: () => void) {
+    if (ids.length === 0) return;
+    const title = ids.length === 1 ? 'Delete this session?' : `Delete ${ids.length} sessions?`;
+    const detail = ids.length === 1 ? 'Its climbs are deleted too.' : 'Their climbs are deleted too.';
+    if (Platform.OS === 'web') {
+      if (globalThis.confirm?.(`${title} ${detail}`) ?? true) void deleteMany(ids);
+      else onCancel?.();
+      return;
+    }
+    Alert.alert(title, detail, [
+      { text: 'Cancel', style: 'cancel', onPress: onCancel },
+      { text: 'Delete', style: 'destructive', onPress: () => void deleteMany(ids) },
     ]);
   }
 
   const all = sessions ?? [];
   const totals = summarize(all.flatMap((s) => s.logs));
+  const allSelected = all.length > 0 && selected.size === all.length;
 
   return (
     <Screen title="Past sessions" showTitle={false}>
-      <ThemedText type="subtitle" accessibilityRole="header">
-        Your climbing
-      </ThemedText>
+      <View style={styles.headerRow}>
+        <ThemedText type="subtitle" accessibilityRole="header" style={styles.flex}>
+          Your climbing
+        </ThemedText>
+        {!selecting && all.length > 0 && (
+          <Pressable onPress={() => startSelecting()} hitSlop={8} accessibilityRole="button">
+            <ThemedText type="smallBold" style={{ color: theme.accent }}>Select</ThemedText>
+          </Pressable>
+        )}
+      </View>
+      {selecting && (
+        <View style={styles.toolbar}>
+          <Pressable onPress={stopSelecting} hitSlop={8} accessibilityRole="button">
+            <ThemedText type="smallBold" style={{ color: theme.accent }}>Cancel</ThemedText>
+          </Pressable>
+          <ThemedText type="small" themeColor="textSecondary" style={[styles.flex, styles.center]}>
+            {selected.size} selected
+          </ThemedText>
+          <Pressable
+            onPress={() => {
+              select();
+              setSelected(allSelected ? new Set() : new Set(all.map((x) => x.id)));
+            }}
+            hitSlop={8}
+            accessibilityRole="button">
+            <ThemedText type="smallBold" style={{ color: theme.accent }}>
+              {allSelected ? 'Select none' : 'Select all'}
+            </ThemedText>
+          </Pressable>
+        </View>
+      )}
       {error && <ThemedText type="small" style={{ color: '#C0392B' }}>{error}</ThemedText>}
       {sessions === null && !error && <ActivityIndicator />}
       {sessions && sessions.length === 0 && (
@@ -73,28 +137,80 @@ export default function SessionsScreen() {
       )}
       {all.map((s) => {
         const sum = summarize(s.logs);
-        return (
-          <Card key={s.id} style={styles.card}>
-            <View style={styles.row}>
-              <ThemedText type="smallBold" style={styles.flex} numberOfLines={2}>
-                {s.areaName ?? 'Outdoors'}
-              </ThemedText>
+        const checked = selected.has(s.id);
+        const card = (
+          <Pressable
+            onPress={selecting ? () => toggle(s.id) : undefined}
+            onLongPress={selecting ? undefined : () => startSelecting(s.id)}
+            delayLongPress={350}
+            accessibilityRole={selecting ? 'checkbox' : 'button'}
+            accessibilityState={selecting ? { checked } : undefined}
+            accessibilityHint={selecting ? undefined : 'Press and hold to select sessions to delete'}>
+            <Card style={[styles.card, checked && { borderColor: theme.accent }]}>
+              <View style={styles.row}>
+                {selecting && (
+                  <View
+                    style={[
+                      styles.check,
+                      { borderColor: checked ? theme.accent : theme.border, backgroundColor: checked ? theme.accent : 'transparent' },
+                    ]}>
+                    {checked && <ThemedText type="smallBold" style={styles.checkMark}>✓</ThemedText>}
+                  </View>
+                )}
+                <ThemedText type="smallBold" style={styles.flex} numberOfLines={2}>
+                  {s.areaName ?? 'Outdoors'}
+                </ThemedText>
+                <ThemedText type="small" themeColor="textSecondary">
+                  {new Date(s.startedAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+                </ThemedText>
+              </View>
               <ThemedText type="small" themeColor="textSecondary">
-                {new Date(s.startedAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}
+                {formatDuration(s.startedAt, s.endedAt)} · {sum.climbs} {sum.climbs === 1 ? 'climb' : 'climbs'}
+                {hardest(sum) ? ` · hardest ${hardest(sum)}` : ''}
               </ThemedText>
-            </View>
-            <ThemedText type="small" themeColor="textSecondary">
-              {formatDuration(s.startedAt, s.endedAt)} · {sum.climbs} {sum.climbs === 1 ? 'climb' : 'climbs'}
-              {hardest(sum) ? ` · hardest ${hardest(sum)}` : ''}
-            </ThemedText>
-            <ThemedText type="small">{describeSummary(sum)}</ThemedText>
-            <Pressable onPress={() => remove(s.id)} hitSlop={8} accessibilityRole="button" style={styles.delete}>
-              <ThemedText type="small" style={{ color: theme.accent }}>Delete</ThemedText>
-            </Pressable>
-          </Card>
+              <ThemedText type="small">{describeSummary(sum)}</ThemedText>
+              {!selecting && Platform.OS === 'web' && (
+                <Pressable onPress={() => confirmDelete([s.id])} hitSlop={8} accessibilityRole="button" style={styles.delete}>
+                  <ThemedText type="small" style={{ color: theme.accent }}>Delete</ThemedText>
+                </Pressable>
+              )}
+            </Card>
+          </Pressable>
+        );
+        // On the phone, swipe a session left to reveal Delete.
+        if (Platform.OS === 'web' || selecting) return <View key={s.id}>{card}</View>;
+        return (
+          <ReanimatedSwipeable
+            key={s.id}
+            ref={(r) => {
+              if (r) swipers.current.set(s.id, r);
+              else swipers.current.delete(s.id);
+            }}
+            friction={2}
+            rightThreshold={40}
+            overshootRight={false}
+            onSwipeableOpen={() => tap()}
+            renderRightActions={() => (
+              <Pressable
+                onPress={() => confirmDelete([s.id], () => swipers.current.get(s.id)?.close())}
+                accessibilityRole="button"
+                accessibilityLabel="Delete session"
+                style={styles.swipeDelete}>
+                <ThemedText type="smallBold" style={styles.swipeDeleteText}>Delete</ThemedText>
+              </Pressable>
+            )}>
+            {card}
+          </ReanimatedSwipeable>
         );
       })}
-      <Button title="Start a session" onPress={() => router.replace('/partners/session')} />
+      {selecting && (
+        <Button
+          title={selected.size ? `Delete ${selected.size} ${selected.size === 1 ? 'session' : 'sessions'}` : 'Delete'}
+          disabled={selected.size === 0}
+          onPress={() => confirmDelete([...selected])}
+        />
+      )}
+      {!selecting && <Button title="Start a session" onPress={() => router.replace('/partners/session')} />}
     </Screen>
   );
 }
@@ -115,4 +231,18 @@ const styles = StyleSheet.create({
   card: { gap: Spacing.one },
   row: { flexDirection: 'row', gap: Spacing.two, alignItems: 'baseline' },
   delete: { alignSelf: 'flex-end', marginTop: Spacing.one },
+  headerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  toolbar: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  center: { textAlign: 'center' },
+  check: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },
+  checkMark: { color: '#FFFFFF', fontSize: 13, lineHeight: 16 },
+  swipeDelete: {
+    backgroundColor: '#C0392B',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 92,
+    marginLeft: Spacing.two,
+    borderRadius: 16,
+  },
+  swipeDeleteText: { color: '#FFFFFF' },
 });

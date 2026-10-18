@@ -20,7 +20,7 @@ export async function signInWithApple(): Promise<SocialResult> {
 export async function signInWithGoogle(): Promise<SocialResult> {
   const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: window.location.origin + '/profile' },
+    options: { redirectTo: window.location.origin + '/' },
   });
   if (error) {
     const notReady = /provider is not enabled|unsupported provider/i.test(error.message);

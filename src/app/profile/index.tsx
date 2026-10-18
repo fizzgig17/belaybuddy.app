@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Platform } from 'react-native';
 
 import { SignIn } from '@/components/auth/sign-in';
@@ -22,6 +22,19 @@ const closeAction = Platform.OS === 'web' ? <IconButton icon="close" label="Clos
 export default function ProfileScreen() {
   const { user, loading } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
+
+  // Signing in from this sheet takes you to the start page (or back to what you
+  // were doing, such as a friend link), not to your profile.
+  const wasSignedOut = useRef(false);
+  useEffect(() => {
+    if (loading) return;
+    if (!user) {
+      wasSignedOut.current = true;
+    } else if (wasSignedOut.current) {
+      wasSignedOut.current = false;
+      closeProfile();
+    }
+  }, [user, loading]);
 
   async function doSignOut() {
     setSigningOut(true);
