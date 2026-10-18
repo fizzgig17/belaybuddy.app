@@ -14,6 +14,7 @@ export default function Root({ children }: PropsWithChildren) {
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
         <meta name="theme-color" content="#0E7A80" />
+        <meta name="google-site-verification" content="pYei1IOza-DQMyjnHfUbjEyt1nUEsqj99XGjovf84CM" />
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
         <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png" />
