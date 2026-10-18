@@ -63,13 +63,13 @@ export default function SessionsScreen() {
     setSelected(new Set(id ? [id] : []));
   };
 
-  async function deleteMany(ids: string[]) {
+  async function deleteMany(ids: string[], quiet = false) {
     const results = await Promise.allSettled(ids.map((id) => deleteSession(id)));
     const gone = new Set(ids.filter((_, i) => results[i].status === 'fulfilled'));
     setSessions((s) => s?.filter((x) => !gone.has(x.id)) ?? null);
     const failed = results.find((r) => r.status === 'rejected') as PromiseRejectedResult | undefined;
     if (failed) setError((failed.reason as Error).message);
-    else success();
+    else if (!quiet) success();
     stopSelecting();
   }
 
@@ -88,12 +88,45 @@ export default function SessionsScreen() {
     ]);
   }
 
-  const all = sessions ?? [];
+  // Swipe-to-delete is instant, like Gmail: the row goes away at once and an
+  // "Undo" bar stays for a few seconds before the delete is really sent.
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
+  const [undoFor, setUndoFor] = useState<string[] | null>(null);
+  const pending = useRef<{ ids: string[]; timer: ReturnType<typeof setTimeout> } | null>(null);
+
+  const flushPending = useCallback(() => {
+    const p = pending.current;
+    if (!p) return;
+    clearTimeout(p.timer);
+    pending.current = null;
+    setUndoFor(null);
+    void deleteMany(p.ids, true).finally(() => setHidden((h) => new Set([...h].filter((id) => !p.ids.includes(id)))));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function deleteWithUndo(ids: string[]) {
+    flushPending(); // a new delete settles the previous one
+    setHidden((h) => new Set([...h, ...ids]));
+    setUndoFor(ids);
+    pending.current = { ids, timer: setTimeout(flushPending, 5000) };
+  }
+  function undoDelete() {
+    const p = pending.current;
+    if (!p) return;
+    clearTimeout(p.timer);
+    pending.current = null;
+    setUndoFor(null);
+    setHidden((h) => new Set([...h].filter((id) => !p.ids.includes(id))));
+  }
+  // Leaving the screen makes the delete final.
+  useFocusEffect(useCallback(() => flushPending, [flushPending]));
+
+  const all = (sessions ?? []).filter((x) => !hidden.has(x.id));
   const totals = summarize(all.flatMap((s) => s.logs));
   const allSelected = all.length > 0 && selected.size === all.length;
 
   return (
-    <Screen title="Past sessions" showTitle={false} onRefresh={() => fetchSessions().then(setSessions).catch((e: Error) => setError(e.message))}>
+    <Screen title="Past sessions" showTitle={false} overlay={undoFor ? <UndoBar count={undoFor.length} onUndo={undoDelete} /> : undefined} onRefresh={() => fetchSessions().then(setSessions).catch((e: Error) => setError(e.message))}>
       <View style={styles.headerRow}>
         <ThemedText type="subtitle" accessibilityRole="header" style={styles.flex}>
           Your climbing
@@ -172,7 +205,7 @@ export default function SessionsScreen() {
               </ThemedText>
               <ThemedText type="small">{describeSummary(sum)}</ThemedText>
               {!selecting && Platform.OS === 'web' && (
-                <Pressable onPress={() => confirmDelete([s.id])} hitSlop={8} accessibilityRole="button" style={styles.delete}>
+                <Pressable onPress={() => deleteWithUndo([s.id])} hitSlop={8} accessibilityRole="button" style={styles.delete}>
                   <ThemedText type="small" style={{ color: theme.accent }}>Delete</ThemedText>
                 </Pressable>
               )}
@@ -192,21 +225,20 @@ export default function SessionsScreen() {
             rightThreshold={40}
             overshootRight
             onSwipeableWillOpen={() => {
-              // Let go past the full-swipe line: delete, as in Mail.
+              // Let go past the full-swipe line: delete right away, no questions.
               if (fullSwipe.current === s.id) {
                 fullSwipe.current = null;
-                confirmDelete([s.id], () => swipers.current.get(s.id)?.close());
+                deleteWithUndo([s.id]);
               }
             }}
-            onSwipeableOpen={() => tap()}
             renderRightActions={(_progress, drag) => (
               <DeleteAction
                 drag={drag}
                 onFullChange={(full) => {
                   fullSwipe.current = full ? s.id : fullSwipe.current === s.id ? null : fullSwipe.current;
-                  if (full) tap();
+                  tap(); // one tick as the full Delete appears, one as it goes away again
                 }}
-                onPress={() => confirmDelete([s.id], () => swipers.current.get(s.id)?.close())}
+                onPress={() => deleteWithUndo([s.id])}
               />
             )}>
             {card}
@@ -260,6 +292,19 @@ function DeleteAction({
   );
 }
 
+function UndoBar({ count, onUndo }: { count: number; onUndo: () => void }) {
+  return (
+    <View style={styles.undoBar} accessibilityLiveRegion="polite">
+      <ThemedText type="small" style={styles.undoText}>
+        {count === 1 ? 'Session deleted' : `${count} sessions deleted`}
+      </ThemedText>
+      <Pressable onPress={onUndo} hitSlop={10} accessibilityRole="button">
+        <ThemedText type="smallBold" style={styles.undoAction}>Undo</ThemedText>
+      </Pressable>
+    </View>
+  );
+}
+
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <Card style={styles.stat}>
@@ -281,6 +326,17 @@ const styles = StyleSheet.create({
   center: { textAlign: 'center' },
   check: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },
   checkMark: { color: '#FFFFFF', fontSize: 13, lineHeight: 16 },
+  undoBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#1F2D35',
+    borderRadius: 12,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.three,
+  },
+  undoText: { color: '#FFFFFF' },
+  undoAction: { color: '#7FD6D9' },
   swipeSlot: { width: ACTION_WIDTH + Spacing.two },
   swipeDelete: {
     backgroundColor: '#C0392B',

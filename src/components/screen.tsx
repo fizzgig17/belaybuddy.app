@@ -24,10 +24,12 @@ type ScreenProps = {
   profileButton?: boolean;
   /** Pull down to reload. Give it something that returns when loading is done. */
   onRefresh?: () => Promise<unknown> | void;
+  /** Floats above the bottom of the screen, over the tab bar's space (e.g. an Undo bar). */
+  overlay?: ReactNode;
 };
 
 /** Standard scrollable screen shell used by every tab. */
-export function Screen({ title, subtitle, children, showTitle = true, action, profileButton, onRefresh }: ScreenProps) {
+export function Screen({ title, subtitle, children, showTitle = true, action, profileButton, onRefresh, overlay }: ScreenProps) {
   const [refreshing, setRefreshing] = useState(false);
   const pull = onRefresh
     ? async () => {
@@ -65,6 +67,7 @@ export function Screen({ title, subtitle, children, showTitle = true, action, pr
           {children}
         </ScrollView>
       </SafeAreaView>
+      {overlay && <View pointerEvents="box-none" style={styles.overlay}>{overlay}</View>}
       <KeyboardDoneBar />
     </ThemedView>
   );
@@ -76,6 +79,7 @@ const styles = StyleSheet.create({
   title: { flex: 1 },
   buttons: { flexDirection: 'row', gap: Spacing.two },
   safeArea: { flex: 1 },
+  overlay: { position: 'absolute', left: Spacing.three, right: Spacing.three, bottom: BottomTabInset + Spacing.three },
   content: {
     padding: Spacing.three,
     // The floating tab bar sits above the home indicator and is taller than BottomTabInset,
