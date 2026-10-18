@@ -195,7 +195,7 @@ jobs:
         run: |
           code=$(curl -s -m 60 -o "$RUNNER_TEMP/gyms.out" -w '%{http_code}' -X POST "https://$PROJECT_ID.supabase.co/functions/v1/gyms" \
             -H 'Content-Type: application/json' -d '{"lat":35.78,"lng":-78.64,"radiusKm":25}')
-          echo "::notice::gyms function: HTTP $code, $(jq -c '{gyms: (.gyms | length), stale, error}' "$RUNNER_TEMP/gyms.out" 2>/dev/null || head -c 200 "$RUNNER_TEMP/gyms.out")"
+          echo "::notice::gyms function: HTTP $code, $(jq -c '{gyms: (.gyms | length), covered, error}' "$RUNNER_TEMP/gyms.out" 2>/dev/null || head -c 200 "$RUNNER_TEMP/gyms.out")"
           [ "$code" = 200 ]
 
       # Not fatal: OpenBeta can be slow. A good answer also warms the catalog.
@@ -222,6 +222,6 @@ jobs:
           echo "::notice::Registered phones: ${out:-none}"
           out=$(psql "postgresql://postgres.$PROJECT_ID:$password@$POOLER_HOST:5432/postgres" -At -c "select has_table_privilege('service_role', 'public.push_tokens', 'select') || ' / queue update ' || has_table_privilege('service_role', 'public.notification_queue', 'update')" 2>&1 | head -c 300)
           echo "::notice::service_role can read tokens / update queue: $out"
-          out=$(psql "postgresql://postgres.$PROJECT_ID:$password@$POOLER_HOST:5432/postgres" -At -c "select (select count(*) from public.gyms) || ' gyms, ' || (select count(*) from public.gym_cells) || ' areas, oldest fetch ' || coalesce((select to_char(min(fetched_at), 'MM-DD HH24:MI') from public.gym_cells), '-') || ', refresh job ' || coalesce((select schedule from cron.job where jobname = 'belay-buddy-gym-refresh'), 'missing')" 2>&1 | head -c 400)
+          out=$(psql "postgresql://postgres.$PROJECT_ID:$password@$POOLER_HOST:5432/postgres" -At -c "select (select count(*) from public.gyms) || ' gyms, ' || (select count(*) from public.gym_cells) || ' areas, oldest fetch ' || coalesce((select to_char(min(fetched_at), 'MM-DD HH24:MI') from public.gym_cells), '-') || ', ' || coalesce((select count(*) from public.area_requests), 0) || ' areas waiting for the nightly job'" 2>&1 | head -c 400)
           echo "::notice::Gym catalog: ${out:-n/a}"
 

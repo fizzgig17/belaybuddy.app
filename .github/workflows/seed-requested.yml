@@ -1,0 +1,71 @@
+# Nightly: saves the climbing gyms for areas people searched that we hadn't
+# saved yet (the gyms function queues them in area_requests), and refreshes
+# areas not fetched for six days. Runs on a CI runner because Overpass blocks
+# Supabase's servers. Do it by hand: Actions > Seed requested areas > Run.
+name: Seed requested areas
+
+on:
+  schedule:
+    - cron: '17 7 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: seed-gyms  # shares the seeding queue so Overpass isn't hit twice at once
+  cancel-in-progress: false
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        target: [dev, prod]
+    env:
+      TARGET: ${{ matrix.target }}
+      DEV_DB_PASSWORD: ${{ secrets.DEV_DB_PASSWORD }}
+      DEV_PROJECT_ID: ${{ secrets.DEV_PROJECT_ID }}
+      PROD_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
+      PROD_PROJECT_ID: ${{ secrets.PROD_PROJECT_ID }}
+      POOLER_HOST: aws-0-us-east-1.pooler.supabase.com
+    steps:
+      # The schedule runs on the default branch; production data is seeded from there.
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Find areas to save
+        id: find
+        run: |
+          if [ "$TARGET" = prod ]; then PROJECT_ID="$PROD_PROJECT_ID"; DB_PASSWORD="$PROD_DB_PASSWORD"; else PROJECT_ID="$DEV_PROJECT_ID"; DB_PASSWORD="$DEV_DB_PASSWORD"; fi
+          if [ -z "$PROJECT_ID" ] || [ -z "$DB_PASSWORD" ]; then echo "::notice::No $TARGET database secrets; skipping."; echo "count=0" >> "$GITHUB_OUTPUT"; exit 0; fi
+          password=$(jq -rn --arg p "$DB_PASSWORD" '$p | @uri')
+          echo "::add-mask::$password"
+          echo "DB_URL=postgresql://postgres.$PROJECT_ID:$password@$POOLER_HOST:5432/postgres" >> "$GITHUB_ENV"
+          # Requested areas first (most asked first), then the oldest saved ones; 40 a night.
+          psql "postgresql://postgres.$PROJECT_ID:$password@$POOLER_HOST:5432/postgres" -At -c "
+            select cell from (
+              select cell, 0 as rank, hits as weight from public.area_requests
+              union all
+              select cell, 1, 0 from public.gym_cells where fetched_at < now() - interval '6 days'
+            ) x
+            order by rank, weight desc
+            limit 40" > "$RUNNER_TEMP/cells.txt"
+          echo "count=$(grep -c . "$RUNNER_TEMP/cells.txt" || true)" >> "$GITHUB_OUTPUT"
+          echo "::notice::$TARGET: $(grep -c . "$RUNNER_TEMP/cells.txt" || true) areas to save"
+
+      - name: Fetch gyms from OpenStreetMap
+        if: steps.find.outputs.count != '0'
+        env:
+          SEED_CELLS_FILE: ${{ runner.temp }}/cells.txt
+        run: |
+          node .github/scripts/seed-gyms.mjs "$RUNNER_TEMP/seed.sql" | tee "$RUNNER_TEMP/seed.log"
+          echo "::notice::$(grep -E '^(SUMMARY|FAILED_LIST)' "$RUNNER_TEMP/seed.log" | tr '\n' ' ')"
+
+      - name: Save them to the database
+        if: steps.find.outputs.count != '0'
+        run: |
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -q -f "$RUNNER_TEMP/seed.sql"
+          echo "::notice::$TARGET catalog now: $(psql "$DB_URL" -At -c "select (select count(*) from public.gyms) || ' gyms in ' || (select count(*) from public.gym_cells) || ' areas, ' || (select count(*) from public.area_requests) || ' waiting'")"

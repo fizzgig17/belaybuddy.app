@@ -140,20 +140,23 @@ function osmToGym(el: OsmElement): ClimbingArea | null {
 }
 
 /** Gyms from our catalog. Throws if the function can't be reached. */
-async function fetchGymCatalog(center: LatLng, radiusKm: number): Promise<ClimbingArea[]> {
-  const call = supabase.functions.invoke<{ gyms: ClimbingArea[] }>('gyms', {
+async function fetchGymCatalog(center: LatLng, radiusKm: number): Promise<{ gyms: ClimbingArea[]; covered: boolean }> {
+  const call = supabase.functions.invoke<{ gyms: ClimbingArea[]; covered?: boolean }>('gyms', {
     body: { lat: center.latitude, lng: center.longitude, radiusKm },
   });
-  const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timed out')), 30_000));
+  const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timed out')), 10_000));
   const { data, error } = await Promise.race([call, timeout]);
   if (error || !data?.gyms) throw new Error(error?.message ?? 'No gym data');
-  return data.gyms;
+  return { gyms: data.gyms, covered: data.covered !== false };
 }
 
 export function fetchGyms(center: LatLng, radiusKm: number): Promise<ClimbingArea[]> {
   return cached(cacheKey('gyms', center, radiusKm), async () => {
     try {
-      return await fetchGymCatalog(center, radiusKm);
+      const saved = await fetchGymCatalog(center, radiusKm);
+      // Saved areas answer instantly. An area we haven't saved yet (the server
+      // has queued it for tonight) is looked up from here, which isn't blocked.
+      if (saved.covered || saved.gyms.length > 0) return saved.gyms;
     } catch {
       // Fall through to asking OpenStreetMap directly.
     }

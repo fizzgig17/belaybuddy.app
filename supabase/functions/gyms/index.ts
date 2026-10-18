@@ -1,8 +1,8 @@
-// "Gyms near here" from our own catalog (public.gyms), refreshed from
-// OpenStreetMap (Overpass) when an area is new or over a week old. If Overpass
-// is down, whatever is already saved is returned (stale: true).
+// "Gyms near here" from our own catalog (public.gyms), which a GitHub workflow
+// fills from OpenStreetMap (Overpass blocks Supabase's servers).
 //
-// POST { lat, lng, radiusKm } -> { gyms: ClimbingArea[], stale: boolean }
+// POST { lat, lng, radiusKm } -> { gyms: ClimbingArea[], covered: boolean }
+// covered=false means this area isn't saved yet (it is queued for the nightly job).
 // Public: no secret needed. Rows are public map data; the function only ever
 // asks Overpass for a coarse, cached area, never the person's exact position.
 // Data © OpenStreetMap contributors (ODbL).
@@ -22,7 +22,7 @@ const ENDPOINTS = (
     'https://overpass-api.de/api/interpreter,https://overpass.kumi.systems/api/interpreter,https://overpass.private.coffee/api/interpreter,https://maps.mail.ru/osm/tools/overpass/api/interpreter'
 ).split(',');
 const FRESH_MS = 7 * 24 * 3600_000;
-const BUCKETS = [10, 25, 50, 100];
+const BUCKETS = [10, 25, 50];
 const MAX_ELEMENTS = 500;
 // The cell center is snapped to 0.1 degrees (up to ~7 km off), so fetch that much extra.
 const SNAP_MARGIN_KM = 8;
@@ -206,22 +206,21 @@ Deno.serve(async (req) => {
 
   const snapLat = Math.round(lat * 10) / 10;
   const snapLng = Math.round(lng * 10) / 10;
-  const bucket = BUCKETS.find((b) => b >= radiusKm) ?? 100;
+  const bucket = BUCKETS.find((b) => b >= radiusKm) ?? 50;
   const cell = `${snapLat.toFixed(1)},${snapLng.toFixed(1)}:${bucket}`;
 
   const { data: seen } = await db.from('gym_cells').select('fetched_at').eq('cell', cell).maybeSingle();
   const fresh = seen && Date.now() - new Date(seen.fetched_at).getTime() < FRESH_MS;
 
-  let stale = false;
-  let problem = '';
-  if (!fresh) {
-    try {
-      await refreshCell(db, cell);
-    } catch (e) {
-      stale = true;
-      problem = (e as Error).message;
-      console.warn('refresh failed', cell, problem);
-    }
+  // Never ask Overpass from here: it blocks Supabase's servers, so the call only
+  // made people wait. Answer from what is saved and note whether this area is
+  // covered. If not, remember the request so the nightly job (see
+  // .github/workflows/seed-requested.yml) saves it, and the app looks it up
+  // directly from the phone in the meantime.
+  const covered = Boolean(fresh);
+  if (!covered) {
+    const { error: reqError } = await db.rpc('request_gym_area', { p_cell: cell });
+    if (reqError) console.warn('request failed', reqError.message);
   }
 
   const { data, error } = await db.rpc('nearby_gyms', { p_lat: lat, p_lng: lng, p_radius_km: radiusKm });
@@ -239,7 +238,5 @@ Deno.serve(async (req) => {
     phone: g.phone ?? undefined,
     openingHours: g.opening_hours ?? undefined,
   }));
-  // Nothing saved and Overpass failed: say so rather than claim "no gyms here".
-  if (stale && gyms.length === 0) return json({ error: `Gym data is unavailable right now (${problem})` }, 502);
-  return json({ gyms, stale });
+  return json({ gyms, covered });
 });
