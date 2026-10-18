@@ -1,6 +1,6 @@
 import { Link } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Keyboard, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { AreaRow } from '@/components/find/area-row';
@@ -18,7 +18,7 @@ import { loadNearby, type NearbyState } from '@/lib/areas';
 import { useAuth } from '@/lib/auth';
 import { useFavorites } from '@/lib/favorites';
 import { distanceKm, milesToKm } from '@/lib/geo';
-import { describePoint, getDeviceLocation, LocationDeniedError, searchPlaces, type Place } from '@/lib/location';
+import { describePoint, getDeviceLocation, LocationDeniedError, searchPlaces, suggestPlaces, type Place } from '@/lib/location';
 import type { ClimbingArea, Favorite } from '@/types/models';
 
 type Filter = 'all' | 'gym' | 'crag';
@@ -44,6 +44,8 @@ export default function FindScreen() {
   const [place, setPlace] = useState<Place | null>(null);
   const [query, setQuery] = useState('');
   const [choices, setChoices] = useState<Place[]>([]);
+  const [suggestions, setSuggestions] = useState<Place[]>([]);
+  const picked = useRef(false); // the text was just filled in from a suggestion
   const [locating, setLocating] = useState(false);
   const [result, setResult] = useState<NearbyState | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -62,9 +64,34 @@ export default function FindScreen() {
   const choose = useCallback((p: Place) => {
     setPlace(p);
     setChoices([]);
+    setSuggestions([]);
     setMessage(null);
     saveLastPlace(p);
   }, []);
+
+  // Suggest places while typing: after a pause, from three characters, newest answer wins.
+  const near = place?.point;
+  useEffect(() => {
+    if (picked.current) {
+      picked.current = false;
+      return;
+    }
+    const q = query.trim();
+    if (q.length < 3 || /^\d{5}$/.test(q)) {
+      setSuggestions([]);
+      return;
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      const found = await suggestPlaces(q, controller.signal, near);
+      if (!controller.signal.aborted) setSuggestions(found);
+    }, 350);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
 
   // Load results whenever the location or radius changes. Keyed on the point,
   // not the place object, so filling in the place name doesn't reload.
@@ -109,6 +136,7 @@ export default function FindScreen() {
     const q = query.trim();
     if (!q) return;
     Keyboard.dismiss(); // Android keeps its search key busy while the keyboard stays up
+    setSuggestions([]);
     setLocating(true);
     setMessage(null);
     try {
@@ -176,6 +204,23 @@ export default function FindScreen() {
           )}
         </Pressable>
       </View>
+
+      {suggestions.length > 0 && choices.length === 0 && (
+        <ThemedView type="backgroundElement" style={styles.choices}>
+          {suggestions.map((c, i) => (
+            <Pressable
+              key={`${c.label}-${i}`}
+              onPress={() => {
+                picked.current = true;
+                setQuery(c.label);
+                choose(c);
+              }}
+              accessibilityRole="button">
+              <ThemedText style={{ color: theme.accent }}>{c.label}</ThemedText>
+            </Pressable>
+          ))}
+        </ThemedView>
+      )}
 
       {choices.length > 0 && (
         <ThemedView type="backgroundElement" style={styles.choices}>

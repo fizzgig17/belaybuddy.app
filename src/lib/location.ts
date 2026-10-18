@@ -126,3 +126,54 @@ export async function describePoint(point: LatLng): Promise<string | null> {
     return null;
   }
 }
+
+// --- Suggestions while typing (Photon) ----------------------------------------
+// Nominatim's policy forbids search-as-you-type, so suggestions come from Photon, an
+// OpenStreetMap search built for it (photon.komoot.io). Light use only: the app waits
+// for a pause in typing, needs 3+ characters, and remembers recent answers.
+const PHOTON = 'https://photon.komoot.io/api/';
+
+type PhotonFeature = {
+  geometry?: { coordinates?: [number, number] };
+  properties?: Record<string, string | undefined>;
+};
+
+const suggestionCache = new Map<string, Place[]>();
+
+function photonLabel(p: Record<string, string | undefined>): string | null {
+  const street = [p.housenumber, p.street].filter(Boolean).join(' ');
+  const first = p.name ?? (street || p.city);
+  if (!first) return null;
+  const place = p.city ?? p.town ?? p.village ?? p.county;
+  const parts = [first, p.name && street ? street : null, place !== first ? place : null, p.state].filter(Boolean) as string[];
+  return [...new Set(parts)].join(', ');
+}
+
+/** Up to five places matching what has been typed so far. Never throws: returns [] on any problem. */
+export async function suggestPlaces(query: string, signal?: AbortSignal, near?: LatLng): Promise<Place[]> {
+  const q = query.trim();
+  if (q.length < 3) return [];
+  const key = q.toLowerCase();
+  const hit = suggestionCache.get(key);
+  if (hit) return hit;
+  try {
+    const bias = near ? `&lat=${near.latitude.toFixed(2)}&lon=${near.longitude.toFixed(2)}` : '';
+    const res = await fetch(`${PHOTON}?q=${encodeURIComponent(q)}&limit=5&lang=en${bias}`, { headers: HEADERS, signal });
+    if (!res.ok) return [];
+    const json = (await res.json()) as { features?: PhotonFeature[] };
+    const seen = new Set<string>();
+    const out: Place[] = [];
+    for (const f of json.features ?? []) {
+      const c = f.geometry?.coordinates;
+      const label = f.properties ? photonLabel(f.properties) : null;
+      if (!c || !label || seen.has(label)) continue;
+      seen.add(label);
+      out.push({ point: { latitude: c[1], longitude: c[0] }, label });
+    }
+    if (suggestionCache.size > 200) suggestionCache.clear();
+    suggestionCache.set(key, out);
+    return out;
+  } catch {
+    return [];
+  }
+}
