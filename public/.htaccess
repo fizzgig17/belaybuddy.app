@@ -26,6 +26,8 @@
     ForceType application/json
 </Files>
 
+AddType application/manifest+json .webmanifest
+
 ErrorDocument 404 /+not-found.html
 
 # /learn is a folder (learn/index.html); serve it at /learn without Apache
