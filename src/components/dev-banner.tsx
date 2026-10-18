@@ -1,3 +1,4 @@
+import Constants from 'expo-constants';
 import { StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -12,6 +13,8 @@ export const IS_DEV_BUILD = supabaseConfig.appEnv !== 'prod';
  * mistakes it for the real app. It also covers the status-bar area, so screens
  * below it skip their own top inset (see Screen).
  */
+const BUILD = Constants.expoConfig?.ios?.buildNumber;
+
 export function DevBanner() {
   const insets = useSafeAreaInsets();
   if (!IS_DEV_BUILD) return null;
@@ -21,7 +24,7 @@ export function DevBanner() {
       accessibilityLabel="Development build"
       style={[styles.bar, { paddingTop: insets.top + 2 }]}>
       <ThemedText type="smallBold" style={styles.text}>
-        DEV BUILD · test data, not the real app
+        DEV BUILD{BUILD ? ` ${BUILD}` : ''} · test data, not the real app
       </ThemedText>
     </View>
   );
