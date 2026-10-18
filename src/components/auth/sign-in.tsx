@@ -1,5 +1,6 @@
 import { AppCard } from '@/components/app-card';
 import * as Clipboard from 'expo-clipboard';
+import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
@@ -185,6 +186,17 @@ export function SignIn() {
           We'll email you a 6-digit code. No password needed. New here? This creates your account.
         </ThemedText>
         <SignInOptions />
+        <ThemedText type="small" themeColor="textSecondary">
+          By continuing you agree to the{' '}
+          <ThemedText type="small" accessibilityRole="link" style={{ color: theme.accent }} onPress={() => router.push('/terms')}>
+            Terms of use
+          </ThemedText>{' '}
+          and have read the{' '}
+          <ThemedText type="small" accessibilityRole="link" style={{ color: theme.accent }} onPress={() => router.push('/privacy')}>
+            Privacy policy
+          </ThemedText>
+          .
+        </ThemedText>
       </View>
     );
   }
