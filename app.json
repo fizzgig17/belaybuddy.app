@@ -63,7 +63,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": false,
+          "cameraPermission": "Belay Buddy uses the camera to photograph gym walls so Route AI can highlight the holds on a route, and to scan a friend’s QR code.",
           "microphonePermission": false,
           "recordAudioAndroid": false
         }
