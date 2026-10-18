@@ -2,8 +2,10 @@ import * as Clipboard from 'expo-clipboard';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, Share, StyleSheet, View } from 'react-native';
+import QRCode from 'react-native-qrcode-svg';
 
 import { Button, Field, ToggleRow } from '@/components/form';
+import { CodeScanner } from '@/components/friends/code-scanner';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/group';
@@ -236,8 +238,14 @@ function MyCode() {
       <ThemedText type="subtitle" selectable style={styles.code}>
         {code ? `${code.slice(0, 4)} ${code.slice(4)}` : '…'}
       </ThemedText>
+      {code && (
+        // Dark on white with a margin, so it scans in both light and dark mode.
+        <View style={styles.qr} accessibilityLabel="QR code for your friend link">
+          <QRCode value={friendLink(code)} size={168} color="#1F2D35" backgroundColor="#FFFFFF" ecl="M" />
+        </View>
+      )}
       <ThemedText type="small" themeColor="textSecondary">
-        Give it to people you climb with. It only lets them send you a request.
+        Let a friend scan this, or send them the link or code. It only lets them send you a request.
       </ThemedText>
       <View style={styles.buttons}>
         <View style={styles.flex}><Button title="Share link" onPress={share} disabled={!code} /></View>
@@ -251,13 +259,14 @@ function AddByCode({ onAdded }: { onAdded: () => void }) {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [scanning, setScanning] = useState(false);
 
-  async function add() {
-    if (busy || code.replace(/\s/g, '').length < 8) return;
+  async function add(value = code) {
+    if (busy || value.replace(/\s/g, '').length < 8) return;
     setBusy(true);
     setMessage(null);
     try {
-      const r = await addFriendByCode(code);
+      const r = await addFriendByCode(value);
       setMessage(describeAdd(r.status, r.name));
       if (r.status !== 'invalid') {
         setCode('');
@@ -284,9 +293,22 @@ function AddByCode({ onAdded }: { onAdded: () => void }) {
         autoCapitalize="characters"
         autoCorrect={false}
         returnKeyType="done"
-        onSubmitEditing={add}
+        onSubmitEditing={() => add()}
       />
-      <Button title="Add friend" onPress={add} disabled={code.replace(/\s/g, '').length < 8} loading={busy} />
+      <Button title="Add friend" onPress={() => add()} disabled={code.replace(/\s/g, '').length < 8} loading={busy} />
+      {Platform.OS !== 'web' && (
+        <>
+          <Button title="Scan a friend’s QR code" variant="secondary" onPress={() => setScanning(true)} />
+          <CodeScanner
+            visible={scanning}
+            onClose={() => setScanning(false)}
+            onCode={(scanned) => {
+              setScanning(false);
+              add(scanned);
+            }}
+          />
+        </>
+      )}
       {message && <ThemedText type="small">{message}</ThemedText>}
     </Card>
   );
@@ -402,4 +424,5 @@ const styles = StyleSheet.create({
   rowBlock: { gap: Spacing.two, paddingVertical: Spacing.one },
   buttons: { flexDirection: 'row', gap: Spacing.two },
   code: { letterSpacing: 2 },
+  qr: { alignSelf: 'center', padding: Spacing.three, backgroundColor: '#FFFFFF', borderRadius: Spacing.three },
 });

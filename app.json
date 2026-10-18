@@ -13,7 +13,7 @@
       "supportsTablet": false,
       "usesAppleSignIn": true,
       "infoPlist": {
-        "NSCameraUsageDescription": "Belay Buddy uses the camera to photograph gym walls so Route AI can highlight the holds on a route.",
+        "NSCameraUsageDescription": "Belay Buddy uses the camera to photograph gym walls so Route AI can highlight the holds on a route, and to scan a friend’s QR code.",
         "NSPhotoLibraryUsageDescription": "Belay Buddy lets you pick wall photos from your library for Route AI.",
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -59,6 +59,14 @@
         }
       ],
       "expo-apple-authentication",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": false,
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
       [
         "expo-notifications",
         {
