@@ -236,7 +236,9 @@ export default function AreaScreen() {
       <ThemedText type="small" themeColor="textSecondary">
         {area.source === 'osm'
           ? 'Gym details come from OpenStreetMap, which anyone can update. '
-          : 'Crag details come from OpenBeta, the open climbing database. '}
+          : area.source === 'overture'
+            ? 'Gym details come from Overture Maps open data and may be out of date. '
+            : 'Crag details come from OpenBeta, the open climbing database. '}
         {fix && (
           <ThemedText type="small" style={{ color: theme.accent }} onPress={() => Linking.openURL(fix)}>
             Suggest a fix

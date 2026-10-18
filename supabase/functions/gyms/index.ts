@@ -1,11 +1,11 @@
-// "Gyms near here" from our own catalog (public.gyms), which a GitHub workflow
-// fills from OpenStreetMap (Overpass blocks Supabase's servers).
+// "Gyms near here" from our own catalog (public.gyms), which GitHub workflows fill
+// from OpenStreetMap (Overpass blocks Supabase's servers) and Overture Maps.
 //
 // POST { lat, lng, radiusKm } -> { gyms: ClimbingArea[], covered: boolean }
 // covered=false means this area isn't saved yet (it is queued for the nightly job).
 // Public: no secret needed. Rows are public map data; the function only ever
 // asks Overpass for a coarse, cached area, never the person's exact position.
-// Data © OpenStreetMap contributors (ODbL).
+// Data © OpenStreetMap contributors (ODbL) and © Overture Maps Foundation (CDLA-Permissive-2.0).
 
 import { createClient } from 'npm:@supabase/supabase-js@2.58.0';
 
@@ -119,6 +119,25 @@ async function overpass(query: string): Promise<OsmElement[]> {
   }
 }
 
+const norm = (s: string) => s.toLowerCase().replace(/&/g, 'and').replace(/[^a-z0-9]+/g, '');
+
+function km(a: { latitude: number; longitude: number }, b: { latitude: number; longitude: number }) {
+  const r = Math.PI / 180;
+  const h = Math.sin(((b.latitude - a.latitude) * r) / 2) ** 2 +
+    Math.cos(a.latitude * r) * Math.cos(b.latitude * r) * Math.sin(((b.longitude - a.longitude) * r) / 2) ** 2;
+  return 2 * 6371 * Math.asin(Math.sqrt(h));
+}
+
+/** Drops Overture gyms that are the same place as an OpenStreetMap one (close by, names match). */
+function withoutDuplicates(rows: GymRow[]): GymRow[] {
+  const osm = rows.filter((r) => r.source === 'osm').map((r) => ({ r, n: norm(r.name) }));
+  return rows.filter((g) => {
+    if (g.source !== 'overture') return true;
+    const n = norm(g.name);
+    return !osm.some((o) => o.n.length >= 4 && n.length >= 4 && (o.n.includes(n) || n.includes(o.n)) && km(o.r, g) < 0.3);
+  });
+}
+
 const makeDb = () =>
   createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
     auth: { persistSession: false },
@@ -217,15 +236,25 @@ Deno.serve(async (req) => {
   // covered. If not, remember the request so the nightly job (see
   // .github/workflows/seed-requested.yml) saves it, and the app looks it up
   // directly from the phone in the meantime.
-  const covered = Boolean(fresh);
-  if (!covered) {
+  // A bulk source (Overture Maps) may have loaded this whole region already.
+  const { data: region } = await db
+    .from('gym_coverage')
+    .select('id')
+    .lte('min_lat', lat)
+    .gte('max_lat', lat)
+    .lte('min_lng', lng)
+    .gte('max_lng', lng)
+    .gte('loaded_at', new Date(Date.now() - 60 * 24 * 3600_000).toISOString())
+    .limit(1);
+  const covered = Boolean(fresh) || Boolean(region?.length);
+  if (!fresh) {
     const { error: reqError } = await db.rpc('request_gym_area', { p_cell: cell });
     if (reqError) console.warn('request failed', reqError.message);
   }
 
   const { data, error } = await db.rpc('nearby_gyms', { p_lat: lat, p_lng: lng, p_radius_km: radiusKm });
   if (error) return json({ error: error.message }, 500);
-  const gyms = ((data ?? []) as GymRow[]).map((g) => ({
+  const gyms = withoutDuplicates((data ?? []) as GymRow[]).map((g) => ({
     id: g.id,
     kind: 'gym',
     name: g.name,

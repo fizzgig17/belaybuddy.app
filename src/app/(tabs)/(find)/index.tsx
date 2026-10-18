@@ -265,7 +265,7 @@ export default function FindScreen() {
           ) : (
             <>
               {result?.errors.gyms && (
-                <Notice text={`Gyms couldn't be loaded right now (${result.errors.gyms}). Try again in a minute.`} />
+                <Notice text="We're still gathering gyms for this area. Check back soon, or try a larger distance." />
               )}
               {result?.errors.crags && (
                 <Notice text={`Crags couldn't be loaded right now (${result.errors.crags}). Try again in a minute.`} />
@@ -303,8 +303,8 @@ export default function FindScreen() {
               )}
               {result && (
                 <ThemedText type="small" themeColor="textSecondary" style={styles.attribution}>
-                  Gym data © OpenStreetMap contributors. Crag data from OpenBeta. Missing a spot? Both are
-                  community-edited and open to updates.
+                  Gym data © OpenStreetMap contributors and Overture Maps Foundation. Crag data from OpenBeta.
+                  Missing a spot? These are open data sources that can be updated.
                 </ThemedText>
               )}
             </>

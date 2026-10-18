@@ -40,7 +40,7 @@ export const PRIVACY_SECTIONS: PolicySection[] = [
       'Apple delivers push notifications to iPhones and distributes the iPhone app. Google (Firebase Cloud Messaging) delivers push notifications to Android phones, and Google Play distributes the Android app.',
       'Our email provider sends sign-in codes and the email notifications you choose.',
       'Apple and Google, if you choose to sign in with them, confirm who you are under their own privacy policies.',
-      'OpenStreetMap, through the Overpass service, supplies gym and shop listings, and OpenBeta supplies outdoor crags. We send them a coarse area, never your identity.',
+      'OpenStreetMap, through the Overpass service, and the Overture Maps Foundation’s open data supply gym and shop listings, and OpenBeta supplies outdoor crags. We send them a coarse area, never your identity.',
       'Anthropic handles Route AI requests, as described above.',
       'We do not sell your data and we do not show ads.',
     ],

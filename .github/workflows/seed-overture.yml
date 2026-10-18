@@ -1,0 +1,58 @@
+# Loads climbing gyms for the US and Canada from Overture Maps (open data, read from a
+# public file, so no live service to fail) into the gym catalog, and marks those
+# regions as covered. Monthly, or by hand: Actions > Seed gyms from Overture > Run
+# workflow. A commit to develop whose message contains [overture] loads dev only.
+name: Seed gyms from Overture
+
+on:
+  schedule:
+    - cron: '40 6 1 * *'
+  push:
+    branches: [develop]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Which database
+        type: choice
+        options: [both, dev, prod]
+        default: both
+
+concurrency:
+  group: seed-overture
+  cancel-in-progress: false
+
+jobs:
+  load:
+    if: github.event_name != 'push' || contains(github.event.head_commit.message, '[overture]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      TARGETS: ${{ github.event_name == 'push' && 'dev' || (inputs.target == 'dev' && 'dev') || (inputs.target == 'prod' && 'prod') || 'dev prod' }}
+      DEV_DB_PASSWORD: ${{ secrets.DEV_DB_PASSWORD }}
+      DEV_PROJECT_ID: ${{ secrets.DEV_PROJECT_ID }}
+      PROD_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
+      PROD_PROJECT_ID: ${{ secrets.PROD_PROJECT_ID }}
+      POOLER_HOST: aws-0-us-east-1.pooler.supabase.com
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install duckdb
+
+      - name: Read gyms from Overture Maps
+        run: |
+          python3 .github/scripts/overture-gyms.py "$RUNNER_TEMP/overture.sql" | tee "$RUNNER_TEMP/overture.log"
+          echo "::notice::$(grep -E '^(Overture release|SUMMARY|Categories seen)' "$RUNNER_TEMP/overture.log" | tr '\n' ' ')"
+
+      - name: Save them to the database
+        run: |
+          for TARGET in $TARGETS; do
+            if [ "$TARGET" = prod ]; then PROJECT_ID="$PROD_PROJECT_ID"; DB_PASSWORD="$PROD_DB_PASSWORD"; else PROJECT_ID="$DEV_PROJECT_ID"; DB_PASSWORD="$DEV_DB_PASSWORD"; fi
+            if [ -z "$PROJECT_ID" ] || [ -z "$DB_PASSWORD" ]; then echo "::notice::No $TARGET database secrets; skipping."; continue; fi
+            password=$(jq -rn --arg p "$DB_PASSWORD" '$p | @uri')
+            echo "::add-mask::$password"
+            url="postgresql://postgres.$PROJECT_ID:$password@$POOLER_HOST:5432/postgres"
+            psql "$url" -v ON_ERROR_STOP=1 -q -f "$RUNNER_TEMP/overture.sql"
+            echo "::notice::$TARGET catalog now: $(psql "$url" -At -c "select (select count(*) from public.gyms where source = 'overture') || ' Overture gyms, ' || (select count(*) from public.gyms) || ' in all, ' || (select count(*) from public.gym_coverage) || ' covered regions'")"
+          done

@@ -1,8 +1,9 @@
 /**
  * Finding climbing areas near a point.
- *   Gyms  — our own catalog (Supabase `gyms`, filled from OpenStreetMap through the
- *           `gyms` Edge Function), falling back to Overpass directly if that's down
- *           (© OpenStreetMap contributors, ODbL)
+ *   Gyms  — our own catalog (Supabase `gyms`, filled from OpenStreetMap and Overture
+ *           Maps by GitHub workflows, served by the `gyms` Edge Function), falling back
+ *           to Overpass directly if that's down
+ *           (© OpenStreetMap contributors, ODbL; © Overture Maps Foundation)
  *   Crags — our own catalog (Supabase `crags`, filled from OpenBeta through the
  *           `crags` Edge Function), falling back to OpenBeta directly if that's down
  *           (openbeta.io, the open climbing route database)

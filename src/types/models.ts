@@ -7,7 +7,7 @@ export type LatLng = { latitude: number; longitude: number };
 
 export type ClimbingStyle = 'bouldering' | 'top-rope' | 'lead' | 'trad' | 'multipitch' | 'ice';
 
-export type AreaSource = 'osm' | 'openbeta' | 'mapkit' | 'google-places' | 'user';
+export type AreaSource = 'osm' | 'overture' | 'openbeta' | 'mapkit' | 'google-places' | 'user';
 
 /** An indoor gym (from OpenStreetMap) or an outdoor crag (from OpenBeta). */
 export type ClimbingArea = {
