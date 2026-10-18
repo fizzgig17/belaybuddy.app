@@ -80,7 +80,7 @@ export function Screen({ title, subtitle, children, showTitle = true, action, pr
                   )}
                   {user && <IconButton icon="session" label="Start a session" onPress={() => router.push('/partners/session')} />}
                   {user && <IconButton icon="person" label="Profile" onPress={() => router.push('/profile')} />}
-                  <IconButton icon="settings" label="Settings" onPress={() => router.push('/profile/settings')} />
+                  {user && <IconButton icon="settings" label="Settings" onPress={() => router.push('/profile/settings')} />}
                 </View>
               )}
             </View>
