@@ -1,8 +1,9 @@
 // "Gyms near here" from our own catalog (public.gyms), which GitHub workflows fill
 // from OpenStreetMap (Overpass blocks Supabase's servers) and Overture Maps.
 //
-// POST { lat, lng, radiusKm } -> { gyms: ClimbingArea[], covered: boolean }
-// covered=false means this area isn't saved yet (it is queued for the nightly job).
+// POST { lat, lng, radiusKm } -> { gyms: ClimbingArea[], covered: boolean, regionLoaded: boolean }
+// covered=false means this area isn't fully saved yet (it is queued for the nightly job).
+// regionLoaded=true means a bulk source (Overture Maps) has loaded this region.
 // Public: no secret needed. Rows are public map data; the function only ever
 // asks Overpass for a coarse, cached area, never the person's exact position.
 // Data © OpenStreetMap contributors (ODbL) and © Overture Maps Foundation (CDLA-Permissive-2.0).
@@ -246,7 +247,9 @@ Deno.serve(async (req) => {
     .gte('max_lng', lng)
     .gte('loaded_at', new Date(Date.now() - 60 * 24 * 3600_000).toISOString())
     .limit(1);
-  const covered = Boolean(fresh) || Boolean(region?.length);
+  const covered = Boolean(fresh);
+  // Overture covers this region, but it is not every gym, so it never counts as "covered" on its own.
+  const regionLoaded = Boolean(region?.length);
   if (!fresh) {
     const { error: reqError } = await db.rpc('request_gym_area', { p_cell: cell });
     if (reqError) console.warn('request failed', reqError.message);
@@ -267,5 +270,5 @@ Deno.serve(async (req) => {
     phone: g.phone ?? undefined,
     openingHours: g.opening_hours ?? undefined,
   }));
-  return json({ gyms, covered });
+  return json({ gyms, covered, regionLoaded });
 });

@@ -23,7 +23,7 @@ BUCKET = 'overturemaps-us-west-2'
 GYM = re.compile(r'^(rock_climbing_gym|climbing_gym|bouldering_gym|indoor_climbing\w*|climbing_wall\w*)$')
 # A place named like a climbing gym in one of these categories counts too (many gyms are
 # filed under a general fitness category).
-NAME_OK = re.compile(r'^(gym|fitness_center|sports_club\w*|sports_and_recreation_venue|recreation_center|sports_recreation\w*|active_life|amateur_sports_team|community_center|fitness_trainer|sports_and_fitness_instruction|yoga_studio)$')
+NAME_OK = re.compile(r'^(gym|fitness_center|sports_club\w*|sports_and_recreation|sports_and_recreation_venue|recreation_center|sports_recreation\w*|active_life|amateur_sports_team|community_center|fitness_trainer|sports_and_fitness_instruction|yoga_studio)$')
 COUNTRIES = {'US', 'CA'}
 MIN_ROWS = 100  # fewer than this means something is wrong; don't replace the data
 COVERAGE = [  # id, min_lat, max_lat, min_lng, max_lng

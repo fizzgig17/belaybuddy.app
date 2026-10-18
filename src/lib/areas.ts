@@ -141,49 +141,66 @@ function osmToGym(el: OsmElement): ClimbingArea | null {
 }
 
 /** Gyms from our catalog. Throws if the function can't be reached. */
-async function fetchGymCatalog(center: LatLng, radiusKm: number): Promise<{ gyms: ClimbingArea[]; covered: boolean }> {
-  const call = supabase.functions.invoke<{ gyms: ClimbingArea[]; covered?: boolean }>('gyms', {
+async function fetchGymCatalog(
+  center: LatLng,
+  radiusKm: number,
+): Promise<{ gyms: ClimbingArea[]; covered: boolean; regionLoaded: boolean }> {
+  const call = supabase.functions.invoke<{ gyms: ClimbingArea[]; covered?: boolean; regionLoaded?: boolean }>('gyms', {
     body: { lat: center.latitude, lng: center.longitude, radiusKm },
   });
   const timeout = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timed out')), 10_000));
   const { data, error } = await Promise.race([call, timeout]);
   if (error || !data?.gyms) throw new Error(error?.message ?? 'No gym data');
-  return { gyms: data.gyms, covered: data.covered !== false };
+  return { gyms: data.gyms, covered: data.covered !== false, regionLoaded: data.regionLoaded === true };
 }
 
 export function fetchGyms(center: LatLng, radiusKm: number): Promise<ClimbingArea[]> {
   return cached(cacheKey('gyms', center, radiusKm), async () => {
+    let regionGyms: ClimbingArea[] | null = null;
     try {
       const saved = await fetchGymCatalog(center, radiusKm);
       // Saved areas answer instantly. An area we haven't saved yet (the server
       // has queued it for tonight) is looked up from here, which isn't blocked.
       if (saved.covered || saved.gyms.length > 0) return saved.gyms;
+      // Overture has loaded this region but nothing is saved here: try OpenStreetMap, without failing.
+      if (saved.regionLoaded) regionGyms = saved.gyms;
     } catch {
       // Fall through to asking OpenStreetMap directly.
     }
-    // Asked from the phone, so send a coarse spot (about 10 km) and a wider radius
-    // rather than the exact position; results are trimmed to the real radius below.
-    const spot = coarsen(center, 1);
-    const r = Math.round((radiusKm + 8) * 1000);
-    const at = `(around:${r},${spot.latitude},${spot.longitude})`;
-    // Indoor climbing: sport=climbing on a gym-like place. Outdoor crags are
-    // also tagged sport=climbing in OSM, so require an indoor-ish tag.
-    const query = `[out:json][timeout:12];(
-      nwr["sport"~"climbing|bouldering"]["leisure"~"^(sports_centre|fitness_centre|sports_hall)$"]${at};
-      nwr["sport"~"climbing|bouldering"]["indoor"="yes"]${at};
-      nwr["sport"~"climbing|bouldering"]["building"]${at};
-    );out center tags 200;`;
-    const elements = await queryOverpass(query);
-    const seen = new Set<string>();
-    const gyms: ClimbingArea[] = [];
-    for (const el of elements) {
-      const gym = osmToGym(el);
-      if (!gym || seen.has(gym.id)) continue;
-      seen.add(gym.id);
-      gyms.push(gym);
+    if (regionGyms) {
+      try {
+        return await fetchGymsFromOverpass(center, radiusKm);
+      } catch {
+        return regionGyms; // none found, and OpenStreetMap is busy: show "nothing nearby", not an error
+      }
     }
-    return gyms;
+    return fetchGymsFromOverpass(center, radiusKm);
   });
+}
+
+async function fetchGymsFromOverpass(center: LatLng, radiusKm: number): Promise<ClimbingArea[]> {
+  // Asked from the phone, so send a coarse spot (about 10 km) and a wider radius
+  // rather than the exact position; results are trimmed to the real radius below.
+  const spot = coarsen(center, 1);
+  const r = Math.round((radiusKm + 8) * 1000);
+  const at = `(around:${r},${spot.latitude},${spot.longitude})`;
+  // Indoor climbing: sport=climbing on a gym-like place. Outdoor crags are
+  // also tagged sport=climbing in OSM, so require an indoor-ish tag.
+  const query = `[out:json][timeout:12];(
+    nwr["sport"~"climbing|bouldering"]["leisure"~"^(sports_centre|fitness_centre|sports_hall)$"]${at};
+    nwr["sport"~"climbing|bouldering"]["indoor"="yes"]${at};
+    nwr["sport"~"climbing|bouldering"]["building"]${at};
+  );out center tags 200;`;
+  const elements = await queryOverpass(query);
+  const seen = new Set<string>();
+  const gyms: ClimbingArea[] = [];
+  for (const el of elements) {
+    const gym = osmToGym(el);
+    if (!gym || seen.has(gym.id)) continue;
+    seen.add(gym.id);
+    gyms.push(gym);
+  }
+  return gyms;
 }
 
 // --- Crags (OpenBeta) ----------------------------------------------------------
