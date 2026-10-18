@@ -160,8 +160,11 @@ export function fetchGyms(center: LatLng, radiusKm: number): Promise<ClimbingAre
     } catch {
       // Fall through to asking OpenStreetMap directly.
     }
-    const r = Math.round(radiusKm * 1000);
-    const at = `(around:${r},${center.latitude},${center.longitude})`;
+    // Asked from the phone, so send a coarse spot (about 10 km) and a wider radius
+    // rather than the exact position; results are trimmed to the real radius below.
+    const spot = coarsen(center, 1);
+    const r = Math.round((radiusKm + 8) * 1000);
+    const at = `(around:${r},${spot.latitude},${spot.longitude})`;
     // Indoor climbing: sport=climbing on a gym-like place. Outdoor crags are
     // also tagged sport=climbing in OSM, so require an indoor-ish tag.
     const query = `[out:json][timeout:12];(
@@ -239,7 +242,7 @@ export function fetchCrags(center: LatLng, radiusKm: number): Promise<ClimbingAr
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...UA },
-        body: JSON.stringify({ query, variables: { bbox: bboxAround(center, radiusKm) } }),
+        body: JSON.stringify({ query, variables: { bbox: bboxAround(coarsen(center, 1), radiusKm + 8) } }),
       },
       8_000,
     );

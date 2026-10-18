@@ -29,6 +29,7 @@ export default function TabLayout() {
               <Stack.Screen name="profile" options={{ presentation: 'modal' }} />
               <Stack.Screen name="privacy" />
               <Stack.Screen name="terms" />
+              <Stack.Screen name="delete-account" />
             </Stack>
               </View>
             </View>

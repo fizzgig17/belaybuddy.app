@@ -4,7 +4,7 @@
  * climbing gear); it doesn't know what's in stock.
  */
 import { osmAddress, queryOverpass } from '@/lib/areas';
-import { distanceKm } from '@/lib/geo';
+import { coarsen, distanceKm } from '@/lib/geo';
 import { supabase } from '@/lib/supabase';
 import type { LatLng } from '@/types/models';
 
@@ -78,7 +78,9 @@ export async function fetchShops(center: LatLng, radiusKm: number): Promise<Shop
 }
 
 async function fetchShopsLive(center: LatLng, radiusKm: number): Promise<Shop[]> {
-  const at = `(around:${Math.round(radiusKm * 1000)},${center.latitude},${center.longitude})`;
+  // A coarse spot (about 10 km) and a wider radius, trimmed below, so the exact position never leaves the phone.
+  const spot = coarsen(center, 1);
+  const at = `(around:${Math.round((radiusKm + 8) * 1000)},${spot.latitude},${spot.longitude})`;
   // Exact tag values keep this fast on the shared Overpass servers.
   const query = `[out:json][timeout:15];(
     nwr["shop"="outdoor"]${at};
@@ -111,5 +113,5 @@ async function fetchShopsLive(center: LatLng, radiusKm: number): Promise<Shop[]>
     });
   }
   // Climbing shops first, then nearest.
-  return shops.sort(byRelevance);
+  return shops.filter((x) => x.distanceKm <= radiusKm).sort(byRelevance);
 }
