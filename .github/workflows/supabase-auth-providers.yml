@@ -13,6 +13,10 @@
 #           it). Until both secrets exist, Google stays off and the apps hide
 #           the button.
 #
+#   Facebook needs a Meta for Developers app with Facebook Login. Add its App ID and
+#           App Secret as repository secrets FACEBOOK_CLIENT_ID and FACEBOOK_CLIENT_SECRET.
+#           Its "Valid OAuth Redirect URI" is the same Supabase callback URL as Google's.
+#
 # Also allows the redirects those sign-ins return to: the app's belaybuddy://
 # link and the website. Existing allowed redirects are kept.
 # Uses the same secrets as supabase-email-templates.yml.
@@ -39,6 +43,8 @@ jobs:
       PROD_PROJECT_ID: ${{ secrets.PROD_PROJECT_ID }}
       GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
       GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      FACEBOOK_CLIENT_ID: ${{ secrets.FACEBOOK_CLIENT_ID }}
+      FACEBOOK_CLIENT_SECRET: ${{ secrets.FACEBOOK_CLIENT_SECRET }}
       TARGET: ${{ github.ref_name == 'master' && 'belaybuddy-prod' || 'belaybuddy-dev' }}
       SITE: ${{ github.ref_name == 'master' && 'https://belaybuddy.app' || 'https://dev.belaybuddy.app' }}
       APP_BUNDLE_ID: app.belaybuddy.ios
@@ -79,6 +85,17 @@ jobs:
             echo "Google: on"
           else
             echo "::notice::Google is off: add the GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET secrets and run this workflow again."
+          fi
+          if [ -n "$FACEBOOK_CLIENT_ID" ] && [ -n "$FACEBOOK_CLIENT_SECRET" ]; then
+            fid=$(printf '%s' "$FACEBOOK_CLIENT_ID" | tr -d '[:space:]')
+            fsecret=$(printf '%s' "$FACEBOOK_CLIENT_SECRET" | tr -d '[:space:]')
+            echo "::add-mask::$fsecret"
+            jq --arg id "$fid" --arg secret "$fsecret" \
+              '. + {external_facebook_enabled: true, external_facebook_client_id: $id, external_facebook_secret: $secret}' \
+              body.json > body2.json && mv body2.json body.json
+            echo "Facebook: on"
+          else
+            echo "::notice::Facebook is off: add the FACEBOOK_CLIENT_ID and FACEBOOK_CLIENT_SECRET secrets and run this workflow again."
           fi
           jq '.uri_allow_list' body.json
 

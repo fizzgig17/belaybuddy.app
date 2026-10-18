@@ -106,9 +106,11 @@ jobs:
       - name: Choose the Supabase project
         env:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          FACEBOOK_CLIENT_ID: ${{ secrets.FACEBOOK_CLIENT_ID }}
         run: |
           # "Continue with Google" shows only once the Google secrets exist.
           if [ -n "$GOOGLE_CLIENT_ID" ]; then echo "EXPO_PUBLIC_GOOGLE_SIGNIN=1" >> "$GITHUB_ENV"; fi
+          if [ -n "$FACEBOOK_CLIENT_ID" ]; then echo "EXPO_PUBLIC_FACEBOOK_SIGNIN=1" >> "$GITHUB_ENV"; fi
           if [ "$GITHUB_REF_NAME" = "master" ]; then
             grep -E '^EXPO_PUBLIC_[A-Z_]+=' config/prod.env >> "$GITHUB_ENV"
             echo "TARGET=production" >> "$GITHUB_ENV"

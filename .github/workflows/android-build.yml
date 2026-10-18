@@ -34,6 +34,7 @@ jobs:
       KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
       KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
       GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      FACEBOOK_CLIENT_ID: ${{ secrets.FACEBOOK_CLIENT_ID }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -51,6 +52,7 @@ jobs:
       - name: Choose the Supabase project and name the build
         run: |
           if [ -n "$GOOGLE_CLIENT_ID" ]; then echo "EXPO_PUBLIC_GOOGLE_SIGNIN=1" >> "$GITHUB_ENV"; fi
+          if [ -n "$FACEBOOK_CLIENT_ID" ]; then echo "EXPO_PUBLIC_FACEBOOK_SIGNIN=1" >> "$GITHUB_ENV"; fi
           if [ "$GITHUB_REF_NAME" = "master" ]; then
             grep -E '^EXPO_PUBLIC_[A-Z_]+=' config/prod.env >> "$GITHUB_ENV"
             echo "TARGET=production" >> "$GITHUB_ENV"

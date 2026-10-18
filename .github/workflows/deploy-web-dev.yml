@@ -62,8 +62,10 @@ jobs:
       - name: Build website
         env:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          FACEBOOK_CLIENT_ID: ${{ secrets.FACEBOOK_CLIENT_ID }}
         run: |
           if [ -n "$GOOGLE_CLIENT_ID" ]; then export EXPO_PUBLIC_GOOGLE_SIGNIN=1; fi
+          if [ -n "$FACEBOOK_CLIENT_ID" ]; then export EXPO_PUBLIC_FACEBOOK_SIGNIN=1; fi
           CI=1 npx expo export --clear --platform web --output-dir dist
 
       # Lets iPhones open /friend/... links in the app (universal links).

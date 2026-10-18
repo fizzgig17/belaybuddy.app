@@ -148,7 +148,6 @@ export function SignIn() {
     return (
       <View style={styles.container}>
         <AppCard />
-        <SocialButtons onError={setError} />
         <Field
           label="Email"
           placeholder="you@example.com"
@@ -185,6 +184,7 @@ export function SignIn() {
         <ThemedText type="small" themeColor="textSecondary">
           We'll email you a 6-digit code. No password needed. New here? This creates your account.
         </ThemedText>
+        <SocialButtons onError={setError} />
         <SignInOptions />
         <ThemedText type="small" themeColor="textSecondary">
           By continuing you agree to the{' '}

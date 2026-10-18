@@ -7,24 +7,31 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Button } from '@/components/form';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
-import { appleAvailable, googleEnabled, signInWithApple, signInWithGoogle, type SocialResult } from '@/lib/social-auth';
+import {
+  appleAvailable,
+  facebookEnabled,
+  googleEnabled,
+  signInWithApple,
+  signInWithFacebook,
+  signInWithGoogle,
+  type SocialResult,
+} from '@/lib/social-auth';
 
 /**
- * "Continue with Apple" (iPhone/iPad app) and "Continue with Google", above
- * the email sign-in. On success the auth listener swaps the screen out.
+ * Google, Facebook and Apple (iPhone/iPad app), below the email sign-in. On success the auth listener swaps the screen out.
  */
 export function SocialButtons({ onError }: { onError: (message: string | null) => void }) {
   const [apple, setApple] = useState(false);
-  const [busy, setBusy] = useState<'apple' | 'google' | null>(null);
+  const [busy, setBusy] = useState<'apple' | 'google' | 'facebook' | null>(null);
   const dark = useColorScheme() === 'dark';
 
   useEffect(() => {
     appleAvailable().then(setApple);
   }, []);
 
-  if (!apple && !googleEnabled) return null;
+  if (!apple && !googleEnabled && !facebookEnabled) return null;
 
-  async function run(which: 'apple' | 'google', fn: () => Promise<SocialResult>) {
+  async function run(which: 'apple' | 'google' | 'facebook', fn: () => Promise<SocialResult>) {
     if (busy) return;
     setBusy(which);
     onError(null);
@@ -35,6 +42,27 @@ export function SocialButtons({ onError }: { onError: (message: string | null) =
 
   return (
     <View style={styles.container}>
+      <ThemedText type="small" themeColor="textSecondary" style={styles.or}>
+        or continue with
+      </ThemedText>
+      {googleEnabled && (
+        <Button
+          title="Continue with Google"
+          variant="secondary"
+          loading={busy === 'google'}
+          disabled={!!busy && busy !== 'google'}
+          onPress={() => run('google', signInWithGoogle)}
+        />
+      )}
+      {facebookEnabled && (
+        <Button
+          title="Continue with Facebook"
+          variant="secondary"
+          loading={busy === 'facebook'}
+          disabled={!!busy && busy !== 'facebook'}
+          onPress={() => run('facebook', signInWithFacebook)}
+        />
+      )}
       {apple && (
         <AppleAuthentication.AppleAuthenticationButton
           buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
@@ -48,18 +76,6 @@ export function SocialButtons({ onError }: { onError: (message: string | null) =
           onPress={() => run('apple', signInWithApple)}
         />
       )}
-      {googleEnabled && (
-        <Button
-          title="Continue with Google"
-          variant="secondary"
-          loading={busy === 'google'}
-          disabled={!!busy && busy !== 'google'}
-          onPress={() => run('google', signInWithGoogle)}
-        />
-      )}
-      <ThemedText type="small" themeColor="textSecondary" style={styles.or}>
-        or use your email
-      </ThemedText>
     </View>
   );
 }
