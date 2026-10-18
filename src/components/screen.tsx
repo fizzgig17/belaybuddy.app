@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
-import type { ReactNode } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { useState, type ReactNode } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { IS_DEV_BUILD } from '@/components/dev-banner';
@@ -22,17 +22,31 @@ type ScreenProps = {
   action?: ReactNode;
   /** Show the person button (opens Profile) at the right end of the title row. Tab screens only. */
   profileButton?: boolean;
+  /** Pull down to reload. Give it something that returns when loading is done. */
+  onRefresh?: () => Promise<unknown> | void;
 };
 
 /** Standard scrollable screen shell used by every tab. */
-export function Screen({ title, subtitle, children, showTitle = true, action, profileButton }: ScreenProps) {
+export function Screen({ title, subtitle, children, showTitle = true, action, profileButton, onRefresh }: ScreenProps) {
+  const [refreshing, setRefreshing] = useState(false);
+  const pull = onRefresh
+    ? async () => {
+        setRefreshing(true);
+        try {
+          await onRefresh();
+        } finally {
+          setRefreshing(false);
+        }
+      }
+    : undefined;
   return (
     <ThemedView style={styles.container}>
       <PageTitle title={title} />
       <SafeAreaView style={styles.safeArea} edges={showTitle && !IS_DEV_BUILD ? ['top'] : []}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
-          automaticallyAdjustKeyboardInsets>
+          automaticallyAdjustKeyboardInsets
+          refreshControl={pull ? <RefreshControl refreshing={refreshing} onRefresh={pull} /> : undefined}>
           {showTitle && (
             <View style={styles.titleRow}>
               <ThemedText type="subtitle" accessibilityRole="header" style={styles.title}>

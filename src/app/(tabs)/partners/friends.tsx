@@ -63,14 +63,14 @@ export default function FriendsScreen() {
 
   if (authLoading) {
     return (
-      <Screen title="Friends" showTitle={false}>
+      <Screen title="Friends" showTitle={false} onRefresh={refresh}>
         <ActivityIndicator />
       </Screen>
     );
   }
   if (!user) {
     return (
-      <Screen title="Friends" showTitle={false}>
+      <Screen title="Friends" showTitle={false} onRefresh={refresh}>
         <ThemedText type="subtitle" accessibilityRole="header">Friends</ThemedText>
         <ThemedText>Sign in to add friends and see when they are at the gym.</ThemedText>
         <Button title="Sign in" onPress={() => router.push('/profile')} />
@@ -79,7 +79,7 @@ export default function FriendsScreen() {
   }
 
   return (
-    <Screen title="Friends" showTitle={false}>
+    <Screen title="Friends" showTitle={false} onRefresh={refresh}>
       <View>
         <ThemedText type="subtitle" accessibilityRole="header">Friends</ThemedText>
         <ThemedText themeColor="textSecondary">

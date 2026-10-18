@@ -1,5 +1,5 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, useRef } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { FeatureCard } from '@/components/feature-card';
@@ -62,37 +62,41 @@ export default function PartnersScreen() {
   const userId = user?.id;
   const idsKey = shownIds.join(',');
 
-  // Reload whenever the screen comes back into view (after posting, joining…).
+  const alive = useRef(true);
+  const load = useCallback(async () => {
+    if (!userId) return;
+    setError(null);
+    try {
+      const [boardPosts, myPosts, joinedPosts] = await Promise.all([
+        fetchBoard(idsKey ? idsKey.split(',') : []),
+        fetchMyPosts(userId),
+        fetchJoinedPosts(userId),
+      ]);
+      const responses = await fetchResponders(myPosts.map((p) => p.id));
+      const people = await fetchCards([...boardPosts, ...joinedPosts].map((p) => p.userId));
+      if (!alive.current) return;
+      const counts = new Map<string, number>();
+      for (const r of responses) counts.set(r.postId, (counts.get(r.postId) ?? 0) + 1);
+      setBoard(boardPosts.filter((p) => p.userId === userId || people.has(p.userId)));
+      setMine(myPosts);
+      setJoined(joinedPosts);
+      setResponseCounts(counts);
+      setCards(people);
+    } catch (e) {
+      if (alive.current) setError((e as Error).message);
+    }
+  }, [userId, idsKey]);
+
+  // Reload whenever the screen comes back into view (after posting, joining…);
+  // pulling the screen down reloads too.
   useFocusEffect(
     useCallback(() => {
-      if (!userId) return;
-      let active = true;
-      setError(null);
-      (async () => {
-        try {
-          const [boardPosts, myPosts, joinedPosts] = await Promise.all([
-            fetchBoard(idsKey ? idsKey.split(',') : []),
-            fetchMyPosts(userId),
-            fetchJoinedPosts(userId),
-          ]);
-          const responses = await fetchResponders(myPosts.map((p) => p.id));
-          const people = await fetchCards([...boardPosts, ...joinedPosts].map((p) => p.userId));
-          if (!active) return;
-          const counts = new Map<string, number>();
-          for (const r of responses) counts.set(r.postId, (counts.get(r.postId) ?? 0) + 1);
-          setBoard(boardPosts.filter((p) => p.userId === userId || people.has(p.userId)));
-          setMine(myPosts);
-          setJoined(joinedPosts);
-          setResponseCounts(counts);
-          setCards(people);
-        } catch (e) {
-          if (active) setError((e as Error).message);
-        }
-      })();
+      alive.current = true;
+      load();
       return () => {
-        active = false;
+        alive.current = false;
       };
-    }, [userId, idsKey]),
+    }, [load]),
   );
 
   if (authLoading) {
@@ -153,7 +157,7 @@ export default function PartnersScreen() {
     });
 
   return (
-    <Screen profileButton title="Partners" subtitle="Who's climbing at your gyms, and when.">
+    <Screen profileButton title="Partners" subtitle="Who's climbing at your gyms, and when." onRefresh={load}>
       <SessionCard />
       {user && <FriendsCard />}
       {home.length === 0 && !otherGym ? (

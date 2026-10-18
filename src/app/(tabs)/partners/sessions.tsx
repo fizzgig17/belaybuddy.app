@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, View } from 'react-native';
+import Animated, { runOnJS, useAnimatedReaction, useAnimatedStyle, type SharedValue } from 'react-native-reanimated';
 import ReanimatedSwipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 
 import { Button } from '@/components/form';
@@ -41,6 +42,7 @@ export default function SessionsScreen() {
   const [selecting, setSelecting] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const swipers = useRef(new Map<string, SwipeableMethods>());
+  const fullSwipe = useRef<string | null>(null);
 
   const stopSelecting = () => {
     setSelecting(false);
@@ -91,7 +93,7 @@ export default function SessionsScreen() {
   const allSelected = all.length > 0 && selected.size === all.length;
 
   return (
-    <Screen title="Past sessions" showTitle={false}>
+    <Screen title="Past sessions" showTitle={false} onRefresh={() => fetchSessions().then(setSessions).catch((e: Error) => setError(e.message))}>
       <View style={styles.headerRow}>
         <ThemedText type="subtitle" accessibilityRole="header" style={styles.flex}>
           Your climbing
@@ -186,18 +188,26 @@ export default function SessionsScreen() {
               if (r) swipers.current.set(s.id, r);
               else swipers.current.delete(s.id);
             }}
-            friction={2}
+            friction={1}
             rightThreshold={40}
-            overshootRight={false}
+            overshootRight
+            onSwipeableWillOpen={() => {
+              // Let go past the full-swipe line: delete, as in Mail.
+              if (fullSwipe.current === s.id) {
+                fullSwipe.current = null;
+                confirmDelete([s.id], () => swipers.current.get(s.id)?.close());
+              }
+            }}
             onSwipeableOpen={() => tap()}
-            renderRightActions={() => (
-              <Pressable
+            renderRightActions={(_progress, drag) => (
+              <DeleteAction
+                drag={drag}
+                onFullChange={(full) => {
+                  fullSwipe.current = full ? s.id : fullSwipe.current === s.id ? null : fullSwipe.current;
+                  if (full) tap();
+                }}
                 onPress={() => confirmDelete([s.id], () => swipers.current.get(s.id)?.close())}
-                accessibilityRole="button"
-                accessibilityLabel="Delete session"
-                style={styles.swipeDelete}>
-                <ThemedText type="smallBold" style={styles.swipeDeleteText}>Delete</ThemedText>
-              </Pressable>
+              />
             )}>
             {card}
           </ReanimatedSwipeable>
@@ -212,6 +222,41 @@ export default function SessionsScreen() {
       )}
       {!selecting && <Button title="Start a session" onPress={() => router.replace('/partners/session')} />}
     </Screen>
+  );
+}
+
+const ACTION_WIDTH = 92;
+/** How far the row must be dragged before letting go deletes it. */
+const FULL_SWIPE = 220;
+
+/**
+ * The red Delete button behind a swiped session. It shows at the normal width
+ * and grows as you keep dragging; past FULL_SWIPE, letting go deletes.
+ */
+function DeleteAction({
+  drag,
+  onPress,
+  onFullChange,
+}: {
+  drag: SharedValue<number>;
+  onPress: () => void;
+  onFullChange: (full: boolean) => void;
+}) {
+  useAnimatedReaction(
+    () => drag.value <= -FULL_SWIPE,
+    (full, previous) => {
+      if (full !== previous) runOnJS(onFullChange)(full);
+    },
+  );
+  const grow = useAnimatedStyle(() => ({ width: Math.max(ACTION_WIDTH, -drag.value) }));
+  return (
+    <View style={styles.swipeSlot}>
+      <Animated.View style={[styles.swipeDelete, grow]}>
+        <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel="Delete session" style={styles.swipePress}>
+          <ThemedText type="smallBold" style={styles.swipeDeleteText}>Delete</ThemedText>
+        </Pressable>
+      </Animated.View>
+    </View>
   );
 }
 
@@ -236,13 +281,13 @@ const styles = StyleSheet.create({
   center: { textAlign: 'center' },
   check: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, alignItems: 'center', justifyContent: 'center', alignSelf: 'center' },
   checkMark: { color: '#FFFFFF', fontSize: 13, lineHeight: 16 },
+  swipeSlot: { width: ACTION_WIDTH + Spacing.two },
   swipeDelete: {
     backgroundColor: '#C0392B',
-    justifyContent: 'center',
-    alignItems: 'center',
-    width: 92,
+    height: '100%',
     marginLeft: Spacing.two,
     borderRadius: 16,
   },
+  swipePress: { flex: 1, justifyContent: 'center', alignItems: 'center', minWidth: ACTION_WIDTH },
   swipeDeleteText: { color: '#FFFFFF' },
 });
