@@ -21,6 +21,9 @@ BUCKET = 'overturemaps-us-west-2'
 # Categories that mean an indoor climbing gym. Everything else that mentions climbing
 # is logged (so the list can be tuned) but not loaded.
 GYM = re.compile(r'^(rock_climbing_gym|climbing_gym|bouldering_gym|indoor_climbing\w*|climbing_wall\w*)$')
+# A place named like a climbing gym in one of these categories counts too (many gyms are
+# filed under a general fitness category).
+NAME_OK = re.compile(r'^(gym|fitness_center|sports_club\w*|sports_and_recreation_venue|recreation_center|sports_recreation\w*|active_life|amateur_sports_team|community_center|fitness_trainer|sports_and_fitness_instruction|yoga_studio)$')
 COUNTRIES = {'US', 'CA'}
 MIN_ROWS = 100  # fewer than this means something is wrong; don't replace the data
 COVERAGE = [  # id, min_lat, max_lat, min_lng, max_lng
@@ -72,7 +75,8 @@ def main(out_path: str) -> None:
              (bbox.xmin + bbox.xmax) / 2 AS lng, (bbox.ymin + bbox.ymax) / 2 AS lat, confidence
       FROM read_parquet('{path}', hive_partitioning=1)
       WHERE bbox.xmin BETWEEN -180 AND -50 AND bbox.ymin BETWEEN 14 AND 72
-        AND ({primary} ILIKE '%climb%' OR {primary} ILIKE '%boulder%'
+        AND (names.primary ILIKE '%climb%' OR names.primary ILIKE '%boulder%' OR names.primary ILIKE '%belay%'
+             OR {primary} ILIKE '%climb%' OR {primary} ILIKE '%boulder%'
              OR len(list_filter({others}, x -> x ILIKE '%climb%' OR x ILIKE '%boulder%')) > 0)
         {status}
     """
@@ -82,11 +86,15 @@ def main(out_path: str) -> None:
     print(f'{len(found)} places mention climbing in North America')
 
     seen_categories = Counter()
+    name_categories = Counter()
     rows = {}
     for p in found:
         cats = [p['category'] or ''] + list(p['alt'] or [])
         seen_categories[p['category']] += 1
-        if not any(GYM.match(c) for c in cats):
+        by_name = bool(re.search(r'climb|boulder|belay', p['name'] or '', re.I)) and bool(NAME_OK.match(p['category'] or ''))
+        if not by_name:
+            name_categories[p['category']] += 1
+        if not (any(GYM.match(c) for c in cats) or by_name):
             continue
         if p['country'] and p['country'] not in COUNTRIES:
             continue
@@ -101,7 +109,8 @@ def main(out_path: str) -> None:
             'website': p['website'], 'phone': p['phone'], 'opening_hours': None,
             'source': 'overture', 'source_id': p['id'],
         }
-    print('Categories seen:', dict(seen_categories.most_common(15)))
+    print('Categories seen:', dict(seen_categories.most_common(25)))
+    print('Left out:', dict(name_categories.most_common(25)))
     print(f'SUMMARY {len(rows)} gyms from release {release}')
 
     body = json.dumps(list(rows.values())).replace('$json$', '')
