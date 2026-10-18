@@ -12,7 +12,7 @@ import {
 import { Link } from 'expo-router';
 import Svg, { Circle, Rect, Text as SvgText } from 'react-native-svg';
 
-import { Button, Segmented } from '@/components/form';
+import { Button, Field, Segmented, SingleChoice } from '@/components/form';
 import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/group';
 import { Spacing } from '@/constants/theme';
@@ -33,6 +33,9 @@ import {
 import {
   checkPhoto,
   fetchRouteTips,
+  reportTips,
+  TIP_REPORT_REASONS,
+  type TipReportReason,
   type PhotoCheck,
   HOLD_TYPE_LABEL,
   MAX_TIP_HOLDS,
@@ -497,6 +500,7 @@ export function WallScanner() {
             </ThemedText>
           )}
           {tips && <TipsList tips={tips} />}
+          {tips && <ReportTips tips={tips} />}
         </Card>
       )}
 
@@ -585,4 +589,66 @@ function wallLabel(deg: number) {
   const a = Math.round(deg);
   if (Math.abs(a) < 5) return 'wall is about vertical';
   return a > 0 ? `wall overhangs about ${a}°` : `wall is a slab, leaning back about ${-a}°`;
+}
+
+/** "Report this tip": lets people flag AI-generated tips that are wrong, unsafe or inappropriate. */
+function ReportTips({ tips }: { tips: RouteTips }) {
+  const theme = useTheme();
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState<TipReportReason>('wrong-or-unsafe');
+  const [details, setDetails] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function send() {
+    setBusy(true);
+    setError(null);
+    try {
+      await reportTips(tips, reason, details);
+      setDone(true);
+      setOpen(false);
+    } catch {
+      setError('Could not send the report. Please try again.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (done) {
+    return (
+      <ThemedText type="small" themeColor="textSecondary">
+        Thanks. We'll review that tip.
+      </ThemedText>
+    );
+  }
+  if (!open) {
+    return (
+      <Pressable accessibilityRole="button" onPress={() => setOpen(true)}>
+        <ThemedText type="smallBold" style={{ color: theme.accent }}>
+          Report this tip
+        </ThemedText>
+      </Pressable>
+    );
+  }
+  return (
+    <View style={styles.gap}>
+      <ThemedText type="smallBold">What's wrong with this tip?</ThemedText>
+      <SingleChoice label="Reason" options={TIP_REPORT_REASONS} value={reason} onChange={setReason} />
+      <Field label="Details (optional)" value={details} onChangeText={setDetails} multiline maxLength={1000} />
+      {error && (
+        <ThemedText type="small" style={{ color: '#C0392B' }}>
+          {error}
+        </ThemedText>
+      )}
+      <View style={styles.row}>
+        <View style={styles.flex}>
+          <Button title="Cancel" variant="secondary" onPress={() => setOpen(false)} />
+        </View>
+        <View style={styles.flex}>
+          <Button title="Send report" onPress={send} loading={busy} />
+        </View>
+      </View>
+    </View>
+  );
 }

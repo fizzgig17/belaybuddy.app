@@ -106,3 +106,23 @@ export const HOLD_TYPE_LABEL: Record<HoldTip['type'], string> = {
   unclear: 'Unclear',
   not_a_hold: 'Not a hold',
 };
+
+export type TipReportReason = 'wrong-or-unsafe' | 'offensive' | 'off-topic' | 'other';
+
+export const TIP_REPORT_REASONS: { value: TipReportReason; label: string }[] = [
+  { value: 'wrong-or-unsafe', label: 'Wrong or unsafe' },
+  { value: 'offensive', label: 'Offensive' },
+  { value: 'off-topic', label: 'Not about climbing' },
+  { value: 'other', label: 'Something else' },
+];
+
+/** Reports AI-generated tips for review. Sends the tip text only, never the photo. */
+export async function reportTips(tips: RouteTips, reason: TipReportReason, details: string) {
+  const { error } = await supabase.from('ai_reports').insert({
+    kind: 'route-tip',
+    reason,
+    details: details.trim() || null,
+    content: JSON.stringify(tips).slice(0, 8000),
+  });
+  if (error) throw error;
+}
