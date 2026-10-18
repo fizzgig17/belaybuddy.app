@@ -1,0 +1,109 @@
+# Builds the Android app: a signed APK you can install on a phone to test, and an
+# AAB (the file Google Play takes). Download them from the run's page, under
+# "Artifacts" at the bottom.
+#
+# Start it: push a commit whose message contains [android], or Actions > Build
+# Android app > Run workflow (pick the branch). develop builds use the dev
+# backend and are named "Belay Buddy Dev"; master builds use production.
+#
+# Signing secrets (repo > Settings > Secrets and variables > Actions):
+#   ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
+# Without them the build still works, signed with a throwaway key: fine for
+# trying it on your phone, but Google Play won't take it.
+name: Build Android app
+
+on:
+  push:
+    branches: [develop, master]
+  workflow_dispatch:
+
+concurrency:
+  group: android-build-${{ github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[android]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      BUILD_NUMBER: ${{ github.run_number }}
+      KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+      KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Choose the Supabase project and name the build
+        run: |
+          if [ -n "$GOOGLE_CLIENT_ID" ]; then echo "EXPO_PUBLIC_GOOGLE_SIGNIN=1" >> "$GITHUB_ENV"; fi
+          if [ "$GITHUB_REF_NAME" = "master" ]; then
+            grep -E '^EXPO_PUBLIC_[A-Z_]+=' config/prod.env >> "$GITHUB_ENV"
+            echo "TARGET=production" >> "$GITHUB_ENV"
+          else
+            echo "TARGET=development" >> "$GITHUB_ENV"
+            jq '.expo.name = "Belay Buddy Dev"' app.json > app.json.tmp && mv app.json.tmp app.json
+          fi
+          # Each upload to Google Play needs a higher versionCode.
+          jq --argjson n "$BUILD_NUMBER" '.expo.android.versionCode = $n' app.json > app.json.tmp && mv app.json.tmp app.json
+          echo "Version $(jq -r .expo.version app.json) (code $BUILD_NUMBER), $TARGET"
+
+      - name: Create the Android project
+        run: CI=1 npx expo prebuild --platform android --no-install --clean
+
+      - name: Set up signing
+        run: |
+          mkdir -p "$RUNNER_TEMP/signing"
+          if [ -n "$KEYSTORE_B64" ] && [ -n "$KEYSTORE_PASSWORD" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/signing/release.keystore"
+            ALIAS="${KEY_ALIAS:-belaybuddy}"; KPASS="${KEY_PASSWORD:-$KEYSTORE_PASSWORD}"; SPASS="$KEYSTORE_PASSWORD"
+            echo "SIGNING=your upload key" >> "$GITHUB_ENV"
+          else
+            echo "::warning::No Android signing secrets, so this build uses a throwaway key. It installs on a phone but Google Play will not accept it."
+            SPASS=throwaway-key; KPASS=throwaway-key; ALIAS=throwaway
+            keytool -genkeypair -storetype PKCS12 -keystore "$RUNNER_TEMP/signing/release.keystore" -alias "$ALIAS" \
+              -keyalg RSA -keysize 2048 -validity 10000 -storepass "$SPASS" -keypass "$KPASS" -dname "CN=Belay Buddy test" >/dev/null
+            echo "SIGNING=a throwaway key" >> "$GITHUB_ENV"
+          fi
+          echo "::add-mask::$SPASS"; echo "::add-mask::$KPASS"
+          {
+            echo "BB_STORE_FILE=$RUNNER_TEMP/signing/release.keystore"
+            echo "BB_STORE_PASSWORD=$SPASS"
+            echo "BB_KEY_ALIAS=$ALIAS"
+            echo "BB_KEY_PASSWORD=$KPASS"
+          } >> "$GITHUB_ENV"
+          # Tell Gradle to sign release builds with it.
+          python3 .github/scripts/android-signing.py
+
+      - name: Build the APK and AAB
+        working-directory: android
+        run: ./gradlew assembleRelease bundleRelease --no-daemon --console=plain -q
+
+      - name: Show the signing fingerprint
+        run: |
+          keytool -list -v -keystore "$BB_STORE_FILE" -storepass "$BB_STORE_PASSWORD" 2>/dev/null | grep -E "SHA1|SHA256" | head -2 | sed 's/^ *//' | while read -r line; do echo "::notice::Signed with $SIGNING. $line"; done
+
+      - name: Keep the build files
+        run: |
+          mkdir -p out
+          cp android/app/build/outputs/apk/release/*.apk out/belay-buddy-${TARGET}-${BUILD_NUMBER}.apk
+          cp android/app/build/outputs/bundle/release/*.aab out/belay-buddy-${TARGET}-${BUILD_NUMBER}.aab
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: belay-buddy-android-${{ github.run_number }}
+          path: out/
+          retention-days: 30
