@@ -18,8 +18,9 @@ on:
   workflow_dispatch:
 
 concurrency:
+  # Not cancelling: a later push that doesn't build (no [android]) would otherwise stop a running build.
   group: android-build-${{ github.ref_name }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
