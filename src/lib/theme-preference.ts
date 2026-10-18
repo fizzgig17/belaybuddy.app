@@ -22,7 +22,7 @@ function read(): ThemePref {
 function applyNative(pref: ThemePref) {
   if (Platform.OS === 'web') return;
   try {
-    Appearance.setColorScheme(pref === 'system' ? null : pref);
+    Appearance.setColorScheme(pref === 'system' ? 'unspecified' : pref);
   } catch {
     // Older systems: the in-app colors still follow the choice.
   }
