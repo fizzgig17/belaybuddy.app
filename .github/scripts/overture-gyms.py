@@ -85,6 +85,8 @@ def main(out_path: str) -> None:
     found = [dict(zip(names, row)) for row in result.fetchall()]
     print(f'{len(found)} places mention climbing in North America')
 
+    probe = [p for p in found if re.search(r'roc\s*vent|rochester|ventures climb', p['name'] or '', re.I)]
+    print('Probe:', json.dumps([{k: p[k] for k in ('name', 'category', 'country', 'confidence', 'lat', 'lng')} for p in probe][:12], default=str))
     seen_categories = Counter()
     name_categories = Counter()
     rows = {}
