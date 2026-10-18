@@ -43,7 +43,7 @@ jobs:
       - name: Read gyms from Overture Maps
         run: |
           python3 .github/scripts/overture-gyms.py "$RUNNER_TEMP/overture.sql" | tee "$RUNNER_TEMP/overture.log"
-          echo "::notice::$(grep -E '^(Overture release|SUMMARY|Categories seen)' "$RUNNER_TEMP/overture.log" | tr '\n' ' ')"
+          for pat in 'Overture release' 'SUMMARY' 'Categories seen' 'places mention'; do echo "::notice::$(grep -E "^$pat" "$RUNNER_TEMP/overture.log" | head -c 700)"; done
 
       - name: Save them to the database
         run: |
@@ -53,6 +53,9 @@ jobs:
             password=$(jq -rn --arg p "$DB_PASSWORD" '$p | @uri')
             echo "::add-mask::$password"
             url="postgresql://postgres.$PROJECT_ID:$password@$POOLER_HOST:5432/postgres"
-            psql "$url" -v ON_ERROR_STOP=1 -q -f "$RUNNER_TEMP/overture.sql"
+            if ! psql "$url" -v ON_ERROR_STOP=1 -q -f "$RUNNER_TEMP/overture.sql" > "$RUNNER_TEMP/psql.out" 2> "$RUNNER_TEMP/psql.err"; then
+              echo "::error::$TARGET save failed: $(head -c 600 "$RUNNER_TEMP/psql.err" | tr '\n' ' ')"
+              exit 1
+            fi
             echo "::notice::$TARGET catalog now: $(psql "$url" -At -c "select (select count(*) from public.gyms where source = 'overture') || ' Overture gyms, ' || (select count(*) from public.gyms) || ' in all, ' || (select count(*) from public.gym_coverage) || ' covered regions'")"
           done
