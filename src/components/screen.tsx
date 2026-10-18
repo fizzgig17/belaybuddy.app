@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useState, type ReactNode } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { IS_DEV_BUILD } from '@/components/dev-banner';
@@ -10,6 +10,8 @@ import { KeyboardDoneBar } from '@/components/form';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconButton } from '@/components/ui/icon-button';
+import { useAuth } from '@/lib/auth';
+import { useTheme } from '@/hooks/use-theme';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 
 type ScreenProps = {
@@ -31,6 +33,8 @@ type ScreenProps = {
 /** Standard scrollable screen shell used by every tab. */
 export function Screen({ title, subtitle, children, showTitle = true, action, profileButton, onRefresh, overlay }: ScreenProps) {
   const [refreshing, setRefreshing] = useState(false);
+  const { user, loading: authLoading } = useAuth();
+  const theme = useTheme();
   const pull = onRefresh
     ? async () => {
         setRefreshing(true);
@@ -57,8 +61,18 @@ export function Screen({ title, subtitle, children, showTitle = true, action, pr
               {action}
               {profileButton && (
                 <View style={styles.buttons}>
+                  {!user && !authLoading && (
+                    <Pressable
+                      onPress={() => router.push('/profile')}
+                      accessibilityRole="button"
+                      accessibilityLabel="Sign in"
+                      style={({ pressed }) => [styles.signIn, { backgroundColor: theme.accent }, pressed && { opacity: 0.7 }]}>
+                      <ThemedText type="smallBold" style={{ color: theme.background }}>Sign in</ThemedText>
+                    </Pressable>
+                  )}
+                  {user && <IconButton icon="session" label="Start a session" onPress={() => router.push('/partners/session')} />}
+                  {user && <IconButton icon="person" label="Profile" onPress={() => router.push('/profile')} />}
                   <IconButton icon="settings" label="Settings" onPress={() => router.push('/profile/settings')} />
-                  <IconButton icon="person" label="Profile" onPress={() => router.push('/profile')} />
                 </View>
               )}
             </View>
@@ -77,7 +91,8 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   title: { flex: 1 },
-  buttons: { flexDirection: 'row', gap: Spacing.two },
+  buttons: { flexDirection: 'row', gap: Spacing.two, alignItems: 'center' },
+  signIn: { height: 40, paddingHorizontal: Spacing.three, borderRadius: 20, justifyContent: 'center' },
   safeArea: { flex: 1 },
   overlay: { position: 'absolute', left: Spacing.three, right: Spacing.three, bottom: BottomTabInset + Spacing.three },
   content: {

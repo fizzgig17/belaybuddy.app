@@ -42,6 +42,7 @@ export const Icons = {
   lock: icon('lock.fill', 'lock'),
   shop: icon('bag', 'storefront'),
   close: icon('xmark', 'close'),
+  session: icon('play.circle', 'play_circle'),
 } as const;
 
 export type IconName = keyof typeof Icons;
