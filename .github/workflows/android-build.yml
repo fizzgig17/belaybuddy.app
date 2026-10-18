@@ -10,6 +10,11 @@
 #   ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
 # Without them the build still works, signed with a throwaway key: fine for
 # trying it on your phone, but Google Play won't take it.
+#
+# Google Play upload: master builds are sent to the Internal testing track when the
+# secret PLAY_SERVICE_ACCOUNT_JSON (the service account's JSON key) exists and the build
+# is signed with your upload key. Needs the app created in Play Console and its first
+# release uploaded by hand. develop builds are never uploaded.
 name: Build Android app
 
 on:
@@ -35,6 +40,7 @@ jobs:
       KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
       GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
       FACEBOOK_CLIENT_ID: ${{ secrets.FACEBOOK_CLIENT_ID }}
+      PLAY_KEY: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -110,3 +116,34 @@ jobs:
           name: belay-buddy-android-${{ github.run_number }}
           path: out/
           retention-days: 30
+
+      - name: Decide whether to upload to Google Play
+        id: play
+        run: |
+          if [ "$GITHUB_REF_NAME" = "master" ] && [ -n "$PLAY_KEY" ] && [ "$SIGNING" = "your upload key" ]; then
+            echo "go=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Not uploading to Google Play (needs a master build, the PLAY_SERVICE_ACCOUNT_JSON secret and the upload key)."
+          fi
+      - name: Upload to Google Play (Internal testing)
+        id: play_up
+        if: steps.play.outputs.go == 'true'
+        continue-on-error: true
+        uses: r0adkll/upload-google-play@v1.1.3
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: app.belaybuddy.android
+          releaseFiles: out/*.aab
+          track: internal
+          status: completed
+      # A brand-new app that has not been published yet only accepts draft releases;
+      # the draft then needs a click on "Roll out" in Play Console.
+      - name: Upload as a draft release instead
+        if: steps.play.outputs.go == 'true' && steps.play_up.outcome == 'failure'
+        uses: r0adkll/upload-google-play@v1.1.3
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: app.belaybuddy.android
+          releaseFiles: out/*.aab
+          track: internal
+          status: draft
