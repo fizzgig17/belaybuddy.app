@@ -1,6 +1,8 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { useEffect, useState } from 'react';
-import { StyleSheet, useColorScheme, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 import { Button } from '@/components/form';
 import { ThemedText } from '@/components/themed-text';

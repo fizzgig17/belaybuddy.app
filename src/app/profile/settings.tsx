@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, AppState, Linking, Platform, Pressable, StyleSheet, Switch, View } from 'react-native';
 
 import { SignInOptions } from '@/components/auth/sign-in-options';
-import { Button, ToggleRow } from '@/components/form';
+import { Button, Segmented, ToggleRow } from '@/components/form';
 import { AppIconPicker } from '@/components/profile/app-icon-picker';
 import { useAiConsent } from '@/lib/ai-consent';
 import { PrivacySettings } from '@/components/profile/privacy-settings';
@@ -14,6 +14,7 @@ import { Card, Group, Row, Section } from '@/components/ui/group';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { signOut, useAuth } from '@/lib/auth';
+import { setThemePref, useThemePref, type ThemePref } from '@/lib/theme-preference';
 import {
   DEFAULT_SETTINGS,
   fetchNotificationSettings,
@@ -229,6 +230,8 @@ export default function SettingsScreen() {
         {testMessage && <ThemedText type="small">{testMessage}</ThemedText>}
       </Section>
 
+      <AppearanceSettings />
+
       <AppIconPicker />
 
       <Section title="Sign-in">
@@ -257,6 +260,27 @@ const styles = StyleSheet.create({
   version: { textAlign: 'center' },
   col: { width: 56, alignItems: 'center', textAlign: 'center' },
 });
+
+/** Light, dark, or follow the phone. The sun/moon button at the top of each screen flips it quickly. */
+function AppearanceSettings() {
+  const pref = useThemePref();
+  return (
+    <Section title="Appearance">
+      <Card style={{ padding: Spacing.three, gap: Spacing.two, borderRadius: Spacing.three }}>
+        <Segmented<ThemePref>
+          label="Display mode"
+          value={pref}
+          onChange={setThemePref}
+          options={[
+            { value: 'system', label: 'Match my phone' },
+            { value: 'light', label: 'Light' },
+            { value: 'dark', label: 'Dark' },
+          ]}
+        />
+      </Card>
+    </Section>
+  );
+}
 
 /** The AI choice (Route AI photo check and technique tips) and a link to the privacy policy. */
 function AiSettings() {

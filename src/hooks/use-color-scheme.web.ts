@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useColorScheme as useRNColorScheme } from 'react-native';
 
+import { useThemePref } from '@/lib/theme-preference';
+
 /**
  * To support static rendering, this value needs to be re-calculated on the client side for web
  */
@@ -11,10 +13,17 @@ export function useColorScheme() {
     setHasHydrated(true);
   }, []);
 
-  const colorScheme = useRNColorScheme();
+  const system = useRNColorScheme();
+  const pref = useThemePref();
+  const scheme = pref === 'system' ? system : pref;
+
+  useEffect(() => {
+    // Lets the browser draw scrollbars and form controls to match.
+    if (scheme === 'dark' || scheme === 'light') document.documentElement.style.colorScheme = scheme;
+  }, [scheme]);
 
   if (hasHydrated) {
-    return colorScheme;
+    return scheme;
   }
 
   return 'light';

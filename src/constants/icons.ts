@@ -42,6 +42,8 @@ export const Icons = {
   lock: icon('lock.fill', 'lock'),
   shop: icon('bag', 'storefront'),
   close: icon('xmark', 'close'),
+  sun: icon('sun.max', 'light_mode'),
+  moon: icon('moon', 'dark_mode'),
   session: icon('play.circle', 'play_circle'),
 } as const;
 

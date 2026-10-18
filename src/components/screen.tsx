@@ -10,7 +10,9 @@ import { KeyboardDoneBar } from '@/components/form';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconButton } from '@/components/ui/icon-button';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuth } from '@/lib/auth';
+import { setThemePref } from '@/lib/theme-preference';
 import { useTheme } from '@/hooks/use-theme';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
 
@@ -35,6 +37,7 @@ export function Screen({ title, subtitle, children, showTitle = true, action, pr
   const [refreshing, setRefreshing] = useState(false);
   const { user, loading: authLoading } = useAuth();
   const theme = useTheme();
+  const dark = useColorScheme() === 'dark';
   const pull = onRefresh
     ? async () => {
         setRefreshing(true);
@@ -61,6 +64,11 @@ export function Screen({ title, subtitle, children, showTitle = true, action, pr
               {action}
               {profileButton && (
                 <View style={styles.buttons}>
+                  <IconButton
+                    icon={dark ? 'sun' : 'moon'}
+                    label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+                    onPress={() => setThemePref(dark ? 'light' : 'dark')}
+                  />
                   {!user && !authLoading && (
                     <Pressable
                       onPress={() => router.push('/profile')}
