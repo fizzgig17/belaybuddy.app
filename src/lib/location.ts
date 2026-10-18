@@ -52,16 +52,67 @@ function shortLabel(r: NominatimResult): string {
   return town ?? r.display_name.split(',').slice(0, 2).join(',');
 }
 
-/** Search for a city, park or address. Call on submit only. */
-export async function searchPlaces(query: string): Promise<Place[]> {
-  const url = `${NOMINATIM}/search?format=jsonv2&addressdetails=1&limit=5&q=${encodeURIComponent(query)}`;
-  const res = await fetch(url, { headers: HEADERS });
+const ZIPPOPOTAM = 'https://api.zippopotam.us';
+const US_ZIP = /^(\d{5})(?:-\d{4})?$/;
+const CA_POSTAL = /^([A-Za-z]\d[A-Za-z])[ -]?\d[A-Za-z]\d$/;
+
+type ZippoResponse = {
+  places?: { 'place name': string; state: string; 'state abbreviation'?: string; latitude: string; longitude: string }[];
+};
+
+/** US zip and Canadian postal codes. Free, no key; null when unknown or unreachable. */
+async function lookupPostalCode(country: 'us' | 'ca', code: string): Promise<Place[] | null> {
+  try {
+    const res = await fetch(`${ZIPPOPOTAM}/${country}/${encodeURIComponent(code)}`);
+    if (!res.ok) return null;
+    const data = (await res.json()) as ZippoResponse;
+    const places = (data.places ?? [])
+      .map((p) => ({
+        point: { latitude: Number(p.latitude), longitude: Number(p.longitude) },
+        label: `${p['place name']}, ${p.state}`,
+      }))
+      .filter((p) => Number.isFinite(p.point.latitude) && Number.isFinite(p.point.longitude));
+    return places.length ? places : null;
+  } catch {
+    return null;
+  }
+}
+
+async function nominatim(params: string): Promise<Place[]> {
+  const res = await fetch(`${NOMINATIM}/search?format=jsonv2&addressdetails=1&limit=5&${params}`, { headers: HEADERS });
   if (!res.ok) throw new Error(`Place search failed (${res.status}).`);
   const results = (await res.json()) as NominatimResult[];
   return results.map((r) => ({
     point: { latitude: Number(r.lat), longitude: Number(r.lon) },
     label: shortLabel(r),
   }));
+}
+
+/**
+ * Search for a city, park, address or postal code. Call on submit only.
+ * A bare zip code in a free-text search often finds nothing, so zip and postal
+ * codes go to a postal-code lookup first, then to Nominatim's postal-code search.
+ */
+export async function searchPlaces(query: string): Promise<Place[]> {
+  const q = query.trim();
+  const zip = q.match(US_ZIP);
+  if (zip) {
+    const hit = await lookupPostalCode('us', zip[1]);
+    if (hit) return hit;
+    const found = await nominatim(`postalcode=${zip[1]}&countrycodes=us`);
+    if (found.length) return found;
+  }
+  const ca = q.match(CA_POSTAL);
+  if (ca) {
+    const hit = await lookupPostalCode('ca', ca[1].toUpperCase());
+    if (hit) return hit;
+  }
+  const found = await nominatim(`q=${encodeURIComponent(q)}`);
+  if (found.length === 0 && /^[A-Za-z0-9][A-Za-z0-9 -]{2,9}$/.test(q) && /\d/.test(q)) {
+    // Looks like a postal code from somewhere else.
+    return nominatim(`postalcode=${encodeURIComponent(q)}`);
+  }
+  return found;
 }
 
 /** Best-effort "Raleigh, North Carolina" label for a point; null on failure. */
