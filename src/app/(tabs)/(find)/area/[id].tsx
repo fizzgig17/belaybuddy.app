@@ -17,6 +17,7 @@ import { useAuth } from '@/lib/auth';
 import { useFavorites } from '@/lib/favorites';
 import { useHomeGyms } from '@/lib/home-gyms';
 import { CheckInPanel } from '@/components/find/check-in';
+import { SuggestHours } from '@/components/find/suggest-hours';
 import { formatOpeningHours, hoursSearchUrl, osmPageUrl } from '@/lib/hours';
 import type { ClimbingArea } from '@/types/models';
 
@@ -194,6 +195,7 @@ export default function AreaScreen() {
               value="Search the web"
               onPress={() => Linking.openURL(hoursSearchUrl(area.name, area.address))}
             />
+            <SuggestHours place={{ id: area.id, name: area.name, kind: 'gym' }} />
             {osmPageUrl(area.id) && (
               <LinkRow
                 label="Know the hours?"

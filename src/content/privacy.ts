@@ -51,6 +51,7 @@ export const PRIVACY_SECTIONS: PolicySection[] = [
       'You can turn AI features off or on in Settings, turn notifications off by type, and remove anything you posted. You can check out of a gym any time, remove a friend, and turn off "find me by name" on the Friends screen.',
       'You can delete your account in Settings under Privacy & safety, or by following the steps at belaybuddy.app/delete-account. That permanently deletes your profile, favorites, home gyms, posts, chats and logs.',
       'You can block other climbers and report posts.',
+      'If you suggest opening hours for a gym or shop, we keep the hours, the place and your account so we can review them. Approved hours are shown to everyone without your name.',
     ],
   },
   {

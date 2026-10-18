@@ -339,9 +339,51 @@ export function areaSlug(id: string): string {
 export function slugToId(slug: string): string | null {
   const osm = /^osm-(node|way|relation)-(\d+)$/.exec(slug);
   if (osm) return `osm:${osm[1]}/${osm[2]}`;
+  const overture = /^overture-([0-9A-Za-z_-]{8,})$/.exec(slug);
+  if (overture) return `overture:${overture[1]}`;
   const ob = /^openbeta-([0-9a-f-]{8,})$/i.exec(slug);
   if (ob) return `openbeta:${ob[1]}`;
   return null;
+}
+
+type GymRecord = {
+  id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  address: string | null;
+  styles: ClimbingStyle[] | null;
+  website: string | null;
+  phone: string | null;
+  opening_hours: string | null;
+  source: ClimbingArea['source'];
+  source_id: string | null;
+};
+
+/** One gym from our own table, or null if we don't have it. */
+async function fetchSavedGym(id: string): Promise<ClimbingArea | null> {
+  const { data } = await supabase.from('gyms').select('*').eq('id', id).maybeSingle();
+  if (!data) return null;
+  const g = data as GymRecord;
+  const { data: override } = await supabase
+    .from('place_overrides')
+    .select('value')
+    .eq('place_id', id)
+    .eq('field', 'opening_hours')
+    .maybeSingle();
+  return {
+    id: g.id,
+    kind: 'gym',
+    name: g.name,
+    location: { latitude: g.latitude, longitude: g.longitude },
+    address: g.address ?? undefined,
+    styles: g.styles ?? [],
+    source: g.source,
+    sourceId: g.source_id ?? undefined,
+    website: g.website ?? undefined,
+    phone: g.phone ?? undefined,
+    openingHours: override?.value ?? g.opening_hours ?? undefined,
+  };
 }
 
 /** Loads one gym or crag; uses what's already been fetched when possible. */
@@ -350,6 +392,17 @@ export async function fetchAreaBySlug(slug: string): Promise<ClimbingArea | null
   if (!id) return null;
   const hit = known.get(id);
   if (hit) return hit;
+
+  // Gyms we have saved (any source), with community-approved hours applied.
+  if (id.startsWith('osm:') || id.startsWith('overture:')) {
+    const saved = await fetchSavedGym(id).catch(() => null);
+    if (saved) {
+      known.set(saved.id, saved);
+      return saved;
+    }
+  }
+
+  if (id.startsWith('overture:')) return null;
 
   if (id.startsWith('osm:')) {
     const [type, num] = id.slice(4).split('/');

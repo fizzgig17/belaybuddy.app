@@ -4,6 +4,7 @@ import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import { loadLastPlace, saveLastPlace } from '@/components/find/storage';
 import { Button, Segmented } from '@/components/form';
+import { SuggestHours } from '@/components/find/suggest-hours';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/group';
@@ -180,6 +181,7 @@ function ShopRow({ shop }: { shop: Shop }) {
             onPress={() => Linking.openURL(hoursSearchUrl(shop.name, shop.address))}
           />
         )}
+        {open === null && !shop.openingHours && <SuggestHours place={{ id: shop.id, name: shop.name, kind: 'shop' }} />}
         {(shop.phone || shop.website) && (
           <View style={styles.actionRow}>
             {shop.phone && (
