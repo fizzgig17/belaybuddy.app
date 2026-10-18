@@ -43,8 +43,8 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#1F2A2E",
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "image": "./assets/images/belay-buddy-logo.png",
+          "imageWidth": 140
         }
       ],
       [
@@ -71,7 +71,9 @@
       [
         "expo-notifications",
         {
-          "mode": "production"
+          "mode": "production",
+          "icon": "./assets/icons/android-monochrome.png",
+          "color": "#0E7A80"
         }
       ],
       [
