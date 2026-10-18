@@ -1,7 +1,7 @@
 import { Link } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Keyboard, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { AreaRow } from '@/components/find/area-row';
 import { AreaRowSkeleton } from '@/components/ui/skeleton';
@@ -108,6 +108,7 @@ export default function FindScreen() {
   async function search() {
     const q = query.trim();
     if (!q) return;
+    Keyboard.dismiss(); // Android keeps its search key busy while the keyboard stays up
     setLocating(true);
     setMessage(null);
     try {
@@ -148,7 +149,12 @@ export default function FindScreen() {
             placeholder="Town, park or zip code"
             placeholderTextColor={theme.textSecondary}
             returnKeyType="search"
+            enterKeyHint="search"
+            blurOnSubmit
+            autoCapitalize="none"
+            autoComplete="off"
             autoCorrect={false}
+            spellCheck={false}
             accessibilityLabel="Search for a place"
             style={[styles.searchInput, { color: theme.text }]}
           />
