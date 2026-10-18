@@ -44,6 +44,7 @@ export const Icons = {
   close: icon('xmark', 'close'),
   sun: icon('sun.max', 'light_mode'),
   moon: icon('moon', 'dark_mode'),
+  about: icon('questionmark.circle', 'help'),
   session: icon('play.circle', 'play_circle'),
 } as const;
 

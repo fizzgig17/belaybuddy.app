@@ -28,6 +28,7 @@ export default function TabLayout() {
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="(tabs)" />
               <Stack.Screen name="profile" options={{ presentation: 'modal' }} />
+              <Stack.Screen name="about" />
               <Stack.Screen name="privacy" />
               <Stack.Screen name="terms" />
               <Stack.Screen name="delete-account" />

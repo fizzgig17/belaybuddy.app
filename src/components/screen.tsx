@@ -3,6 +3,7 @@ import { useState, type ReactNode } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AboutSheet } from '@/components/about-sheet';
 import { IS_DEV_BUILD } from '@/components/dev-banner';
 
 import { PageTitle } from '@/components/page-title';
@@ -35,6 +36,7 @@ type ScreenProps = {
 /** Standard scrollable screen shell used by every tab. */
 export function Screen({ title, subtitle, children, showTitle = true, action, profileButton, onRefresh, overlay }: ScreenProps) {
   const [refreshing, setRefreshing] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const { user, loading: authLoading } = useAuth();
   const theme = useTheme();
   const dark = useColorScheme() === 'dark';
@@ -64,6 +66,7 @@ export function Screen({ title, subtitle, children, showTitle = true, action, pr
               {action}
               {profileButton && (
                 <View style={styles.buttons}>
+                  <IconButton icon="about" label="About Belay Buddy" onPress={() => setAboutOpen(true)} />
                   <IconButton
                     icon={dark ? 'sun' : 'moon'}
                     label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
@@ -90,6 +93,7 @@ export function Screen({ title, subtitle, children, showTitle = true, action, pr
         </ScrollView>
       </SafeAreaView>
       {overlay && <View pointerEvents="box-none" style={styles.overlay}>{overlay}</View>}
+      {profileButton && <AboutSheet visible={aboutOpen} onClose={() => setAboutOpen(false)} />}
       <KeyboardDoneBar />
     </ThemedView>
   );

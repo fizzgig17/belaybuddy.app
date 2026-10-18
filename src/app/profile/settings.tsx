@@ -299,6 +299,13 @@ function AiSettings() {
             ? 'When on, Route AI sends your wall photo to an AI service (Anthropic’s Claude) to describe it and write technique tips. Photos and tips are not stored by us. Finding holds and LiDAR measuring stay on your phone either way.'
             : 'Sign in to use AI features. Finding holds and LiDAR measuring work without them.'}
         </ThemedText>
+        <Link href="/about" asChild>
+          <Pressable accessibilityRole="link">
+            <ThemedText type="smallBold" style={{ color: theme.accent }}>
+              About Belay Buddy
+            </ThemedText>
+          </Pressable>
+        </Link>
         <Link href="/privacy" asChild>
           <Pressable accessibilityRole="link">
             <ThemedText type="smallBold" style={{ color: theme.accent }}>

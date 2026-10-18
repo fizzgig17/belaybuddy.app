@@ -195,7 +195,10 @@ export function SignIn() {
           <ThemedText type="small" accessibilityRole="link" style={{ color: theme.accent }} onPress={() => router.push('/privacy')}>
             Privacy policy
           </ThemedText>
-          .
+          .{' '}
+          <ThemedText type="small" accessibilityRole="link" style={{ color: theme.accent }} onPress={() => router.push('/about')}>
+            What is Belay Buddy?
+          </ThemedText>
         </ThemedText>
       </View>
     );
