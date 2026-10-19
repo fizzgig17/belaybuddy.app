@@ -12,12 +12,20 @@ export function AboutSheet({ visible, onClose }: { visible: boolean; onClose: ()
   const theme = useTheme();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close">
+      <View style={styles.backdrop}>
         <Pressable
-          onPress={() => {}}
+          style={StyleSheet.absoluteFill}
+          onPress={onClose}
+          accessibilityLabel="Close"
+        />
+        <View
           accessibilityViewIsModal
           style={[styles.card, { backgroundColor: theme.background, borderColor: theme.border }]}>
-          <ScrollView contentContainerStyle={styles.content}>
+          <ScrollView
+            contentContainerStyle={styles.content}
+            showsVerticalScrollIndicator
+            bounces
+            nestedScrollEnabled>
             <ThemedText type="subtitle" accessibilityRole="header">
               About Belay Buddy
             </ThemedText>
@@ -45,8 +53,8 @@ export function AboutSheet({ visible, onClose }: { visible: boolean; onClose: ()
               <Button title="Close" onPress={onClose} />
             </View>
           </ScrollView>
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 }
