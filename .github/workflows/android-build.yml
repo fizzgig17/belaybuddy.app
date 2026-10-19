@@ -111,7 +111,15 @@ jobs:
 
       - name: Build the APK and AAB
         working-directory: android
-        run: ./gradlew assembleRelease bundleRelease --no-daemon --console=plain -q
+        run: |
+          set -o pipefail
+          ./gradlew assembleRelease bundleRelease --no-daemon --console=plain -q 2>&1 | tee ../gradle.log
+
+      # Run logs can't be downloaded, so surface the cause as annotations on the run's page.
+      - name: Show why the build failed
+        if: failure()
+        run: |
+          grep -E "error:|^e: |FAILED|What went wrong|Execution failed|Could not |Exception|Unresolved|Duplicate|AAPT|Lint" gradle.log | head -n 20 | while IFS= read -r line; do echo "::error::${line:0:400}"; done || true
 
       - name: Show the signing fingerprint
         run: |
