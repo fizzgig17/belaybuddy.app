@@ -1,6 +1,6 @@
 import { Link } from 'expo-router';
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Button, Field, ToggleRow } from '@/components/form';
 import { ThemedText } from '@/components/themed-text';
@@ -68,8 +68,16 @@ export function SuggestHours({ place }: { place: { id: string; name: string; kin
     <>
       <Button title="Add the hours" variant="secondary" onPress={() => setOpen(true)} />
       <Modal visible={open} animationType="slide" onRequestClose={() => setOpen(false)}>
-        <View style={[styles.sheet, { backgroundColor: theme.background }]}>
-          <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        {/* The keyboard must not cover the lower days: iPhone lets the scroll view make room, Android shrinks the sheet. */}
+        <KeyboardAvoidingView
+          enabled={Platform.OS === 'android'}
+          behavior="height"
+          style={[styles.sheet, { backgroundColor: theme.background }]}>
+          <ScrollView
+            contentContainerStyle={styles.content}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            automaticallyAdjustKeyboardInsets>
             <ThemedText type="subtitle" accessibilityRole="header">
               Hours for {place.name}
             </ThemedText>
@@ -115,7 +123,7 @@ export function SuggestHours({ place }: { place: { id: string; name: string; kin
               </View>
             </View>
           </ScrollView>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </>
   );
@@ -123,7 +131,7 @@ export function SuggestHours({ place }: { place: { id: string; name: string; kin
 
 const styles = StyleSheet.create({
   sheet: { flex: 1 },
-  content: { padding: Spacing.three, paddingTop: Spacing.six, gap: Spacing.three, maxWidth: 560, width: '100%', alignSelf: 'center' },
+  content: { padding: Spacing.three, paddingTop: Spacing.six, paddingBottom: Spacing.six * 2, gap: Spacing.three, maxWidth: 560, width: '100%', alignSelf: 'center' },
   day: { gap: Spacing.two },
   times: { flexDirection: 'row', gap: Spacing.two },
   time: { flex: 1 },
