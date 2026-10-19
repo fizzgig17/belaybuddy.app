@@ -38,6 +38,12 @@ const KINDS: { kind: NotificationKind; title: string; detail: string }[] = [
 const build = Constants.expoConfig?.ios?.buildNumber ?? Constants.expoConfig?.android?.versionCode;
 const version = `${Constants.expoConfig?.version ?? ''}${build ? ` (${build})` : ''}`.trim();
 
+/** Phones close this sheet with a swipe down, like Profile; the website has no such gesture. */
+const closeAction =
+  Platform.OS === 'web' ? (
+    <IconButton icon="close" label="Close" onPress={() => (router.canGoBack() ? router.back() : router.navigate('/'))} />
+  ) : undefined;
+
 export default function SettingsScreen() {
   const theme = useTheme();
   const { user } = useAuth();
@@ -68,7 +74,7 @@ export default function SettingsScreen() {
 
   if (!user) {
     return (
-      <Screen title="Settings" action={<IconButton icon="close" label="Back to profile" onPress={() => router.back()} />}>
+      <Screen title="Settings" action={closeAction}>
         <ThemedText>Sign in to change your settings.</ThemedText>
         <Button title="Sign in" onPress={() => router.replace('/profile')} />
       </Screen>
@@ -153,7 +159,7 @@ export default function SettingsScreen() {
   const showPush = push !== 'unsupported';
 
   return (
-    <Screen title="Settings" action={<IconButton icon="close" label="Back to profile" onPress={() => router.back()} />}>
+    <Screen title="Settings" action={closeAction}>
       <Section title="Notifications">
         {showPush && push !== 'on' && (
           <Card>
