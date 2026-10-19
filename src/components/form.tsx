@@ -341,7 +341,7 @@ export function Segmented<T extends string | number>({
             style={[segStyles.segment, on && { backgroundColor: theme.background }]}>
             <ThemedText
               type={on ? 'smallBold' : 'small'}
-              style={{ color: on ? theme.accent : theme.textSecondary }}>
+              style={{ color: on ? theme.accent : theme.textSecondary, textAlign: 'center' }}>
               {option.label}
             </ThemedText>
           </Pressable>
@@ -356,6 +356,7 @@ const segStyles = StyleSheet.create({
   segment: {
     flex: 1,
     alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: Spacing.one + 2,
     borderRadius: Spacing.two,
   },
