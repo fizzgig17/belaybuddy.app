@@ -1,10 +1,13 @@
 import { router } from 'expo-router';
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { SymbolView } from 'expo-symbols';
+
 import { Button } from '@/components/form';
 import { ThemedText } from '@/components/themed-text';
 import { ABOUT_FEATURES, ABOUT_SUMMARY, ABOUT_TAGLINE } from '@/content/about';
 import { Spacing } from '@/constants/theme';
+import { Icons } from '@/constants/icons';
 import { useTheme } from '@/hooks/use-theme';
 
 /** Popup that explains what Belay Buddy is, with a link to the full About page. */
@@ -21,6 +24,14 @@ export function AboutSheet({ visible, onClose }: { visible: boolean; onClose: ()
         <View
           accessibilityViewIsModal
           style={[styles.card, { backgroundColor: theme.background, borderColor: theme.border }]}>
+          <Pressable
+            onPress={onClose}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+            hitSlop={12}
+            style={[styles.x, { backgroundColor: theme.backgroundElement }]}>
+            <SymbolView name={Icons.close} size={16} tintColor={theme.text} />
+          </Pressable>
           <ScrollView
             contentContainerStyle={styles.content}
             showsVerticalScrollIndicator
@@ -50,7 +61,6 @@ export function AboutSheet({ visible, onClose }: { visible: boolean; onClose: ()
                   router.push('/about');
                 }}
               />
-              <Button title="Close" onPress={onClose} />
             </View>
           </ScrollView>
         </View>
@@ -61,8 +71,9 @@ export function AboutSheet({ visible, onClose }: { visible: boolean; onClose: ()
 
 const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: Spacing.three },
-  card: { width: '100%', maxWidth: 520, maxHeight: '85%', borderRadius: 20, borderWidth: StyleSheet.hairlineWidth },
-  content: { padding: Spacing.four, gap: Spacing.three },
+  card: { width: '100%', maxWidth: 520, maxHeight: '65%', borderRadius: 20, borderWidth: StyleSheet.hairlineWidth },
+  content: { padding: Spacing.four, paddingTop: Spacing.five, gap: Spacing.three },
+  x: { position: 'absolute', top: Spacing.two, right: Spacing.two, zIndex: 2, width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   list: { gap: Spacing.two },
   buttons: { gap: Spacing.two },
 });
