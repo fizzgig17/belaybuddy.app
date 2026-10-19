@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   InputAccessoryView,
@@ -45,10 +45,14 @@ export function Field({
   ...inputProps
 }: TextInputProps & { label: string; hint?: string }) {
   const theme = useTheme();
-  return (
-    <View style={styles.field}>
-      <ThemedText type="smallBold">{label}</ThemedText>
+  // On a phone, a swipe that starts on a multiline box (such as one inside the Profile/Settings
+  // pager) must not open the keyboard. The box only takes focus from a real tap.
+  const tapToEdit = !!inputProps.multiline && Platform.OS !== 'web' && inputProps.editable !== false;
+  const [armed, setArmed] = useState(false);
+  const ref = useRef<TextInput>(null);
+  const field = (
       <TextInput
+        ref={ref}
         placeholderTextColor={theme.textSecondary}
         style={[
           styles.input,
@@ -64,7 +68,34 @@ export function Field({
             : undefined
         }
         {...inputProps}
+        editable={tapToEdit ? armed : inputProps.editable}
+        onBlur={(e) => {
+          setArmed(false);
+          inputProps.onBlur?.(e);
+        }}
       />
+  );
+  return (
+    <View style={styles.field}>
+      <ThemedText type="smallBold">{label}</ThemedText>
+      {tapToEdit ? (
+        <View>
+          {field}
+          {!armed && (
+            <Pressable
+              style={StyleSheet.absoluteFill}
+              accessibilityRole="button"
+              accessibilityLabel={`Edit ${label}`}
+              onPress={() => {
+                setArmed(true);
+                setTimeout(() => ref.current?.focus(), 0);
+              }}
+            />
+          )}
+        </View>
+      ) : (
+        field
+      )}
       {hint && (
         <ThemedText type="small" themeColor="textSecondary">
           {hint}
