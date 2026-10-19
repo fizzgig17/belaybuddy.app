@@ -24,6 +24,7 @@ export function AboutSheet({ visible, onClose }: { visible: boolean; onClose: ()
         <View
           accessibilityViewIsModal
           style={[styles.card, { backgroundColor: theme.background, borderColor: theme.border }]}>
+          <View style={styles.header}>
           <Pressable
             onPress={onClose}
             accessibilityRole="button"
@@ -32,7 +33,9 @@ export function AboutSheet({ visible, onClose }: { visible: boolean; onClose: ()
             style={[styles.x, { backgroundColor: theme.backgroundElement }]}>
             <SymbolView name={Icons.close} size={16} tintColor={theme.text} />
           </Pressable>
+          </View>
           <ScrollView
+            style={styles.scroll}
             contentContainerStyle={styles.content}
             showsVerticalScrollIndicator
             bounces
@@ -72,8 +75,10 @@ export function AboutSheet({ visible, onClose }: { visible: boolean; onClose: ()
 const styles = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', padding: Spacing.three },
   card: { width: '100%', maxWidth: 520, maxHeight: '65%', borderRadius: 20, borderWidth: StyleSheet.hairlineWidth },
-  content: { padding: Spacing.four, paddingTop: Spacing.five, gap: Spacing.three },
-  x: { position: 'absolute', top: Spacing.two, right: Spacing.two, zIndex: 2, width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  content: { padding: Spacing.four, paddingTop: Spacing.two, gap: Spacing.three },
+  header: { alignItems: 'flex-end', paddingTop: Spacing.two, paddingHorizontal: Spacing.two },
+  scroll: { flexShrink: 1 },
+  x: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   list: { gap: Spacing.two },
   buttons: { gap: Spacing.two },
 });
