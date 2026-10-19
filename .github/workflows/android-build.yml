@@ -17,6 +17,10 @@
 # release uploaded by hand. develop builds are never uploaded.
 name: Build Android app
 
+# Needed to record each release as a tag (android-YYYY.M.D.N).
+permissions:
+  contents: write
+
 on:
   push:
     branches: [develop, master]
@@ -43,6 +47,8 @@ jobs:
       PLAY_KEY: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -68,7 +74,13 @@ jobs:
           fi
           # Each upload to Google Play needs a higher versionCode.
           jq --argjson n "$BUILD_NUMBER" '.expo.android.versionCode = $n' app.json > app.json.tmp && mv app.json.tmp app.json
-          echo "Version $(jq -r .expo.version app.json) (code $BUILD_NUMBER), $TARGET"
+          # Android versions are YYYY.M.D.N: today's date (US Eastern) and the number of the
+          # release that day, the same as hCRI Companion. N counts the android-YYYY.M.D.* tags.
+          TODAY=$(TZ=America/New_York date +%Y.%-m.%-d)
+          N=$(( $(git tag -l "android-$TODAY.*" | wc -l) + 1 ))
+          echo "ANDROID_VERSION=$TODAY.$N" >> "$GITHUB_ENV"
+          jq --arg v "$TODAY.$N" '.expo.version = $v' app.json > app.json.tmp && mv app.json.tmp app.json
+          echo "Version $TODAY.$N (code $BUILD_NUMBER), $TARGET"
 
       - name: Create the Android project
         run: CI=1 npx expo prebuild --platform android --no-install --clean
@@ -147,3 +159,10 @@ jobs:
           releaseFiles: out/*.aab
           track: internal
           status: draft
+
+      # Remember this release so the next one that day gets the next number.
+      - name: Tag the release
+        if: steps.play.outputs.go == 'true'
+        run: |
+          git tag "android-$ANDROID_VERSION"
+          git push origin "android-$ANDROID_VERSION"
