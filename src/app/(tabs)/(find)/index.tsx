@@ -1,7 +1,7 @@
 import { Link } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Keyboard, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Keyboard, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { AreaRow } from '@/components/find/area-row';
 import { AreaRowSkeleton } from '@/components/ui/skeleton';
@@ -45,6 +45,8 @@ export default function FindScreen() {
   const [query, setQuery] = useState('');
   const [choices, setChoices] = useState<Place[]>([]);
   const [suggestions, setSuggestions] = useState<Place[]>([]);
+  const [focused, setFocused] = useState(false);
+  const inputRef = useRef<TextInput>(null);
   const picked = useRef(false); // the text was just filled in from a suggestion
   const [locating, setLocating] = useState(false);
   const [result, setResult] = useState<NearbyState | null>(null);
@@ -168,9 +170,14 @@ export default function FindScreen() {
 
       {/* Where to look */}
       <View style={styles.searchRow}>
-        <ThemedView type="backgroundElement" style={styles.searchBox}>
+        <ThemedView
+          type="backgroundElement"
+          style={[styles.searchBox, { borderColor: focused ? theme.accent : 'transparent' }]}>
           <SymbolView name={Icons.search} size={16} tintColor={theme.textSecondary} />
           <TextInput
+            ref={inputRef}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
             value={query}
             onChangeText={setQuery}
             onSubmitEditing={search}
@@ -184,8 +191,28 @@ export default function FindScreen() {
             autoCorrect={false}
             spellCheck={false}
             accessibilityLabel="Search for a place"
-            style={[styles.searchInput, { color: theme.text }]}
+            style={[
+              styles.searchInput,
+              { color: theme.text },
+              Platform.OS === 'web' && ({ outlineStyle: 'none' } as object),
+            ]}
           />
+          {query.length > 0 && (
+            <Pressable
+              onPress={() => {
+                picked.current = false;
+                setQuery('');
+                setSuggestions([]);
+                setChoices([]);
+                setMessage(null);
+                inputRef.current?.focus();
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Clear search"
+              hitSlop={10}>
+              <SymbolView name={Icons.close} size={16} tintColor={theme.textSecondary} />
+            </Pressable>
+          )}
         </ThemedView>
         <Pressable
           onPress={locateMe}
@@ -381,6 +408,7 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     borderRadius: Spacing.two,
     paddingHorizontal: Spacing.three,
+    borderWidth: 2,
   },
   searchInput: { flex: 1, fontSize: 16, paddingVertical: Spacing.two + 4 },
   locateButton: { width: 48, borderRadius: Spacing.two, alignItems: 'center', justifyContent: 'center' },
