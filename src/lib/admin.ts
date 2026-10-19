@@ -16,17 +16,27 @@ export type PendingEdit = {
 
 export type AdminPerson = { userId: string; displayName: string; isMe: boolean };
 
-/** True once we know the signed-in user is an admin. The database enforces it; this only shows the menu. */
-export function useIsAdmin(): boolean {
+/** null while checking, then true/false. The database enforces it; this only shows the menu. */
+let cached: { userId: string; admin: boolean } | null = null;
+
+export function useIsAdmin(): boolean | null {
   const { user } = useAuth();
-  const [admin, setAdmin] = useState(false);
+  const [admin, setAdmin] = useState<boolean | null>(cached && cached.userId === user?.id ? cached.admin : null);
   useEffect(() => {
     if (!user) {
       setAdmin(false);
       return;
     }
     let active = true;
-    supabase.rpc('is_admin').then(({ data }) => active && setAdmin(data === true));
+    const check = (retries: number) =>
+      supabase.rpc('is_admin').then(({ data, error }) => {
+        if (!active) return;
+        if (error && retries > 0) return setTimeout(() => check(retries - 1), 1500);
+        const yes = !error && data === true;
+        cached = { userId: user.id, admin: yes };
+        setAdmin(yes);
+      });
+    check(2);
     return () => {
       active = false;
     };

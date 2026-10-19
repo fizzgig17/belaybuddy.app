@@ -63,7 +63,7 @@ export default function AdminScreen() {
   }, []);
 
   useEffect(() => {
-    if (isAdmin) load();
+    if (isAdmin === true) load();
   }, [isAdmin, load]);
 
   async function review(edit: PendingEdit, approve: boolean) {
@@ -109,7 +109,9 @@ export default function AdminScreen() {
     <Screen title="Admin" showTitle={false}>
       <Stack.Screen options={{ headerShown: true, title: 'Admin', headerBackTitle: 'Back' }} />
       <ThemedText type="subtitle" accessibilityRole="header">Admin</ThemedText>
-      {!isAdmin ? (
+      {isAdmin === null ? (
+        <ActivityIndicator />
+      ) : !isAdmin ? (
         <ThemedText themeColor="textSecondary">This page is for Belay Buddy admins.</ThemedText>
       ) : (
         <>
