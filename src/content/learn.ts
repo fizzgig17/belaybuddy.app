@@ -51,6 +51,7 @@ export const LEARN_TOPICS: LearnTopic[] = [
           'Check each other before every climb, not just the first one of the day.',
           'Harness: fits snugly and the buckles are doubled back.',
           'Knot: a figure-eight with a tail of at least 6 inches. Back it up with a stopper knot at the rope end.',
+          'Some gyms have climbers clip into the rope with a locking carabiner instead of tying a knot. If yours does, follow the gym’s instructions for how it must be attached and locked, and check it as part of the partner check. Ask staff if you are not sure.',
           'Belay device: threaded the way the maker shows and clipped to the belay loop.',
           'Carabiner: locked. Squeeze it to confirm.',
         ],
