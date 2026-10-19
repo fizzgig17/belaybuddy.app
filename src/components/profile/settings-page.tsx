@@ -245,7 +245,7 @@ export function SettingsPage() {
       {isAdmin && (
         <Section title="Admin">
           <Card>
-            <Link href="/admin" asChild>
+            <Link href="/profile/admin" asChild>
               <Pressable accessibilityRole="link">
                 <ThemedText type="smallBold" style={{ color: theme.accent }}>
                   Review opening hours and manage admins

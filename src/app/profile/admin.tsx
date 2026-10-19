@@ -1,4 +1,3 @@
-import { Stack } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from 'react-native';
@@ -53,7 +52,8 @@ export default function AdminScreen() {
 
   const load = useCallback(async () => {
     try {
-      const [e, a] = await Promise.all([fetchPendingEdits(), fetchAdmins()]);
+      const timeout = new Promise<never>((_, no) => setTimeout(() => no(new Error('Timed out loading. Pull back and try again.')), 15000));
+      const [e, a] = await Promise.race([Promise.all([fetchPendingEdits(), fetchAdmins()]), timeout]);
       setEdits(e);
       setAdmins(a);
     } catch (err) {
@@ -107,8 +107,6 @@ export default function AdminScreen() {
 
   return (
     <Screen title="Admin" showTitle={false}>
-      <Stack.Screen options={{ headerShown: true, title: 'Admin', headerBackTitle: 'Back' }} />
-      <ThemedText type="subtitle" accessibilityRole="header">Admin</ThemedText>
       {isAdmin === null ? (
         <ActivityIndicator />
       ) : !isAdmin ? (
@@ -186,9 +184,9 @@ export default function AdminScreen() {
           />
           <Button title="Make admin" disabled={!/^\S+@\S+\.\S+$/.test(email.trim())} onPress={() => add('email', email)} />
           {note && <ThemedText type="small">{note}</ThemedText>}
-          {Platform.OS !== 'web' && (
+          {Platform.OS !== 'web' && scanning && (
             <CodeScanner
-              visible={scanning}
+              visible
               onClose={() => setScanning(false)}
               onCode={(scanned) => {
                 setScanning(false);
