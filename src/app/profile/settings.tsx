@@ -9,6 +9,7 @@ import { AppIconPicker } from '@/components/profile/app-icon-picker';
 import { useAiConsent } from '@/lib/ai-consent';
 import { PrivacySettings } from '@/components/profile/privacy-settings';
 import { Screen } from '@/components/screen';
+import { IconButton } from '@/components/ui/icon-button';
 import { ThemedText } from '@/components/themed-text';
 import { Card, Group, Row, Section } from '@/components/ui/group';
 import { Spacing } from '@/constants/theme';
@@ -67,7 +68,7 @@ export default function SettingsScreen() {
 
   if (!user) {
     return (
-      <Screen title="Settings" showTitle={false}>
+      <Screen title="Settings" action={<IconButton icon="close" label="Back to profile" onPress={() => router.back()} />}>
         <ThemedText>Sign in to change your settings.</ThemedText>
         <Button title="Sign in" onPress={() => router.replace('/profile')} />
       </Screen>
@@ -152,7 +153,7 @@ export default function SettingsScreen() {
   const showPush = push !== 'unsupported';
 
   return (
-    <Screen title="Settings" showTitle={false}>
+    <Screen title="Settings" action={<IconButton icon="close" label="Back to profile" onPress={() => router.back()} />}>
       <Section title="Notifications">
         {showPush && push !== 'on' && (
           <Card>
