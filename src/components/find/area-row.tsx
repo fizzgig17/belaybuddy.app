@@ -17,6 +17,8 @@ type Props = {
   area: ClimbingArea;
   distanceKm?: number;
   favorite: boolean;
+  /** False for a saved-spot snapshot that has no hours data to judge from. */
+  hoursKnown?: boolean;
   /** Omit when signed out: the star is hidden. */
   onToggleFavorite?: () => void;
 };
@@ -37,7 +39,7 @@ function describe(area: ClimbingArea): string {
 }
 
 /** One gym or crag in a list. Tapping opens its detail screen. */
-export function AreaRow({ area, distanceKm, favorite, onToggleFavorite }: Props) {
+export function AreaRow({ area, distanceKm, favorite, hoursKnown = true, onToggleFavorite }: Props) {
   const theme = useTheme();
   // Gyms and crags get their own hold color so the list scans at a glance.
   const tint = area.kind === 'gym' ? HoldColors.purple : HoldColors.green;
@@ -76,9 +78,9 @@ export function AreaRow({ area, distanceKm, favorite, onToggleFavorite }: Props)
           <ThemedText type="small" themeColor="textSecondary" numberOfLines={2}>
             {describe(area)}
           </ThemedText>
-          {(area.kind === 'gym' || chips.length > 0) && (
+          {((area.kind === 'gym' && hoursKnown) || chips.length > 0) && (
             <View style={styles.chips}>
-              {area.kind === 'gym' && (
+              {area.kind === 'gym' && hoursKnown && (
                 <View style={[styles.chip, { backgroundColor: open ? `${HoldColors.green}26` : theme.backgroundElement }]}>
                   <ThemedText
                     type="small"

@@ -163,6 +163,10 @@ export default function FindScreen() {
     [result, filter],
   );
   const savedVisible = showAllSaved ? favorites : favorites.slice(0, 3);
+  // Saved spots show once, in the Saved list. When the search below has loaded
+  // one of them, use that fuller record so its hours and styles appear too.
+  const savedIds = useMemo(() => new Set(user ? savedVisible.map((f) => f.areaId) : []), [user, savedVisible]);
+  const listed = useMemo(() => visible.filter((a) => !savedIds.has(a.id)), [visible, savedIds]);
 
   return (
     <Screen profileButton title="Find" subtitle="Climbing gyms and outdoor crags near you, or wherever you're headed.">
@@ -290,11 +294,13 @@ export default function FindScreen() {
         <View style={styles.section}>
           <ThemedText type="smallBold">Saved</ThemedText>
           {savedVisible.map((f) => {
-            const area = favoriteToArea(f);
+            const loaded = result?.areas.find((a) => a.id === f.areaId);
+            const area = loaded ?? favoriteToArea(f);
             return (
               <AreaRow
                 key={f.areaId}
                 area={area}
+                hoursKnown={!!loaded}
                 distanceKm={place ? distanceKm(place.point, f.location) : undefined}
                 favorite
                 onToggleFavorite={() => onToggleFavorite(area)}
@@ -350,14 +356,14 @@ export default function FindScreen() {
                   </ThemedText>
                 </View>
               )}
-              {result && !result.pending.gyms && !result.pending.crags && visible.length === 0 && (
+              {result && !result.pending.gyms && !result.pending.crags && listed.length === 0 && (
                 <ThemedText themeColor="textSecondary">
                   {radius < 50
                     ? `Nothing within ${radius} miles. Try a bigger distance.`
                     : 'Nothing within 50 miles of here yet.'}
                 </ThemedText>
               )}
-              {visible.slice(0, shown).map((area) => (
+              {listed.slice(0, shown).map((area) => (
                 <AreaRow
                   key={area.id}
                   area={area}
@@ -366,10 +372,10 @@ export default function FindScreen() {
                   onToggleFavorite={user ? () => onToggleFavorite(area) : undefined}
                 />
               ))}
-              {visible.length > shown && (
+              {listed.length > shown && (
                 <Button
                   variant="secondary"
-                  title={`Show ${Math.min(PAGE, visible.length - shown)} more`}
+                  title={`Show ${Math.min(PAGE, listed.length - shown)} more`}
                   onPress={() => setShown(shown + PAGE)}
                 />
               )}
