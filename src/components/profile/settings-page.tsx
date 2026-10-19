@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
   col: { width: 56, alignItems: 'center', textAlign: 'center' },
 });
 
-/** Light, dark, or follow the phone. The sun/moon button at the top of each screen flips it quickly. */
+/** Light, dark, or follow the phone.  */
 function AppearanceSettings() {
   const pref = useThemePref();
   return (
