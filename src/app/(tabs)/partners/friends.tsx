@@ -1,7 +1,8 @@
 import * as Clipboard from 'expo-clipboard';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Platform, Share, StyleSheet, View } from 'react-native';
+import { SymbolView } from 'expo-symbols';
+import { ActivityIndicator, Platform, Pressable, Share, StyleSheet, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 
 import { Button, Field, ToggleRow } from '@/components/form';
@@ -9,6 +10,7 @@ import { CodeScanner } from '@/components/friends/code-scanner';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/group';
+import { Icons } from '@/constants/icons';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useLiveRefresh } from '@/lib/live';
@@ -259,6 +261,7 @@ function MyCode() {
 }
 
 function AddByCode({ onAdded }: { onAdded: () => void }) {
+  const theme = useTheme();
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -297,11 +300,21 @@ function AddByCode({ onAdded }: { onAdded: () => void }) {
         autoCorrect={false}
         returnKeyType="done"
         onSubmitEditing={() => add()}
+        trailing={
+          Platform.OS !== 'web' ? (
+            <Pressable
+              onPress={() => setScanning(true)}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Scan a friend’s QR code">
+              <SymbolView name={Icons.qr} size={24} tintColor={theme.accent} />
+            </Pressable>
+          ) : undefined
+        }
       />
       <Button title="Add friend" onPress={() => add()} disabled={code.replace(/\s/g, '').length < 8} loading={busy} />
       {Platform.OS !== 'web' && (
         <>
-          <Button title="Scan a friend’s QR code" variant="secondary" onPress={() => setScanning(true)} />
           <CodeScanner
             visible={scanning}
             onClose={() => setScanning(false)}

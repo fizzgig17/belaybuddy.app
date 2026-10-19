@@ -75,6 +75,13 @@ export async function addAdminByCode(code: string): Promise<string | null> {
   return (data as string | null) ?? null;
 }
 
+/** Returns the new admin's name, or null if no account uses that email. */
+export async function addAdminByEmail(email: string): Promise<string | null> {
+  const { data, error } = await supabase.rpc('admin_add_admin_by_email', { p_email: email });
+  if (error) fail(error);
+  return (data as string | null) ?? null;
+}
+
 export async function removeAdmin(userId: string) {
   const { error } = await supabase.rpc('admin_remove_admin', { p_user: userId });
   if (error) fail(/at least one admin/i.test(error.message) ? { message: 'There must be at least one admin.' } : error);

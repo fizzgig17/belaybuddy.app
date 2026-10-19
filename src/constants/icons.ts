@@ -13,6 +13,7 @@ export const Icons = {
   nearby: icon('location', 'location_on'),
   travel: icon('airplane', 'flight'),
   safety: icon('hand.raised', 'back_hand'),
+  qr: icon('qrcode.viewfinder', 'qr_code_scanner'),
   camera: icon('camera', 'photo_camera'),
   holdMap: icon('hand.point.up.left', 'touch_app'),
   tips: icon('lightbulb', 'lightbulb'),

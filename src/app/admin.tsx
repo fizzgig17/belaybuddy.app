@@ -1,15 +1,20 @@
 import { Stack } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { Button, Field } from '@/components/form';
+import { CodeScanner } from '@/components/friends/code-scanner';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/group';
+import { Icons } from '@/constants/icons';
 import { Spacing } from '@/constants/theme';
+import { useTheme } from '@/hooks/use-theme';
 import { formatOpeningHours } from '@/lib/hours';
 import {
   addAdminByCode,
+  addAdminByEmail,
   fetchAdmins,
   fetchPendingEdits,
   removeAdmin,
@@ -36,6 +41,9 @@ function Hours({ value }: { value: string }) {
 /** Admin-only: approve or reject suggested opening hours, and manage who else is an admin. */
 export default function AdminScreen() {
   const isAdmin = useIsAdmin();
+  const theme = useTheme();
+  const [scanning, setScanning] = useState(false);
+  const [email, setEmail] = useState('');
   const [edits, setEdits] = useState<PendingEdit[] | null>(null);
   const [admins, setAdmins] = useState<AdminPerson[]>([]);
   const [busy, setBusy] = useState<number | null>(null);
@@ -71,16 +79,17 @@ export default function AdminScreen() {
     }
   }
 
-  async function add() {
+  async function add(kind: 'code' | 'email', value: string) {
     setNote(null);
     setError(null);
     try {
-      const name = await addAdminByCode(code);
+      const name = kind === 'code' ? await addAdminByCode(value) : await addAdminByEmail(value);
       if (name) {
         setNote(`${name} is now an admin.`);
         setCode('');
+        setEmail('');
         load();
-      } else setNote('No one has that friend code.');
+      } else setNote(kind === 'code' ? 'No one has that friend code.' : 'No account uses that email.');
     } catch (err) {
       setError((err as Error).message);
     }
@@ -145,15 +154,46 @@ export default function AdminScreen() {
             </Card>
           ))}
           <Field
-            label="Add an admin"
-            hint="Ask them for their friend code (Partners > Friends)."
+            label="Add an admin with their friend code"
+            hint="They can find it in Partners > Friends."
             value={code}
-            onChangeText={setCode}
+            onChangeText={(v) => setCode(v.toUpperCase())}
             autoCapitalize="characters"
             autoCorrect={false}
+            trailing={
+              Platform.OS !== 'web' ? (
+                <Pressable
+                  onPress={() => setScanning(true)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Scan a friend code QR">
+                  <SymbolView name={Icons.qr} size={24} tintColor={theme.accent} />
+                </Pressable>
+              ) : undefined
+            }
           />
+          <Button title="Make admin" disabled={code.replace(/\s/g, '').length < 8} onPress={() => add('code', code)} />
+          <Field
+            label="Or by email"
+            hint="The email address on their Belay Buddy account."
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="email-address"
+          />
+          <Button title="Make admin" disabled={!/^\S+@\S+\.\S+$/.test(email.trim())} onPress={() => add('email', email)} />
           {note && <ThemedText type="small">{note}</ThemedText>}
-          <Button title="Make admin" disabled={code.trim().length < 4} onPress={add} />
+          {Platform.OS !== 'web' && (
+            <CodeScanner
+              visible={scanning}
+              onClose={() => setScanning(false)}
+              onCode={(scanned) => {
+                setScanning(false);
+                add('code', scanned);
+              }}
+            />
+          )}
         </>
       )}
     </Screen>

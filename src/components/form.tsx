@@ -42,8 +42,9 @@ export function Field({
   label,
   hint,
   style,
+  trailing,
   ...inputProps
-}: TextInputProps & { label: string; hint?: string }) {
+}: TextInputProps & { label: string; hint?: string; /** A control drawn inside the right end of the box (a scan button, say). */ trailing?: ReactNode }) {
   const theme = useTheme();
   // On a phone, a swipe that starts on a multiline box (such as one inside the Profile/Settings
   // pager) must not open the keyboard. The box only takes focus from a real tap.
@@ -58,6 +59,7 @@ export function Field({
           styles.input,
           { color: theme.text, backgroundColor: theme.backgroundElement },
           inputProps.multiline && styles.multiline,
+          trailing ? styles.withTrailing : null,
           style,
         ]}
         // Single-line text fields: Return closes the keyboard unless the caller set something else.
@@ -92,6 +94,11 @@ export function Field({
               }}
             />
           )}
+        </View>
+      ) : trailing ? (
+        <View>
+          {field}
+          <View style={styles.trailing}>{trailing}</View>
         </View>
       ) : (
         field
@@ -264,6 +271,8 @@ export function ToggleRow({
 }
 
 const styles = StyleSheet.create({
+  withTrailing: { paddingRight: 52 },
+  trailing: { position: 'absolute', right: 0, top: 0, bottom: 0, width: 48, alignItems: 'center', justifyContent: 'center' },
   field: { gap: Spacing.one },
   doneBar: {
     flexDirection: 'row',
