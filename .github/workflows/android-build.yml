@@ -11,7 +11,7 @@
 # Without them the build still works, signed with a throwaway key: fine for
 # trying it on your phone, but Google Play won't take it.
 #
-# Google Play upload: master builds are sent to the Internal testing track when the
+# Google Play upload: master builds are sent to the Closed testing track when the
 # secret PLAY_SERVICE_ACCOUNT_JSON (the service account's JSON key) exists and the build
 # is signed with your upload key. Needs the app created in Play Console and its first
 # release uploaded by hand. develop builds are never uploaded.
@@ -137,7 +137,7 @@ jobs:
           else
             echo "::notice::Not uploading to Google Play (needs a master build, the PLAY_SERVICE_ACCOUNT_JSON secret and the upload key)."
           fi
-      - name: Upload to Google Play (Internal testing)
+      - name: Upload to Google Play (Closed testing)
         id: play_up
         if: steps.play.outputs.go == 'true'
         continue-on-error: true
@@ -146,7 +146,7 @@ jobs:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: app.belaybuddy.android
           releaseFiles: out/*.aab
-          track: internal
+          track: alpha
           status: completed
       # A brand-new app that has not been published yet only accepts draft releases;
       # the draft then needs a click on "Roll out" in Play Console.
@@ -157,7 +157,7 @@ jobs:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: app.belaybuddy.android
           releaseFiles: out/*.aab
-          track: internal
+          track: alpha
           status: draft
 
       # Remember this release so the next one that day gets the next number.
