@@ -31,10 +31,12 @@ type ScreenProps = {
   onRefresh?: () => Promise<unknown> | void;
   /** Floats above the bottom of the screen, over the tab bar's space (e.g. an Undo bar). */
   overlay?: ReactNode;
+  /** One page inside a pager that already supplies the page title and keyboard bar. */
+  embedded?: boolean;
 };
 
 /** Standard scrollable screen shell used by every tab. */
-export function Screen({ title, subtitle, children, showTitle = true, action, profileButton, onRefresh, overlay }: ScreenProps) {
+export function Screen({ title, subtitle, children, showTitle = true, action, profileButton, onRefresh, overlay, embedded }: ScreenProps) {
   const [refreshing, setRefreshing] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const { user, loading: authLoading } = useAuth();
@@ -52,7 +54,7 @@ export function Screen({ title, subtitle, children, showTitle = true, action, pr
     : undefined;
   return (
     <ThemedView style={styles.container}>
-      <PageTitle title={title} />
+      {!embedded && <PageTitle title={title} />}
       <SafeAreaView style={styles.safeArea} edges={showTitle && !IS_DEV_BUILD ? ['top'] : []}>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
@@ -83,7 +85,6 @@ export function Screen({ title, subtitle, children, showTitle = true, action, pr
                   )}
                   {user && <IconButton icon="session" label="Start a session" onPress={() => router.push('/partners/session')} />}
                   {user && <IconButton icon="person" label="Profile" onPress={() => router.push('/profile')} />}
-                  {user && <IconButton icon="settings" label="Settings" onPress={() => router.push('/profile/settings')} />}
                 </View>
               )}
             </View>
@@ -94,7 +95,7 @@ export function Screen({ title, subtitle, children, showTitle = true, action, pr
       </SafeAreaView>
       {overlay && <View pointerEvents="box-none" style={styles.overlay}>{overlay}</View>}
       {profileButton && <AboutSheet visible={aboutOpen} onClose={() => setAboutOpen(false)} />}
-      <KeyboardDoneBar />
+      {!embedded && <KeyboardDoneBar />}
     </ThemedView>
   );
 }

@@ -42,6 +42,7 @@ export const Icons = {
   lock: icon('lock.fill', 'lock'),
   shop: icon('bag', 'storefront'),
   close: icon('xmark', 'close'),
+  back: icon('chevron.left', 'chevron_left'),
   sun: icon('sun.max', 'light_mode'),
   moon: icon('moon', 'dark_mode'),
   about: icon('questionmark.circle', 'help'),

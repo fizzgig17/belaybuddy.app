@@ -1,4 +1,3 @@
-import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Platform } from 'react-native';
 
@@ -6,20 +5,17 @@ import { SignIn } from '@/components/auth/sign-in';
 import { GymWallBanner } from '@/components/illustrations';
 import { ProfileEditor } from '@/components/profile/profile-editor';
 import { Button } from '@/components/form';
-import { Screen } from '@/components/screen';
 import { IconButton } from '@/components/ui/icon-button';
+import { Screen } from '@/components/screen';
+import { closeProfile, ProfilePager, SheetActions } from '@/components/profile/pager';
+import { SettingsPage } from '@/components/profile/settings-page';
 import { ThemedText } from '@/components/themed-text';
 import { signOut, useAuth } from '@/lib/auth';
 
-function closeProfile() {
-  if (router.canGoBack()) router.back();
-  else router.navigate('/');
-}
+/** The close button for the signed-out sheet. Swiping down also closes it on phones. */
+const closeOnly = <IconButton icon="close" label="Close" onPress={closeProfile} />;
 
-/** iPhone and Android close this sheet with a swipe down; the website has no such gesture. */
-const closeAction = Platform.OS === 'web' ? <IconButton icon="close" label="Close" onPress={closeProfile} /> : undefined;
-
-export default function ProfileScreen() {
+export default function ProfileSheet() {
   const { user, loading } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
 
@@ -52,7 +48,7 @@ export default function ProfileScreen() {
 
   if (loading) {
     return (
-      <Screen title="Profile" action={closeAction}>
+      <Screen title="Profile" action={closeOnly}>
         <ActivityIndicator />
       </Screen>
     );
@@ -60,7 +56,7 @@ export default function ProfileScreen() {
 
   if (!user) {
     return (
-      <Screen title="Profile" action={closeAction} subtitle="Sign in to save favorites, set up your climbing profile, and find partners.">
+      <Screen title="Profile" action={closeOnly} subtitle="Sign in to save favorites, set up your climbing profile, and find partners.">
         <GymWallBanner />
         <SignIn />
       </Screen>
@@ -68,14 +64,23 @@ export default function ProfileScreen() {
   }
 
   return (
-    <Screen
-      title="Profile"
-      action={closeAction}>
-      <ThemedText type="small" themeColor="textSecondary">
-        Signed in as {user.email}
-      </ThemedText>
-      <ProfileEditor userId={user.id} />
-      <Button title="Sign out" variant="secondary" onPress={confirmSignOut} loading={signingOut} />
-    </Screen>
+    <ProfilePager
+      pages={[
+        {
+          key: 'profile',
+          label: 'Profile',
+          content: (
+            <Screen title="Profile" embedded action={<SheetActions to="settings" />}>
+              <ThemedText type="small" themeColor="textSecondary">
+                Signed in as {user.email}
+              </ThemedText>
+              <ProfileEditor userId={user.id} />
+              <Button title="Sign out" variant="secondary" onPress={confirmSignOut} loading={signingOut} />
+            </Screen>
+          ),
+        },
+        { key: 'settings', label: 'Settings', content: <SettingsPage /> },
+      ]}
+    />
   );
 }
