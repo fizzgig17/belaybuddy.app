@@ -32,6 +32,7 @@ export default function TabLayout() {
               <Stack.Screen name="privacy" />
               <Stack.Screen name="terms" />
               <Stack.Screen name="delete-account" />
+              <Stack.Screen name="admin" />
             </Stack>
               </View>
             </View>
