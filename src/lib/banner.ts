@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useSyncExternalStore } from 'react';
 
 import { supabase } from '@/lib/supabase';
 
@@ -23,36 +23,50 @@ function writeDismissed(version: number) {
   }
 }
 
+// One shared copy, so the banner and every screen agree on whether it is showing.
+let current: Banner | null = null;
+let dismissedVersion = readDismissed();
+let loaded = false;
+const listeners = new Set<() => void>();
+const emit = () => listeners.forEach((l) => l());
+
+function load() {
+  if (loaded) return;
+  loaded = true;
+  supabase
+    .from('site_banner')
+    .select('message, version')
+    .eq('active', true)
+    .maybeSingle()
+    .then(({ data }) => {
+      current = data ? { message: data.message as string, version: Number(data.version) } : null;
+      emit();
+    });
+}
+
+function visible(): Banner | null {
+  return current && current.version > dismissedVersion ? current : null;
+}
+
+function subscribe(l: () => void) {
+  listeners.add(l);
+  load();
+  return () => void listeners.delete(l);
+}
+
 /**
  * The active site banner, unless this person already closed it. Closing is permanent for that
  * message (until site data is cleared); a newly published message shows again.
  */
 export function useBanner() {
-  const [banner, setBanner] = useState<Banner | null>(null);
-  const [dismissed, setDismissed] = useState(readDismissed);
-
-  useEffect(() => {
-    let active = true;
-    supabase
-      .from('site_banner')
-      .select('message, version')
-      .eq('active', true)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (active) setBanner(data ? { message: data.message as string, version: Number(data.version) } : null);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-
+  const banner = useSyncExternalStore(subscribe, visible, () => null);
   const dismiss = useCallback(() => {
-    if (!banner) return;
-    writeDismissed(banner.version);
-    setDismissed(banner.version);
-  }, [banner]);
-
-  return { banner: banner && banner.version > dismissed ? banner : null, dismiss };
+    if (!current) return;
+    dismissedVersion = current.version;
+    writeDismissed(current.version);
+    emit();
+  }, []);
+  return { banner, dismiss };
 }
 
 export type AdminBanner = { message: string; active: boolean };

@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AboutSheet } from '@/components/about-sheet';
 import { IS_DEV_BUILD } from '@/components/dev-banner';
+import { useBanner } from '@/lib/banner';
 
 import { PageTitle } from '@/components/page-title';
 import { KeyboardDoneBar } from '@/components/form';
@@ -62,6 +63,8 @@ export function Screen({ title, subtitle, description, children, showTitle = tru
   const theme = useTheme();
   // On a wide website the nav bar carries Sign in and Profile; everywhere else this header does.
   const { width } = useWindowDimensions();
+  // A banner across the top already covers the status-bar area.
+  const bannerShowing = !!useBanner().banner;
   const accountInHeader = !(Platform.OS === 'web' && width >= (user ? 900 : 640));
   const pull = onRefresh
     ? async () => {
@@ -76,7 +79,7 @@ export function Screen({ title, subtitle, description, children, showTitle = tru
   return (
     <ThemedView style={styles.container}>
       {!embedded && <PageTitle title={title} description={description ?? subtitle} />}
-      <SafeAreaView style={styles.safeArea} edges={showTitle && !IS_DEV_BUILD ? ['top'] : []}>
+      <SafeAreaView style={styles.safeArea} edges={showTitle && !IS_DEV_BUILD && !bannerShowing ? ['top'] : []}>
         <ScrollView contentContainerStyle={[styles.content, readable && { maxWidth: ReadableWidth }]} keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           automaticallyAdjustKeyboardInsets

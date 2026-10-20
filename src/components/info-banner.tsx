@@ -1,4 +1,5 @@
 import { SymbolView } from 'expo-symbols';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -19,7 +20,7 @@ const PALETTE = {
 export function BannerText({ message, scheme = 'light' }: { message: string; scheme?: 'light' | 'dark' }) {
   const c = PALETTE[scheme];
   return (
-    <ThemedText type="small" style={[styles.text, { color: c.text }]}>
+    <ThemedText type="small" maxFontSizeMultiplier={1.15} style={[styles.text, { color: c.text }]}>
       {parseBanner(message).map((p, i) => {
         if (p.kind === 'bold') return <ThemedText key={i} type="smallBold" style={{ color: c.text }}>{p.text}</ThemedText>;
         if (p.kind === 'italic') return <ThemedText key={i} type="small" style={{ color: c.text, fontStyle: 'italic' }}>{p.text}</ThemedText>;
@@ -41,10 +42,11 @@ export function BannerText({ message, scheme = 'light' }: { message: string; sch
 export function InfoBanner() {
   const { banner, dismiss } = useBanner();
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
+  const insets = useSafeAreaInsets();
   if (!banner) return null;
   const c = PALETTE[scheme];
   return (
-    <View accessibilityRole="alert" style={[styles.bar, { backgroundColor: c.bg, borderBottomColor: c.border }]}>
+    <View accessibilityRole="alert" style={[styles.bar, { backgroundColor: c.bg, borderBottomColor: c.border, paddingTop: insets.top + Spacing.two }]}>
       <View style={styles.inner}>
         <SymbolView name={Icons.info} size={20} tintColor={c.icon} />
         <View style={styles.body}>
@@ -64,7 +66,7 @@ export function InfoBanner() {
 }
 
 const styles = StyleSheet.create({
-  bar: { width: '100%', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: Spacing.two + 2, paddingHorizontal: Spacing.three },
+  bar: { width: '100%', alignItems: 'center', borderBottomWidth: StyleSheet.hairlineWidth, paddingBottom: Spacing.two + 2, paddingHorizontal: Spacing.three },
   inner: { width: '100%', maxWidth: 960, flexDirection: 'row', alignItems: 'center', gap: Spacing.two + 2 },
   body: { flex: 1 },
   text: { lineHeight: 20 },
