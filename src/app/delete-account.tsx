@@ -9,7 +9,7 @@ import { PRIVACY_CONTACT } from '@/content/privacy';
 /** Public page describing how to delete a Belay Buddy account (required by app stores). */
 export default function DeleteAccountScreen() {
   return (
-    <Screen title="Delete your account" showTitle={Platform.OS === 'web'} readable>
+    <Screen title="Delete your account" description="How to delete your Belay Buddy account and the data that goes with it." showTitle={Platform.OS === 'web'} readable>
       <Stack.Screen options={{ headerShown: Platform.OS !== 'web', title: 'Delete your account', headerBackTitle: 'Back' }} />
       {Platform.OS !== 'web' && (
         <ThemedText type="subtitle" accessibilityRole="header">Delete your Belay Buddy account</ThemedText>

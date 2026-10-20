@@ -14,18 +14,8 @@ export default function Root({ children }: PropsWithChildren) {
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
         <meta name="theme-color" content="#0E7A80" />
-        <meta
-          name="description"
-          content="Find climbing gyms and crags near you, meet partners to climb with, and learn belay safety, gear and knots. Belay Buddy is free."
-        />
         <meta property="og:site_name" content="Belay Buddy" />
         <meta property="og:type" content="website" />
-        <meta
-          property="og:description"
-          content="Climbing gyms and crags near you, partner boards for your gym, and safety, gear and knot guides."
-        />
-        <meta property="og:image" content="https://belaybuddy.app/icon-512.png" />
-        <meta name="twitter:card" content="summary" />
         <meta name="google-site-verification" content="pYei1IOza-DQMyjnHfUbjEyt1nUEsqj99XGjovf84CM" />
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />

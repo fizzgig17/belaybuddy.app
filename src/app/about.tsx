@@ -12,7 +12,7 @@ import { useTheme } from '@/hooks/use-theme';
 export default function AboutScreen() {
   const theme = useTheme();
   return (
-    <Screen title="About Belay Buddy" showTitle={Platform.OS === 'web'} readable>
+    <Screen title="About Belay Buddy" description="Belay Buddy helps climbers find gyms and crags, meet partners and learn safer habits. It is free." showTitle={Platform.OS === 'web'} readable>
       <Stack.Screen options={{ headerShown: Platform.OS !== 'web', title: 'About', headerBackTitle: 'Back' }} />
       {Platform.OS !== 'web' && (
         <ThemedText type="subtitle" accessibilityRole="header">

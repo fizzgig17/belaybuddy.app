@@ -18,6 +18,8 @@ import { BottomTabInset, MaxContentWidth, ReadableWidth, Spacing } from '@/const
 type ScreenProps = {
   title: string;
   subtitle?: string;
+  /** What a link to this page says when shared (website). Defaults to the subtitle. */
+  description?: string;
   children?: ReactNode;
   /** Set false for screens pushed onto a stack that already shows a header. */
   showTitle?: boolean;
@@ -52,7 +54,7 @@ function BackPill() {
 }
 
 /** Standard scrollable screen shell used by every tab. */
-export function Screen({ title, subtitle, children, showTitle = true, action, profileButton, onRefresh, overlay, embedded, readable }: ScreenProps) {
+export function Screen({ title, subtitle, description, children, showTitle = true, action, profileButton, onRefresh, overlay, embedded, readable }: ScreenProps) {
 
   const [refreshing, setRefreshing] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -73,7 +75,7 @@ export function Screen({ title, subtitle, children, showTitle = true, action, pr
     : undefined;
   return (
     <ThemedView style={styles.container}>
-      {!embedded && <PageTitle title={title} />}
+      {!embedded && <PageTitle title={title} description={description ?? subtitle} />}
       <SafeAreaView style={styles.safeArea} edges={showTitle && !IS_DEV_BUILD ? ['top'] : []}>
         <ScrollView contentContainerStyle={[styles.content, readable && { maxWidth: ReadableWidth }]} keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"

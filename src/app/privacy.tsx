@@ -8,7 +8,7 @@ import { PRIVACY_INTRO, PRIVACY_SECTIONS, PRIVACY_UPDATED } from '@/content/priv
 
 export default function PrivacyScreen() {
   return (
-    <Screen title="Privacy policy" showTitle={Platform.OS === 'web'} readable>
+    <Screen title="Privacy policy" description="How Belay Buddy collects, uses and protects your information." showTitle={Platform.OS === 'web'} readable>
       <Stack.Screen options={{ headerShown: Platform.OS !== 'web', title: 'Privacy policy', headerBackTitle: 'Back' }} />
       <ThemedText type="small" themeColor="textSecondary">
         Last updated {PRIVACY_UPDATED}

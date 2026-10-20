@@ -8,7 +8,7 @@ import { TERMS_INTRO, TERMS_IS_DRAFT, TERMS_SECTIONS, TERMS_UPDATED } from '@/co
 
 export default function TermsScreen() {
   return (
-    <Screen title="Terms of use" showTitle={Platform.OS === 'web'} readable>
+    <Screen title="Terms of use" description="The rules for using Belay Buddy." showTitle={Platform.OS === 'web'} readable>
       <Stack.Screen options={{ headerShown: Platform.OS !== 'web', title: 'Terms of use', headerBackTitle: 'Back' }} />
       {TERMS_IS_DRAFT && (
         <ThemedText type="smallBold" style={styles.draft}>
