@@ -7,12 +7,12 @@ import {
   TabListProps,
 } from 'expo-router/ui';
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Image, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
-import { Depth, MaxContentWidth, Spacing } from '@/constants/theme';
+import { Depth, gradientStyle, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { IconButton } from '@/components/ui/icon-button';
 import { useAuth } from '@/lib/auth';
@@ -100,36 +100,77 @@ function AccountButton() {
   );
 }
 
+/** The site's name, large, on a rope-teal band across the top of every page. */
+function Masthead() {
+  const wide = useWindowDimensions().width >= 640;
+  const dark = useColorScheme() === 'dark';
+  const colors = dark ? ['#18797E', '#0F5A5F'] : ['#15939B', '#0E7A80'];
+  return (
+    <View
+      accessibilityRole="header"
+      style={[
+        styles.masthead,
+        { backgroundColor: colors[1], paddingBottom: wide ? 44 : 34, boxShadow: 'inset 0 -2px 0 rgba(0,0,0,0.12)' },
+        gradientStyle(`linear-gradient(180deg, ${colors[0]} 0%, ${colors[1]} 100%)`),
+      ]}>
+      <View style={[styles.mastheadInner, { gap: wide ? 20 : 12 }]}>
+        <Image
+          source={require('@/assets/images/belay-buddy-logo.png')}
+          accessibilityLabel=""
+          style={{ width: wide ? 84 : 56, height: wide ? 84 : 56, marginLeft: wide ? -8 : -4 }}
+        />
+        <View style={{ gap: 4, flexShrink: 1 }}>
+          <ThemedText
+            style={{ color: '#FFFFFF', fontSize: wide ? 46 : 30, lineHeight: wide ? 48 : 32, fontWeight: 700, letterSpacing: wide ? -1 : -0.6 }}>
+            Belay Buddy
+          </ThemedText>
+          {wide && (
+            <ThemedText style={{ color: '#D6ECEC', fontSize: 17, lineHeight: 22 }}>
+              Find where to climb, and who to climb with.
+            </ThemedText>
+          )}
+        </View>
+      </View>
+    </View>
+  );
+}
+
 export function CustomTabList(props: TabListProps) {
-  // Phones don't have room for the name next to five tabs.
-  const showBrand = useWindowDimensions().width >= 640;
+  const wide = useWindowDimensions().width >= 640;
   const theme = useTheme();
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   return (
-    <View {...props} style={styles.tabListContainer}>
-      <ThemedView
-        type="surface"
-        style={[styles.innerContainer, { borderColor: theme.border, borderWidth: StyleSheet.hairlineWidth, boxShadow: Depth[scheme].card }]}>
-        {showBrand && (
-          <ThemedText type="smallBold" style={styles.brandText}>
-            Belay Buddy
-          </ThemedText>
-        )}
-
-        {props.children}
-        <AccountButton />
-      </ThemedView>
+    <View {...props} style={styles.listRoot}>
+      <Masthead />
+      <View style={styles.tabListContainer}>
+        <ThemedView
+          type="surface"
+          style={[
+            styles.innerContainer,
+            wide && styles.innerWide,
+            { borderColor: theme.border, borderWidth: StyleSheet.hairlineWidth, boxShadow: Depth[scheme].raised },
+          ]}>
+          {props.children}
+          {wide && <View style={styles.spacer} />}
+          <AccountButton />
+        </ThemedView>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  listRoot: { width: '100%' },
+  masthead: { width: '100%', alignItems: 'center', paddingTop: Spacing.four },
+  mastheadInner: { width: '100%', maxWidth: MaxContentWidth, flexDirection: 'row', alignItems: 'center', paddingHorizontal: Spacing.four },
+  innerWide: { justifyContent: 'flex-start', paddingLeft: Spacing.four },
+  spacer: { flex: 1 },
   root: { flex: 1 },
   slot: { flex: 1 },
   tabListContainer: {
     width: '100%',
     padding: Spacing.two,
-    paddingTop: Spacing.three,
+    marginTop: -28,
     justifyContent: 'center',
     alignItems: 'center',
     flexDirection: 'row',

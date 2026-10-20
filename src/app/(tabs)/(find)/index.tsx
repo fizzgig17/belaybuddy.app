@@ -170,14 +170,7 @@ export default function FindScreen() {
   const listed = useMemo(() => visible.filter((a) => !savedIds.has(a.id)), [visible, savedIds]);
 
   return (
-    <Screen
-      profileButton
-      title="Find"
-      subtitle={
-        Platform.OS === 'web' && !user
-          ? 'Find where to climb, and who to climb with.'
-          : "Climbing gyms and outdoor crags near you, or wherever you're headed."
-      }>
+    <Screen profileButton title="Find" subtitle="Climbing gyms and outdoor crags near you, or wherever you're headed.">
       {!place && <CragBanner />}
 
       {/* Where to look */}
