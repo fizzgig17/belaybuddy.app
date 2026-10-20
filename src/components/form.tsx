@@ -364,6 +364,7 @@ export function Segmented<T extends string | number>({
   label: string;
 }) {
   const theme = useTheme();
+  const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   return (
     <View
       accessibilityRole="radiogroup"
@@ -380,7 +381,15 @@ export function Segmented<T extends string | number>({
                 select();
                 onChange(option.value);
               }}
-            style={[segStyles.segment, on && { backgroundColor: theme.background }]}>
+            style={(state) => {
+              const hovered = (state as { hovered?: boolean }).hovered === true;
+              return [
+                segStyles.segment,
+                on && { backgroundColor: theme.surface, boxShadow: Depth[scheme].card },
+                !on && hovered && { backgroundColor: theme.backgroundSelected },
+                Platform.OS === 'web' && ({ transitionProperty: 'background-color', transitionDuration: '120ms', cursor: 'pointer' } as object),
+              ];
+            }}>
             <ThemedText
               type={on ? 'smallBold' : 'small'}
               style={{ color: on ? theme.accent : theme.textSecondary, textAlign: 'center' }}>
