@@ -4,12 +4,15 @@ import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from 'react-
 
 import { Button, Field } from '@/components/form';
 import { CodeScanner } from '@/components/friends/code-scanner';
+import { BannerText } from '@/components/info-banner';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/group';
 import { Icons } from '@/constants/icons';
 import { Spacing } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
+import { fetchAdminBanner, publishBanner, turnOffBanner } from '@/lib/banner';
 import { formatOpeningHours } from '@/lib/hours';
 import {
   addAdminByCode,
@@ -41,6 +44,7 @@ function Hours({ value }: { value: string }) {
 export default function AdminScreen() {
   const isAdmin = useIsAdmin();
   const theme = useTheme();
+  const scheme = useColorScheme();
   const [scanning, setScanning] = useState(false);
   const [email, setEmail] = useState('');
   const [edits, setEdits] = useState<PendingEdit[] | null>(null);
@@ -49,6 +53,10 @@ export default function AdminScreen() {
   const [error, setError] = useState<string | null>(null);
   const [code, setCode] = useState('');
   const [note, setNote] = useState<string | null>(null);
+  const [bannerText, setBannerText] = useState('');
+  const [bannerLive, setBannerLive] = useState(false);
+  const [bannerNote, setBannerNote] = useState<string | null>(null);
+  const [bannerBusy, setBannerBusy] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -56,6 +64,11 @@ export default function AdminScreen() {
       const [e, a] = await Promise.race([Promise.all([fetchPendingEdits(), fetchAdmins()]), timeout]);
       setEdits(e);
       setAdmins(a);
+      const b = await fetchAdminBanner().catch(() => null);
+      if (b) {
+        setBannerText(b.message);
+        setBannerLive(b.active);
+      }
     } catch (err) {
       setError((err as Error).message);
       setEdits([]);
@@ -65,6 +78,21 @@ export default function AdminScreen() {
   useEffect(() => {
     if (isAdmin === true) load();
   }, [isAdmin, load]);
+
+  async function saveBanner(on: boolean) {
+    setBannerBusy(true);
+    setBannerNote(null);
+    try {
+      if (on) await publishBanner(bannerText.trim());
+      else await turnOffBanner();
+      setBannerLive(on);
+      setBannerNote(on ? 'Published. People see it until they close it.' : 'Banner turned off.');
+    } catch (err) {
+      setBannerNote((err as Error).message);
+    } finally {
+      setBannerBusy(false);
+    }
+  }
 
   async function review(edit: PendingEdit, approve: boolean) {
     setBusy(edit.id);
@@ -114,6 +142,33 @@ export default function AdminScreen() {
       ) : (
         <>
           {error && <ThemedText type="small" style={styles.error}>{error}</ThemedText>}
+          <ThemedText type="smallBold" accessibilityRole="header">Site banner {bannerLive ? '(showing)' : '(off)'}</ThemedText>
+          <Field
+            label="Message"
+            hint="Use **bold**, *italic* and [text](https://link). Email addresses become links. Up to 500 characters."
+            value={bannerText}
+            onChangeText={setBannerText}
+            multiline
+            maxLength={500}
+            autoCapitalize="sentences"
+          />
+          {bannerText.trim().length > 0 && (
+            <Card style={styles.card}>
+              <ThemedText type="small" themeColor="textSecondary">Preview</ThemedText>
+              <BannerText message={bannerText} scheme={scheme === 'dark' ? 'dark' : 'light'} />
+            </Card>
+          )}
+          <View style={styles.buttons}>
+            {bannerLive && (
+              <View style={styles.flex}>
+                <Button title="Turn off" variant="secondary" disabled={bannerBusy} onPress={() => saveBanner(false)} />
+              </View>
+            )}
+            <View style={styles.flex}>
+              <Button title={bannerLive ? 'Update banner' : 'Publish banner'} loading={bannerBusy} disabled={!bannerText.trim()} onPress={() => saveBanner(true)} />
+            </View>
+          </View>
+          {bannerNote && <ThemedText type="small">{bannerNote}</ThemedText>}
           <ThemedText type="smallBold" accessibilityRole="header">Opening hours to review</ThemedText>
           {edits === null ? (
             <ActivityIndicator />

@@ -46,6 +46,7 @@ export const Icons = {
   back: icon('chevron.left', 'chevron_left'),
   sun: icon('sun.max', 'light_mode'),
   moon: icon('moon', 'dark_mode'),
+  info: icon('info.circle', 'info'),
   about: icon('questionmark.circle', 'help'),
   session: icon('play.circle', 'play_circle'),
 } as const;

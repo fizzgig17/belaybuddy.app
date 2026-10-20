@@ -5,6 +5,7 @@ import { View } from 'react-native';
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { AppLock } from '@/components/auth/app-lock';
 import { DevBanner } from '@/components/dev-banner';
+import { InfoBanner } from '@/components/info-banner';
 import { NotificationsBridge } from '@/components/notifications-bridge';
 import { Colors, Depth, gradientStyle } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -34,6 +35,7 @@ export default function TabLayout() {
                 ),
               ]}>
               <DevBanner />
+              <InfoBanner />
               <View style={{ flex: 1 }}>
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="(tabs)" />
