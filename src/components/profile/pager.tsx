@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from 'react';
 import {
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -72,6 +73,8 @@ export function ProfilePager({ pages }: { pages: { key: string; label: string; c
   const { width } = useWindowDimensions();
   const ref = useRef<ScrollView>(null);
   const [index, setIndex] = useState(0);
+  // On the web the pages would grow to fit their content and nothing could scroll, so pin them to the sheet's height.
+  const [height, setHeight] = useState<number | null>(null);
 
   const goTo = useCallback(
     (i: number) => {
@@ -88,7 +91,7 @@ export function ProfilePager({ pages }: { pages: { key: string; label: string; c
 
   return (
     <PagerContext.Provider value={goTo}>
-      <View style={styles.fill}>
+      <View style={styles.fill} onLayout={(e) => Platform.OS === 'web' && setHeight(e.nativeEvent.layout.height)}>
         <ScrollView
           ref={ref}
           horizontal
@@ -101,7 +104,7 @@ export function ProfilePager({ pages }: { pages: { key: string; label: string; c
           keyboardShouldPersistTaps="handled"
           nestedScrollEnabled>
           {pages.map((p) => (
-            <View key={p.key} style={{ width }}>
+            <View key={p.key} style={[{ width }, Platform.OS === 'web' && height ? { height } : null]}>
               {p.content}
             </View>
           ))}
