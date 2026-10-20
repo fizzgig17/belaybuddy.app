@@ -60,7 +60,7 @@ export function Screen({ title, subtitle, children, showTitle = true, action, pr
   const theme = useTheme();
   // On a wide website the nav bar carries Sign in and Profile; everywhere else this header does.
   const { width } = useWindowDimensions();
-  const accountInHeader = !(Platform.OS === 'web' && width >= 640);
+  const accountInHeader = !(Platform.OS === 'web' && width >= (user ? 900 : 640));
   const pull = onRefresh
     ? async () => {
         setRefreshing(true);
@@ -97,7 +97,7 @@ export function Screen({ title, subtitle, children, showTitle = true, action, pr
                       <ThemedText type="smallBold" style={{ color: theme.background }}>Sign in</ThemedText>
                     </Pressable>
                   )}
-                  {user && <IconButton icon="session" label="Start a session" onPress={() => router.push('/partners/session')} />}
+                  {accountInHeader && user && <IconButton icon="session" label="Start a session" onPress={() => router.push('/partners/session')} />}
                   {accountInHeader && user && <IconButton icon="person" label="Profile" onPress={() => router.push('/profile')} />}
                 </View>
               )}

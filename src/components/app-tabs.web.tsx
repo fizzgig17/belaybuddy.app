@@ -14,7 +14,8 @@ import { ThemedView } from './themed-view';
 
 import { Depth, gradientStyle, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { IconButton } from '@/components/ui/icon-button';
+import { SymbolView } from 'expo-symbols';
+import { Icons } from '@/constants/icons';
 import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -64,40 +65,62 @@ export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps
   );
 }
 
-/** Right end of the nav pill: Sign in for visitors, the Profile button once signed in. */
-function AccountButton() {
-  const { user, loading } = useAuth();
+/** A small pill in the nav bar: filled for the main action, outlined for the rest. */
+function NavAction({
+  label,
+  icon,
+  filled,
+  onPress,
+}: {
+  label: string;
+  icon?: keyof typeof Icons;
+  filled?: boolean;
+  onPress: () => void;
+}) {
   const theme = useTheme();
-  // Phones: no room in the pill, so the page header carries these (see Screen).
-  const { width } = useWindowDimensions();
-  if (loading || width < 640) return null;
-  if (user) {
-    return (
-      <View style={styles.account}>
-        <IconButton icon="person" label="Profile" onPress={() => router.push('/profile')} />
-      </View>
-    );
-  }
+  const fg = filled ? theme.onAccent : theme.accent;
   return (
     <Pressable
-      onPress={() => router.push('/profile')}
+      onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel="Sign in"
+      accessibilityLabel={label}
       style={(state) => {
         const hovered = (state as { hovered?: boolean }).hovered === true;
         return [
           styles.signIn,
-          { backgroundColor: theme.accent },
-          hovered && ({ filter: 'brightness(1.1)', transform: [{ translateY: -1 }] } as object),
-          ({ transitionProperty: 'transform, filter', transitionDuration: '140ms', cursor: 'pointer' } as object),
+          filled
+            ? { backgroundColor: theme.accent }
+            : { backgroundColor: hovered ? theme.accentSoft : theme.surface, borderColor: hovered ? theme.accent : theme.border, borderWidth: StyleSheet.hairlineWidth },
+          hovered && filled && ({ filter: 'brightness(1.1)' } as object),
+          hovered && ({ transform: [{ translateY: -1 }] } as object),
+          ({ transitionProperty: 'transform, filter, background-color, border-color', transitionDuration: '140ms', cursor: 'pointer' } as object),
           state.pressed && { opacity: 0.8 },
         ];
       }}>
-      <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
-        Sign in
+      {icon && <SymbolView name={Icons[icon]} size={16} tintColor={fg} />}
+      <ThemedText type="smallBold" style={{ color: fg }}>
+        {label}
       </ThemedText>
     </Pressable>
   );
+}
+
+/** Right end of the nav bar: Sign in for visitors; Start a session and Profile once signed in. */
+function AccountButton() {
+  const { user, loading } = useAuth();
+  // Phones: no room in the bar, so the page header carries these (see Screen).
+  const { width } = useWindowDimensions();
+  // Signed in there are two labelled buttons, which need more room than Sign in does.
+  if (loading || width < (user ? 900 : 640)) return null;
+  if (user) {
+    return (
+      <>
+        <NavAction label="Start a session" icon="session" filled onPress={() => router.push('/partners/session')} />
+        <NavAction label="Profile" icon="person" onPress={() => router.push('/profile')} />
+      </>
+    );
+  }
+  return <NavAction label="Sign in" filled onPress={() => router.push('/profile')} />;
 }
 
 /** The site's name, large, on a rope-teal band across the top of every page. */
@@ -188,7 +211,7 @@ const styles = StyleSheet.create({
     maxWidth: MaxContentWidth,
   },
   account: { marginLeft: Spacing.one },
-  signIn: { height: 34, paddingHorizontal: Spacing.three, borderRadius: 17, justifyContent: 'center', marginLeft: Spacing.one },
+  signIn: { height: 36, paddingHorizontal: Spacing.three, borderRadius: 18, flexDirection: 'row', alignItems: 'center', gap: Spacing.one + 2, marginLeft: Spacing.one },
   brandText: {
     marginRight: 'auto',
   },
