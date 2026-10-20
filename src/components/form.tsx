@@ -153,16 +153,17 @@ export function Button({ title, onPress, variant = 'primary', disabled, loading,
                 gradientStyle(depth.gradient),
               ]
             : {
-                backgroundColor: theme.surface,
-                borderColor: theme.border,
+                backgroundColor: hovered ? theme.accentSoft : theme.surface,
+                borderColor: hovered ? theme.accent : theme.border,
                 borderWidth: StyleSheet.hairlineWidth,
                 boxShadow: pressed ? depth.buttonPressed : hovered ? depth.raised : depth.card,
               },
           hovered && !pressed && !inactive && styles.lift,
+          hovered && !pressed && !inactive && primary && Platform.OS === 'web' && ({ filter: 'brightness(1.1) saturate(1.05)' } as object),
           focused && Platform.OS === 'web' && ({ outlineStyle: 'solid', outlineWidth: 2, outlineOffset: 2, outlineColor: theme.accent } as object),
           inactive && styles.inactive,
           pressed && styles.pressed,
-          Platform.OS === 'web' && ({ transitionProperty: 'transform, box-shadow', transitionDuration: '140ms', cursor: inactive ? 'default' : 'pointer' } as object),
+          Platform.OS === 'web' && ({ transitionProperty: 'transform, box-shadow, background-color, border-color, filter', transitionDuration: '140ms', cursor: inactive ? 'default' : 'pointer' } as object),
         ];
       }}>
       {loading ? (
@@ -330,7 +331,7 @@ const styles = StyleSheet.create({
   },
   inactive: { opacity: 0.5 },
   pressed: { opacity: 0.92, transform: [{ translateY: 1 }] },
-  lift: { transform: [{ translateY: -1 }] },
+  lift: { transform: [{ translateY: -2 }] },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   chip: {
     paddingHorizontal: Spacing.three,
