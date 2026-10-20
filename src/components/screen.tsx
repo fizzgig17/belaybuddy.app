@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useState, type ReactNode } from 'react';
-import { Platform, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, RefreshControl, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AboutSheet } from '@/components/about-sheet';
@@ -58,6 +58,9 @@ export function Screen({ title, subtitle, children, showTitle = true, action, pr
   const [aboutOpen, setAboutOpen] = useState(false);
   const { user, loading: authLoading } = useAuth();
   const theme = useTheme();
+  // On a wide website the nav bar carries Sign in and Profile; everywhere else this header does.
+  const { width } = useWindowDimensions();
+  const accountInHeader = !(Platform.OS === 'web' && width >= 640);
   const pull = onRefresh
     ? async () => {
         setRefreshing(true);
@@ -85,7 +88,7 @@ export function Screen({ title, subtitle, children, showTitle = true, action, pr
               {profileButton && (
                 <View style={styles.buttons}>
                   <IconButton icon="about" label="About Belay Buddy" onPress={() => setAboutOpen(true)} />
-                  {!user && !authLoading && (
+                  {accountInHeader && !user && !authLoading && (
                     <Pressable
                       onPress={() => router.push('/profile')}
                       accessibilityRole="button"
@@ -95,7 +98,7 @@ export function Screen({ title, subtitle, children, showTitle = true, action, pr
                     </Pressable>
                   )}
                   {user && <IconButton icon="session" label="Start a session" onPress={() => router.push('/partners/session')} />}
-                  {user && <IconButton icon="person" label="Profile" onPress={() => router.push('/profile')} />}
+                  {accountInHeader && user && <IconButton icon="person" label="Profile" onPress={() => router.push('/profile')} />}
                 </View>
               )}
             </View>

@@ -1,6 +1,6 @@
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Icons, type IconName } from '@/constants/icons';
@@ -34,11 +34,15 @@ export function IconButton({ icon, label, onPress }: { icon: IconName; label: st
         accessibilityRole="button"
         accessibilityLabel={label}
         hitSlop={8}
-        style={({ pressed }) => [
-          styles.button,
-          { backgroundColor: theme.surface, borderColor: theme.border },
-          pressed && styles.pressed,
-        ]}>
+        style={(state) => {
+          const hovered = (state as { hovered?: boolean }).hovered === true;
+          return [
+            styles.button,
+            { backgroundColor: hovered ? theme.accentSoft : theme.surface, borderColor: hovered ? theme.accent : theme.border },
+            Platform.OS === 'web' && ({ transitionProperty: 'background-color, border-color', transitionDuration: '140ms', cursor: 'pointer' } as object),
+            state.pressed && styles.pressed,
+          ];
+        }}>
         <SymbolView name={Icons[icon]} size={22} tintColor={theme.accent} />
       </Pressable>
       {tip && (

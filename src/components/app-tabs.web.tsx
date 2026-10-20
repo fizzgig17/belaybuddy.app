@@ -6,6 +6,7 @@ import {
   TabTriggerSlotProps,
   TabListProps,
 } from 'expo-router/ui';
+import { router } from 'expo-router';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { ThemedText } from './themed-text';
@@ -13,6 +14,8 @@ import { ThemedView } from './themed-view';
 
 import { Depth, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { IconButton } from '@/components/ui/icon-button';
+import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function AppTabs() {
@@ -61,6 +64,42 @@ export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps
   );
 }
 
+/** Right end of the nav pill: Sign in for visitors, the Profile button once signed in. */
+function AccountButton() {
+  const { user, loading } = useAuth();
+  const theme = useTheme();
+  // Phones: no room in the pill, so the page header carries these (see Screen).
+  const { width } = useWindowDimensions();
+  if (loading || width < 640) return null;
+  if (user) {
+    return (
+      <View style={styles.account}>
+        <IconButton icon="person" label="Profile" onPress={() => router.push('/profile')} />
+      </View>
+    );
+  }
+  return (
+    <Pressable
+      onPress={() => router.push('/profile')}
+      accessibilityRole="button"
+      accessibilityLabel="Sign in"
+      style={(state) => {
+        const hovered = (state as { hovered?: boolean }).hovered === true;
+        return [
+          styles.signIn,
+          { backgroundColor: theme.accent },
+          hovered && ({ filter: 'brightness(1.1)', transform: [{ translateY: -1 }] } as object),
+          ({ transitionProperty: 'transform, filter', transitionDuration: '140ms', cursor: 'pointer' } as object),
+          state.pressed && { opacity: 0.8 },
+        ];
+      }}>
+      <ThemedText type="smallBold" style={{ color: theme.onAccent }}>
+        Sign in
+      </ThemedText>
+    </Pressable>
+  );
+}
+
 export function CustomTabList(props: TabListProps) {
   // Phones don't have room for the name next to five tabs.
   const showBrand = useWindowDimensions().width >= 640;
@@ -78,7 +117,7 @@ export function CustomTabList(props: TabListProps) {
         )}
 
         {props.children}
-
+        <AccountButton />
       </ThemedView>
     </View>
   );
@@ -107,6 +146,8 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     maxWidth: MaxContentWidth,
   },
+  account: { marginLeft: Spacing.one },
+  signIn: { height: 34, paddingHorizontal: Spacing.three, borderRadius: 17, justifyContent: 'center', marginLeft: Spacing.one },
   brandText: {
     marginRight: 'auto',
   },
