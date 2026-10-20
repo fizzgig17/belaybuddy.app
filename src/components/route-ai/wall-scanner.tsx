@@ -53,6 +53,12 @@ const SENSITIVITY_OPTIONS: { value: Sensitivity; label: string }[] = [
 ];
 
 /** The photo the person picked, with a color pick and the holds found, all on-device. */
+/** The AI describes the scene as a sentence ("An indoor wall..."); it reads better mid-sentence in lowercase. */
+function lowerFirst(text: string) {
+  const t = text.trim().replace(/\.$/, '');
+  return /^[A-Z][a-z]/.test(t) ? t[0].toLowerCase() + t.slice(1) : t;
+}
+
 export function WallScanner() {
   const theme = useTheme();
   const [photo, setPhoto] = useState<WallPhoto | null>(null);
@@ -346,8 +352,8 @@ export function WallScanner() {
       {look && look.what !== '' && (
         <ThemedText type="small" themeColor="textSecondary">
           {look.kind === 'other'
-            ? `This looks like ${look.what}, not a climbing wall. Route AI works on climbing walls.`
-            : `This looks like ${look.what}.`}
+            ? `This looks like ${lowerFirst(look.what)}, not a climbing wall. Route AI works on climbing walls.`
+            : `This looks like ${lowerFirst(look.what)}.`}
         </ThemedText>
       )}
       {error && (
