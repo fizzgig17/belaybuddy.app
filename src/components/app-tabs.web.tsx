@@ -11,7 +11,8 @@ import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
 
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { Depth, MaxContentWidth, Spacing } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function AppTabs() {
@@ -63,9 +64,13 @@ export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps
 export function CustomTabList(props: TabListProps) {
   // Phones don't have room for the name next to five tabs.
   const showBrand = useWindowDimensions().width >= 640;
+  const theme = useTheme();
+  const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   return (
     <View {...props} style={styles.tabListContainer}>
-      <ThemedView type="backgroundElement" style={styles.innerContainer}>
+      <ThemedView
+        type="surface"
+        style={[styles.innerContainer, { borderColor: theme.border, borderWidth: StyleSheet.hairlineWidth, boxShadow: Depth[scheme].card }]}>
         {showBrand && (
           <ThemedText type="smallBold" style={styles.brandText}>
             Belay Buddy
@@ -85,6 +90,7 @@ const styles = StyleSheet.create({
   tabListContainer: {
     width: '100%',
     padding: Spacing.two,
+    paddingTop: Spacing.three,
     justifyContent: 'center',
     alignItems: 'center',
     flexDirection: 'row',

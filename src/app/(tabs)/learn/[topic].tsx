@@ -1,10 +1,11 @@
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { FeatureCard } from '@/components/feature-card';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { Card } from '@/components/ui/group';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { openLink } from '@/lib/open-link';
@@ -22,7 +23,7 @@ export default function LearnTopicScreen() {
 
   if (!topic) {
     return (
-      <Screen title="Not found" showTitle={false}>
+      <Screen title="Not found" showTitle={Platform.OS === 'web'}>
         <Stack.Screen options={{ title: 'Not found' }} />
         <ThemedText>That topic doesn't exist.</ThemedText>
       </Screen>
@@ -30,7 +31,7 @@ export default function LearnTopicScreen() {
   }
 
   return (
-    <Screen title={topic.title} subtitle={topic.summary} showTitle={false}>
+    <Screen title={topic.title} subtitle={topic.summary} showTitle={Platform.OS === 'web'} readable>
       <Stack.Screen options={{ title: topic.title }} />
       <ThemedView type="backgroundElement" style={styles.disclaimer}>
         <ThemedText type="small" themeColor="textSecondary">
@@ -41,7 +42,7 @@ export default function LearnTopicScreen() {
       </ThemedView>
       {topic.articles.map((article) =>
         article.points ? (
-          <ThemedView key={article.title} type="backgroundElement" style={styles.article}>
+          <Card key={article.title} style={styles.article}>
             <ThemedText type="smallBold" accessibilityRole="header">
               {article.title}
             </ThemedText>
@@ -68,7 +69,7 @@ export default function LearnTopicScreen() {
                 ))}
               </View>
             )}
-          </ThemedView>
+          </Card>
         ) : (
           <FeatureCard
             key={article.title}
@@ -93,7 +94,7 @@ export default function LearnTopicScreen() {
 }
 
 const styles = StyleSheet.create({
-  article: { padding: Spacing.three, borderRadius: Spacing.three, gap: Spacing.two },
+  article: { gap: Spacing.two },
   point: { paddingLeft: Spacing.two },
   sources: { gap: Spacing.one, paddingTop: Spacing.one },
   disclaimer: {

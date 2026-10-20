@@ -1,3 +1,4 @@
+import { SymbolView } from 'expo-symbols';
 import { useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
@@ -13,7 +14,9 @@ import {
 } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { Icons } from '@/constants/icons';
+import { Depth, gradientStyle, Spacing } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
 import { select, tap } from '@/lib/haptics';
 
@@ -123,23 +126,45 @@ type ButtonProps = {
 
 export function Button({ title, onPress, variant = 'primary', disabled, loading, icon }: ButtonProps) {
   const theme = useTheme();
+  const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
+  const depth = Depth[scheme];
   const primary = variant === 'primary';
   const inactive = disabled || loading;
+  const [focused, setFocused] = useState(false);
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ disabled: inactive, busy: loading }}
       disabled={inactive}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
       onPress={() => {
         tap();
         onPress();
       }}
-      style={({ pressed }) => [
-        styles.button,
-        { backgroundColor: primary ? theme.accent : theme.backgroundElement },
-        inactive && styles.inactive,
-        pressed && styles.pressed,
-      ]}>
+      style={(state) => {
+        const { pressed } = state;
+        const hovered = (state as { hovered?: boolean }).hovered === true;
+        return [
+          styles.button,
+          primary
+            ? [
+                { backgroundColor: theme.accent, boxShadow: pressed ? depth.buttonPressed : hovered ? depth.buttonRaised : depth.button },
+                gradientStyle(depth.gradient),
+              ]
+            : {
+                backgroundColor: theme.surface,
+                borderColor: theme.border,
+                borderWidth: StyleSheet.hairlineWidth,
+                boxShadow: pressed ? depth.buttonPressed : hovered ? depth.raised : depth.card,
+              },
+          hovered && !pressed && !inactive && styles.lift,
+          focused && Platform.OS === 'web' && ({ outlineStyle: 'solid', outlineWidth: 2, outlineOffset: 2, outlineColor: theme.accent } as object),
+          inactive && styles.inactive,
+          pressed && styles.pressed,
+          Platform.OS === 'web' && ({ transitionProperty: 'transform, box-shadow', transitionDuration: '140ms', cursor: inactive ? 'default' : 'pointer' } as object),
+        ];
+      }}>
       {loading ? (
         <ActivityIndicator color={primary ? theme.onAccent : theme.text} />
       ) : (
@@ -152,6 +177,12 @@ export function Button({ title, onPress, variant = 'primary', disabled, loading,
       )}
     </Pressable>
   );
+}
+
+/** A small icon for the start of a Button's label. */
+export function ButtonIcon({ name, variant = 'primary' }: { name: keyof typeof Icons; variant?: 'primary' | 'secondary' }) {
+  const theme = useTheme();
+  return <SymbolView name={Icons[name]} size={18} tintColor={variant === 'primary' ? theme.onAccent : theme.accent} />;
 }
 
 /** Multi-select chip group. */
@@ -293,12 +324,13 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: Spacing.two,
-    minHeight: 48,
+    borderRadius: 14,
+    minHeight: 50,
     paddingHorizontal: Spacing.three,
   },
   inactive: { opacity: 0.5 },
-  pressed: { opacity: 0.75 },
+  pressed: { opacity: 0.92, transform: [{ translateY: 1 }] },
+  lift: { transform: [{ translateY: -1 }] },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
   chip: {
     paddingHorizontal: Spacing.three,

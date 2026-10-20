@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useState, type ReactNode } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AboutSheet } from '@/components/about-sheet';
@@ -13,7 +13,7 @@ import { ThemedView } from '@/components/themed-view';
 import { IconButton } from '@/components/ui/icon-button';
 import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/hooks/use-theme';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { BottomTabInset, MaxContentWidth, ReadableWidth, Spacing } from '@/constants/theme';
 
 type ScreenProps = {
   title: string;
@@ -31,10 +31,29 @@ type ScreenProps = {
   overlay?: ReactNode;
   /** One page inside a pager that already supplies the page title and keyboard bar. */
   embedded?: boolean;
+  /** Text pages: a narrower column so lines stay short. */
+  readable?: boolean;
 };
 
+/** Website pages opened from another page: a way back, since there is no native header. */
+function BackPill() {
+  const theme = useTheme();
+  return (
+    <Pressable
+      onPress={() => (router.canGoBack() ? router.back() : router.navigate('/'))}
+      accessibilityRole="button"
+      accessibilityLabel="Go back"
+      style={({ pressed }) => [styles.back, { backgroundColor: theme.surface, borderColor: theme.border }, pressed && { opacity: 0.7 }]}>
+      <ThemedText type="smallBold" style={{ color: theme.accent }}>
+        ‹ Back
+      </ThemedText>
+    </Pressable>
+  );
+}
+
 /** Standard scrollable screen shell used by every tab. */
-export function Screen({ title, subtitle, children, showTitle = true, action, profileButton, onRefresh, overlay, embedded }: ScreenProps) {
+export function Screen({ title, subtitle, children, showTitle = true, action, profileButton, onRefresh, overlay, embedded, readable }: ScreenProps) {
+
   const [refreshing, setRefreshing] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const { user, loading: authLoading } = useAuth();
@@ -53,7 +72,7 @@ export function Screen({ title, subtitle, children, showTitle = true, action, pr
     <ThemedView style={styles.container}>
       {!embedded && <PageTitle title={title} />}
       <SafeAreaView style={styles.safeArea} edges={showTitle && !IS_DEV_BUILD ? ['top'] : []}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled"
+        <ScrollView contentContainerStyle={[styles.content, readable && { maxWidth: ReadableWidth }]} keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           automaticallyAdjustKeyboardInsets
           refreshControl={pull ? <RefreshControl refreshing={refreshing} onRefresh={pull} /> : undefined}>
@@ -62,7 +81,7 @@ export function Screen({ title, subtitle, children, showTitle = true, action, pr
               <ThemedText type="subtitle" accessibilityRole="header" style={styles.title}>
                 {title}
               </ThemedText>
-              {action}
+              {action ?? (Platform.OS === 'web' && !profileButton && !embedded ? <BackPill /> : null)}
               {profileButton && (
                 <View style={styles.buttons}>
                   <IconButton icon="about" label="About Belay Buddy" onPress={() => setAboutOpen(true)} />
@@ -93,10 +112,11 @@ export function Screen({ title, subtitle, children, showTitle = true, action, pr
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: 'transparent' },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   title: { flex: 1 },
   buttons: { flexDirection: 'row', gap: Spacing.two, alignItems: 'center' },
+  back: { height: 40, paddingHorizontal: Spacing.three, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, justifyContent: 'center' },
   signIn: { height: 40, paddingHorizontal: Spacing.three, borderRadius: 20, justifyContent: 'center' },
   safeArea: { flex: 1 },
   overlay: { position: 'absolute', left: Spacing.three, right: Spacing.three, bottom: BottomTabInset + Spacing.three },

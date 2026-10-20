@@ -1,5 +1,5 @@
 import { Stack } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
@@ -8,8 +8,8 @@ import { TERMS_INTRO, TERMS_IS_DRAFT, TERMS_SECTIONS, TERMS_UPDATED } from '@/co
 
 export default function TermsScreen() {
   return (
-    <Screen title="Terms of use" showTitle={false}>
-      <Stack.Screen options={{ headerShown: true, title: 'Terms of use', headerBackTitle: 'Back' }} />
+    <Screen title="Terms of use" showTitle={Platform.OS === 'web'} readable>
+      <Stack.Screen options={{ headerShown: Platform.OS !== 'web', title: 'Terms of use', headerBackTitle: 'Back' }} />
       {TERMS_IS_DRAFT && (
         <ThemedText type="smallBold" style={styles.draft}>
           Draft: these terms are being reviewed and may change before release.

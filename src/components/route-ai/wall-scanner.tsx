@@ -12,7 +12,7 @@ import {
 import { Link } from 'expo-router';
 import Svg, { Circle, Rect, Text as SvgText } from 'react-native-svg';
 
-import { Button, Field, Segmented, SingleChoice } from '@/components/form';
+import { Button, ButtonIcon, Field, Segmented, SingleChoice } from '@/components/form';
 import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/group';
 import { Spacing } from '@/constants/theme';
@@ -315,6 +315,7 @@ export function WallScanner() {
         {Platform.OS !== 'web' && (
           <Button
             title="Take a photo"
+            icon={<ButtonIcon name="camera" variant={lidar ? 'secondary' : 'primary'} />}
             variant={lidar ? 'secondary' : 'primary'}
             onPress={() => gate('camera')}
             loading={busy}

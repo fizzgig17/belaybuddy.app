@@ -1,8 +1,9 @@
 import { Children, Fragment, type ReactNode } from 'react';
-import { Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
+import { Depth, Spacing } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
 
 /**
@@ -11,8 +12,9 @@ import { useTheme } from '@/hooks/use-theme';
  */
 export function Card({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
   const theme = useTheme();
+  const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   return (
-    <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }, shadow, style]}>
+    <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border, boxShadow: Depth[scheme].card }, style]}>
       {children}
     </View>
   );
@@ -58,16 +60,9 @@ export function Section({ title, footer, children }: { title?: string; footer?: 
   );
 }
 
-const shadow: ViewStyle =
-  Platform.OS === 'ios'
-    ? { shadowColor: '#0E2A2E', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } }
-    : Platform.OS === 'android'
-      ? { elevation: 1 }
-      : {};
-
 const styles = StyleSheet.create({
   card: {
-    borderRadius: Spacing.three,
+    borderRadius: 18,
     borderWidth: StyleSheet.hairlineWidth,
     padding: Spacing.three,
     gap: Spacing.three,

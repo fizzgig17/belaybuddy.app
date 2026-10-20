@@ -6,7 +6,8 @@ import { ActivityIndicator, Keyboard, Platform, Pressable, StyleSheet, TextInput
 import { AreaRow } from '@/components/find/area-row';
 import { AreaRowSkeleton } from '@/components/ui/skeleton';
 import { loadLastPlace, saveLastPlace } from '@/components/find/storage';
-import { Button, Segmented } from '@/components/form';
+import { Button, ButtonIcon, Segmented } from '@/components/form';
+import { WebIntro } from '@/components/web-intro';
 import { CragBanner } from '@/components/illustrations';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
@@ -169,7 +170,14 @@ export default function FindScreen() {
   const listed = useMemo(() => visible.filter((a) => !savedIds.has(a.id)), [visible, savedIds]);
 
   return (
-    <Screen profileButton title="Find" subtitle="Climbing gyms and outdoor crags near you, or wherever you're headed.">
+    <Screen
+      profileButton
+      title="Find"
+      subtitle={
+        Platform.OS === 'web' && !user
+          ? 'Find where to climb, and who to climb with.'
+          : "Climbing gyms and outdoor crags near you, or wherever you're headed."
+      }>
       {!place && <CragBanner />}
 
       {/* Where to look */}
@@ -282,12 +290,14 @@ export default function FindScreen() {
 
       {!place && !message && (
         <View style={styles.intro}>
-          <Button title="Find climbing near me" onPress={locateMe} loading={locating} />
+          <Button title="Find climbing near me" icon={<ButtonIcon name="myLocation" />} onPress={locateMe} loading={locating} />
           <ThemedText type="small" themeColor="textSecondary">
             Or search for the place you're headed.
           </ThemedText>
         </View>
       )}
+
+      {Platform.OS === 'web' && !user && !place && <WebIntro />}
 
       {/* Saved */}
       {user && favorites.length > 0 && (

@@ -1,5 +1,5 @@
 import { Link, Stack } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
@@ -12,11 +12,13 @@ import { useTheme } from '@/hooks/use-theme';
 export default function AboutScreen() {
   const theme = useTheme();
   return (
-    <Screen title="About Belay Buddy" showTitle={false}>
-      <Stack.Screen options={{ headerShown: true, title: 'About', headerBackTitle: 'Back' }} />
-      <ThemedText type="subtitle" accessibilityRole="header">
-        About Belay Buddy
-      </ThemedText>
+    <Screen title="About Belay Buddy" showTitle={Platform.OS === 'web'} readable>
+      <Stack.Screen options={{ headerShown: Platform.OS !== 'web', title: 'About', headerBackTitle: 'Back' }} />
+      {Platform.OS !== 'web' && (
+        <ThemedText type="subtitle" accessibilityRole="header">
+          About Belay Buddy
+        </ThemedText>
+      )}
       <ThemedText type="smallBold" style={{ color: theme.accent }}>
         {ABOUT_TAGLINE}
       </ThemedText>

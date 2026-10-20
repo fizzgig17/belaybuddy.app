@@ -1,5 +1,5 @@
 import { Link, Stack } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
@@ -9,9 +9,11 @@ import { PRIVACY_CONTACT } from '@/content/privacy';
 /** Public page describing how to delete a Belay Buddy account (required by app stores). */
 export default function DeleteAccountScreen() {
   return (
-    <Screen title="Delete your account" showTitle={false}>
-      <Stack.Screen options={{ headerShown: true, title: 'Delete your account', headerBackTitle: 'Back' }} />
-      <ThemedText type="subtitle" accessibilityRole="header">Delete your Belay Buddy account</ThemedText>
+    <Screen title="Delete your account" showTitle={Platform.OS === 'web'} readable>
+      <Stack.Screen options={{ headerShown: Platform.OS !== 'web', title: 'Delete your account', headerBackTitle: 'Back' }} />
+      {Platform.OS !== 'web' && (
+        <ThemedText type="subtitle" accessibilityRole="header">Delete your Belay Buddy account</ThemedText>
+      )}
       <ThemedText>
         You can delete your account and its data yourself, in the app or on the website. It takes less than a minute.
       </ThemedText>

@@ -84,5 +84,37 @@ export const Spacing = {
   six: 64,
 } as const;
 
+/**
+ * Depth. Light comes from above: surfaces carry a bright top edge and a soft, tinted shadow
+ * (granite, not black) so cards and controls sit on the page instead of lying flat on it.
+ */
+export const Depth = {
+  light: {
+    card: 'inset 0 1px 0 rgba(255,255,255,0.9), 0 1px 2px rgba(14,42,46,0.06), 0 8px 20px -8px rgba(14,42,46,0.14)',
+    raised: 'inset 0 1px 0 rgba(255,255,255,0.9), 0 2px 4px rgba(14,42,46,0.08), 0 14px 28px -10px rgba(14,42,46,0.22)',
+    button: 'inset 0 1px 0 rgba(255,255,255,0.28), inset 0 -2px 0 rgba(0,0,0,0.14), 0 6px 14px -4px rgba(14,122,128,0.55)',
+    buttonRaised: 'inset 0 1px 0 rgba(255,255,255,0.32), inset 0 -2px 0 rgba(0,0,0,0.14), 0 10px 20px -4px rgba(14,122,128,0.6)',
+    buttonPressed: 'inset 0 2px 4px rgba(0,0,0,0.22)',
+    page: ['#F8FAF9', '#E8F0EE'],
+    gradient: 'linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0) 60%)',
+  },
+  dark: {
+    card: 'inset 0 1px 0 rgba(255,255,255,0.05), 0 1px 2px rgba(0,0,0,0.4), 0 10px 24px -10px rgba(0,0,0,0.6)',
+    raised: 'inset 0 1px 0 rgba(255,255,255,0.07), 0 2px 4px rgba(0,0,0,0.45), 0 16px 30px -10px rgba(0,0,0,0.7)',
+    button: 'inset 0 1px 0 rgba(255,255,255,0.3), inset 0 -2px 0 rgba(0,0,0,0.25), 0 6px 16px -4px rgba(70,184,189,0.35)',
+    buttonRaised: 'inset 0 1px 0 rgba(255,255,255,0.34), inset 0 -2px 0 rgba(0,0,0,0.25), 0 10px 22px -4px rgba(70,184,189,0.45)',
+    buttonPressed: 'inset 0 2px 5px rgba(0,0,0,0.4)',
+    page: ['#16222A', '#0F181C'],
+    gradient: 'linear-gradient(180deg, rgba(255,255,255,0.2), rgba(255,255,255,0) 60%)',
+  },
+} as const;
+
+/** A vertical gradient as a style, for web (backgroundImage) and phones (experimental_backgroundImage). */
+export function gradientStyle(css: string): object {
+  return Platform.OS === 'web' ? { backgroundImage: css } : { experimental_backgroundImage: css };
+}
+
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
-export const MaxContentWidth = 800;
+export const MaxContentWidth = Platform.OS === 'web' ? 960 : 800;
+/** Reading pages (policies, articles) stay narrower so lines stay short. */
+export const ReadableWidth = 720;

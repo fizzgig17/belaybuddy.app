@@ -3,7 +3,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import { loadLastPlace, saveLastPlace } from '@/components/find/storage';
-import { Button, Segmented } from '@/components/form';
+import { Button, ButtonIcon, Segmented } from '@/components/form';
+import { GymWallBanner } from '@/components/illustrations';
 import { SuggestHours } from '@/components/find/suggest-hours';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
@@ -79,7 +80,10 @@ export default function ShopsScreen() {
       title="Shops"
       subtitle="Climbing shops and outdoor stores that carry gear. Call ahead to check stock.">
       {!place ? (
-        <Button title="Find shops near me" onPress={locateMe} loading={locating} />
+        <>
+          <GymWallBanner />
+          <Button title="Find shops near me" icon={<ButtonIcon name="myLocation" />} onPress={locateMe} loading={locating} />
+        </>
       ) : (
         <>
           <View style={styles.where}>

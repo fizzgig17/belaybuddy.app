@@ -1,5 +1,5 @@
 import { Stack } from 'expo-router';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
@@ -8,8 +8,8 @@ import { PRIVACY_INTRO, PRIVACY_SECTIONS, PRIVACY_UPDATED } from '@/content/priv
 
 export default function PrivacyScreen() {
   return (
-    <Screen title="Privacy policy" showTitle={false}>
-      <Stack.Screen options={{ headerShown: true, title: 'Privacy policy', headerBackTitle: 'Back' }} />
+    <Screen title="Privacy policy" showTitle={Platform.OS === 'web'} readable>
+      <Stack.Screen options={{ headerShown: Platform.OS !== 'web', title: 'Privacy policy', headerBackTitle: 'Back' }} />
       <ThemedText type="small" themeColor="textSecondary">
         Last updated {PRIVACY_UPDATED}
       </ThemedText>

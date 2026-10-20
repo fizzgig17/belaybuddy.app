@@ -3,7 +3,7 @@ import { useCallback, useMemo, useState, useRef } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
 import { FeatureCard } from '@/components/feature-card';
-import { Button, SingleChoice } from '@/components/form';
+import { Button, ButtonIcon, SingleChoice } from '@/components/form';
 import { GymWallBanner } from '@/components/illustrations';
 import { PostCard } from '@/components/partners/post-card';
 import { Screen } from '@/components/screen';
@@ -119,7 +119,7 @@ export default function PartnersScreen() {
           coming. Only signed-in climbers can see the boards, and only the gym and time are shown, never your
           location.
         </ThemedText>
-        <Button title="Sign in to see the boards" onPress={() => router.push('/profile')} />
+        <Button title="Sign in to see the boards" icon={<ButtonIcon name="person" />} onPress={() => router.push('/profile')} />
       </Screen>
     );
   }
