@@ -14,7 +14,7 @@ export function Card({ children, style }: { children: ReactNode; style?: StylePr
   const theme = useTheme();
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   return (
-    <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border, boxShadow: Depth[scheme].card }, style]}>
+    <View style={[styles.card, { backgroundColor: theme.surface, borderColor: scheme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(14,42,46,0.05)', boxShadow: Depth[scheme].card }, style]}>
       {children}
     </View>
   );
@@ -62,7 +62,7 @@ export function Section({ title, footer, children }: { title?: string; footer?: 
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 18,
+    borderRadius: 20,
     borderWidth: StyleSheet.hairlineWidth,
     padding: Spacing.three,
     gap: Spacing.three,
