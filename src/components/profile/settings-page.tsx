@@ -14,7 +14,6 @@ import { ThemedText } from '@/components/themed-text';
 import { Card, Group, Row, Section } from '@/components/ui/group';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { useIsAdmin } from '@/lib/admin';
 import { signOut, useAuth } from '@/lib/auth';
 import { setThemePref, useThemePref, type ThemePref } from '@/lib/theme-preference';
 import {
@@ -42,7 +41,6 @@ const version = `${Constants.expoConfig?.version ?? ''}${build ? ` (${build})` :
 export function SettingsPage() {
   const theme = useTheme();
   const { user } = useAuth();
-  const isAdmin = useIsAdmin();
   const [settings, setSettings] = useState<NotificationSettings | null>(null);
   const [push, setPush] = useState<PushStatus>(pushSupported ? 'off' : 'unsupported');
   const [error, setError] = useState<string | null>(null);
@@ -241,20 +239,6 @@ export function SettingsPage() {
           <SignInOptions />
         </Card>
       </Section>
-
-      {isAdmin && (
-        <Section title="Admin">
-          <Card>
-            <Link href="/profile/admin" asChild>
-              <Pressable accessibilityRole="link">
-                <ThemedText type="smallBold" style={{ color: theme.accent }}>
-                  Review opening hours and manage admins
-                </ThemedText>
-              </Pressable>
-            </Link>
-          </Card>
-        </Section>
-      )}
 
       <AiSettings />
 

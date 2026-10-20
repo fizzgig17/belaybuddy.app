@@ -5,7 +5,9 @@ import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from 'react-
 import { Button, Field } from '@/components/form';
 import { CodeScanner } from '@/components/friends/code-scanner';
 import { BannerText } from '@/components/info-banner';
+import { closeProfile } from '@/components/profile/pager';
 import { Screen } from '@/components/screen';
+import { IconButton } from '@/components/ui/icon-button';
 import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/group';
 import { Icons } from '@/constants/icons';
@@ -41,7 +43,7 @@ function Hours({ value }: { value: string }) {
 }
 
 /** Admin-only: approve or reject suggested opening hours, and manage who else is an admin. */
-export default function AdminScreen() {
+export function AdminPage() {
   const isAdmin = useIsAdmin();
   const theme = useTheme();
   const scheme = useColorScheme();
@@ -134,7 +136,7 @@ export default function AdminScreen() {
   }
 
   return (
-    <Screen title="Admin" showTitle={false}>
+    <Screen title="Admin" embedded action={<IconButton icon="close" label="Close" onPress={closeProfile} />}>
       {isAdmin === null ? (
         <ActivityIndicator />
       ) : !isAdmin ? (

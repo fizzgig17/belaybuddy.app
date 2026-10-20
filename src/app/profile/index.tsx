@@ -10,6 +10,8 @@ import { Screen } from '@/components/screen';
 import { closeProfile, ProfilePager, SheetActions } from '@/components/profile/pager';
 import { SettingsPage } from '@/components/profile/settings-page';
 import { ThemedText } from '@/components/themed-text';
+import { AdminPage } from '@/components/profile/admin-page';
+import { useIsAdmin } from '@/lib/admin';
 import { signOut, useAuth } from '@/lib/auth';
 
 /** The close button for the signed-out sheet. Swiping down also closes it on phones. */
@@ -18,6 +20,7 @@ const closeOnly = <IconButton icon="close" label="Close" onPress={closeProfile} 
 export default function ProfileSheet() {
   const { user, loading } = useAuth();
   const [signingOut, setSigningOut] = useState(false);
+  const isAdmin = useIsAdmin();
 
   // Signing in from this sheet takes you to the start page (or back to what you
   // were doing, such as a friend link), not to your profile.
@@ -80,6 +83,7 @@ export default function ProfileSheet() {
           ),
         },
         { key: 'settings', label: 'Settings', content: <SettingsPage /> },
+        ...(isAdmin ? [{ key: 'admin', label: 'Admin', content: <AdminPage /> }] : []),
       ]}
     />
   );
