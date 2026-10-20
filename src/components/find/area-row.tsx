@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
+import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -41,6 +42,7 @@ function describe(area: ClimbingArea): string {
 /** One gym or crag in a list. Tapping opens its detail screen. */
 export function AreaRow({ area, distanceKm, favorite, hoursKnown = true, onToggleFavorite }: Props) {
   const theme = useTheme();
+  const [hot, setHot] = useState(false);
   // Gyms and crags get their own hold color so the list scans at a glance.
   const tint = area.kind === 'gym' ? HoldColors.purple : HoldColors.green;
   const open = area.kind === 'gym' ? isOpenNow(area.openingHours) : null;
@@ -49,11 +51,13 @@ export function AreaRow({ area, distanceKm, favorite, hoursKnown = true, onToggl
     .map((x) => STYLE_CHIP[x as 'bouldering' | 'top-rope' | 'lead']);
 
   return (
-    <Card style={styles.row}>
+    <Card style={styles.row} raised={hot}>
       {/* Plain Pressable + router.push: Link asChild drops function styles,
           which collapsed this row's layout. */}
       <Pressable
         accessibilityRole="link"
+        onHoverIn={() => setHot(true)}
+        onHoverOut={() => setHot(false)}
         onPress={() =>
           router.push({
             pathname: '/area/[id]',

@@ -1,5 +1,6 @@
 import { Link, type Href } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
+import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -25,9 +26,10 @@ type FeatureCardProps = {
 
 export function FeatureCard({ title, description, icon, href, externalUrl, comingSoon, tint }: FeatureCardProps) {
   const theme = useTheme();
+  const [hot, setHot] = useState(false);
 
   const body = (
-    <Card style={styles.card}>
+    <Card style={styles.card} raised={hot && !!(href || externalUrl)}>
       {icon && (
         <View
           style={[
@@ -59,7 +61,7 @@ export function FeatureCard({ title, description, icon, href, externalUrl, comin
   if (externalUrl) {
     const open = () => openLink(externalUrl);
     return (
-      <Pressable accessibilityRole="link" onPress={open} style={({ pressed }) => pressed && styles.pressed}>
+      <Pressable accessibilityRole="link" onPress={open} onHoverIn={() => setHot(true)} onHoverOut={() => setHot(false)} style={({ pressed }) => pressed && styles.pressed}>
         {body}
       </Pressable>
     );
@@ -69,7 +71,9 @@ export function FeatureCard({ title, description, icon, href, externalUrl, comin
 
   return (
     <Link href={href} asChild>
-      <Pressable style={({ pressed }) => pressed && styles.pressed}>{body}</Pressable>
+      <Pressable onHoverIn={() => setHot(true)} onHoverOut={() => setHot(false)} style={({ pressed }) => pressed && styles.pressed}>
+        {body}
+      </Pressable>
     </Link>
   );
 }

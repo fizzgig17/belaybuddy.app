@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import type { Session, User } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
@@ -37,9 +38,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 }
 
 /** Signs out after stopping push notifications to this device. */
+/** Signs out and returns to the Find tab (on the website, the signed-out home page). */
 export async function signOut() {
   await unregisterPushToken();
   await supabase.auth.signOut();
+  router.navigate('/');
 }
 
 export function useAuth() {

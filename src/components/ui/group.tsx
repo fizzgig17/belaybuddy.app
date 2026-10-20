@@ -1,5 +1,5 @@
 import { Children, Fragment, type ReactNode } from 'react';
-import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { Depth, Spacing } from '@/constants/theme';
@@ -10,11 +10,19 @@ import { useTheme } from '@/hooks/use-theme';
  * Shared surfaces. Cards are a lighter layer than the page, outlined with a hairline
  * and (in light mode) a very soft shadow, so content reads as grouped without heavy boxes.
  */
-export function Card({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
+/** `raised` lifts the card slightly (the pointer is over it, on the website). */
+export function Card({ children, style, raised }: { children: ReactNode; style?: StyleProp<ViewStyle>; raised?: boolean }) {
   const theme = useTheme();
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   return (
-    <View style={[styles.card, { backgroundColor: theme.surface, borderColor: scheme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(14,42,46,0.05)', boxShadow: Depth[scheme].card }, style]}>
+    <View
+      style={[
+        styles.card,
+        { backgroundColor: theme.surface, borderColor: scheme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(14,42,46,0.05)', boxShadow: raised ? Depth[scheme].raised : Depth[scheme].card },
+        Platform.OS === 'web' && ({ transitionProperty: 'transform, box-shadow', transitionDuration: '160ms' } as object),
+        raised && { transform: [{ translateY: -2 }] },
+        style,
+      ]}>
       {children}
     </View>
   );
