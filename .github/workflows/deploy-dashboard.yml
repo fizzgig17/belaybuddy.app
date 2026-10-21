@@ -1,0 +1,93 @@
+# Publishes the owner dashboard (dashboard/) to https://dashboard.belaybuddy.app on Spaceship.
+# It is plain static files, so there is no build: the folder is packaged and synced to the
+# subdomain's document root. One copy manages both Prod and Dev (a switch inside the page), so
+# it only ever deploys from master.
+#
+# Repository secrets: the same SPACESHIP_* ones the website uses, plus
+#   SPACESHIP_DASHBOARD_PATH  absolute path of dashboard.belaybuddy.app's document root,
+#                             e.g. /home/youruser/dashboard.belaybuddy.app
+name: Deploy dashboard
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'dashboard/**'
+      - '.github/workflows/deploy-dashboard.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-dashboard
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: github.ref_name == 'master'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check secrets
+        env:
+          HOST: ${{ secrets.SPACESHIP_HOST }}
+          USER: ${{ secrets.SPACESHIP_USER }}
+          KEY: ${{ secrets.SPACESHIP_SSH_KEY }}
+          DEST: ${{ secrets.SPACESHIP_DASHBOARD_PATH }}
+        run: |
+          missing=""
+          [ -n "$HOST" ] || missing="$missing SPACESHIP_HOST"
+          [ -n "$USER" ] || missing="$missing SPACESHIP_USER"
+          [ -n "$KEY" ] || missing="$missing SPACESHIP_SSH_KEY"
+          [ -n "$DEST" ] || missing="$missing SPACESHIP_DASHBOARD_PATH"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing secrets:$missing"
+            exit 1
+          fi
+
+      # A secret key must never ship in this folder. The publishable keys in config.js are fine.
+      - name: Refuse secrets
+        run: |
+          if grep -rEIl --exclude-dir=vendor "service_role|sb_secret_|SUPABASE_DB_PASSWORD" dashboard; then
+            echo "::error::A secret-looking value is inside dashboard/"; exit 1
+          fi
+
+      - name: Version stamp
+        run: echo "${GITHUB_SHA::7}" > dashboard/version.txt
+
+      - name: Package
+        run: tar -czf dashboard.tar.gz -C dashboard .
+
+      - name: Upload
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.SPACESHIP_HOST }}
+          port: ${{ secrets.SPACESHIP_PORT }}
+          username: ${{ secrets.SPACESHIP_USER }}
+          key: ${{ secrets.SPACESHIP_SSH_KEY }}
+          passphrase: ${{ secrets.SPACESHIP_SSH_PASSPHRASE }}
+          source: dashboard.tar.gz
+          target: belaybuddy-deploy/dashboard
+
+      - name: Install on server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SPACESHIP_HOST }}
+          port: ${{ secrets.SPACESHIP_PORT }}
+          username: ${{ secrets.SPACESHIP_USER }}
+          key: ${{ secrets.SPACESHIP_SSH_KEY }}
+          passphrase: ${{ secrets.SPACESHIP_SSH_PASSPHRASE }}
+          script: |
+            set -e
+            DEST="${{ secrets.SPACESHIP_DASHBOARD_PATH }}"
+            WORK="$HOME/belaybuddy-deploy/dashboard"
+            [ -d "$DEST" ] || { echo "Folder $DEST doesn't exist. Create the dashboard.belaybuddy.app subdomain in cPanel first."; exit 1; }
+            rm -rf "$WORK/site" && mkdir -p "$WORK/site"
+            tar -xzf "$WORK/dashboard.tar.gz" -C "$WORK/site"
+            if command -v rsync >/dev/null; then
+              rsync -a --delete --exclude .well-known --exclude cgi-bin "$WORK/site/" "$DEST/"
+            else
+              find "$DEST" -mindepth 1 -maxdepth 1 ! -name .well-known ! -name cgi-bin -exec rm -rf {} +
+              cp -a "$WORK/site/." "$DEST/"
+            fi
+            rm -rf "$WORK/site" "$WORK/dashboard.tar.gz"
+            echo "Deployed $(cat "$DEST/version.txt") to $DEST"

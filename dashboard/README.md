@@ -1,0 +1,14 @@
+# Belay Buddy dashboard
+
+Owner-only site at https://dashboard.belaybuddy.app. Static files (no build step); one copy manages both
+the production and dev Supabase projects through a switch at the top.
+
+- **Sign-in:** emailed code, then an authenticator-app code (2-step). Only accounts in `admins` work.
+  Sessions live in the tab only, and end after 30 quiet minutes.
+- **Security lives in the database:** every number and action is a `dash_*` function (migration
+  `20261020213500_dashboard.sql`) that refuses unless the caller is an admin AND signed in with 2-step.
+  There is no service-role key anywhere. The publishable keys in `config.js` are public by design.
+- **Libraries** are vendored in `vendor/` (supabase-js, d3 7.9.0), so nothing loads from a CDN.
+- **Deploy:** `.github/workflows/deploy-dashboard.yml` (master only, when `dashboard/**` changes).
+- Try it without a login: none. Test against the fake backend by serving this folder and replacing
+  `vendor/supabase.js` with a stub.
