@@ -1,0 +1,38 @@
+# Trial: builds the iOS app on Expo's servers (EAS Build) and sends it to TestFlight.
+# Runs only by hand (Actions > "iOS build with EAS (trial)" > Run workflow), so it never
+# competes with ios-testflight.yml. The build itself runs on Expo's Macs, so this job
+# uses a cheap Linux runner instead of GitHub macOS minutes.
+#   branch master  -> production profile (prod Supabase)
+#   other branches -> development-testflight profile (dev Supabase)
+# Needs the repository secret EXPO_TOKEN. Signing is kept by EAS (set up once with
+# `npx eas-cli credentials`).
+name: iOS build with EAS (trial)
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ios-eas
+  cancel-in-progress: false
+
+jobs:
+  eas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      PROFILE: ${{ github.ref_name == 'master' && 'production' || 'development-testflight' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the token
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then echo "::error::Add the repository secret EXPO_TOKEN (expo.dev > Account settings > Access tokens)."; exit 1; fi
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build on EAS and submit to TestFlight
+        run: |
+          echo "Profile: $PROFILE"
+          npx eas-cli@latest build --platform ios --profile "$PROFILE" --non-interactive --wait --auto-submit

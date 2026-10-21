@@ -1,0 +1,40 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "production": {
+      "distribution": "store",
+      "autoIncrement": true,
+      "ios": {
+        "image": "latest"
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://jcdyppjnmszkvtcwcyiq.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_WaauJ8OjgVon5qaQ3VTV4Q_YtcOsD83",
+        "EXPO_PUBLIC_APP_ENV": "prod"
+      }
+    },
+    "development-testflight": {
+      "distribution": "store",
+      "autoIncrement": true,
+      "ios": {
+        "image": "latest"
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://yquvmypmkyivaqxogste.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY": "sb_publishable_TYWS6Ym_Om68PeRdsRQ9EQ_OJmcwUTL",
+        "EXPO_PUBLIC_APP_ENV": "dev"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {}
+    },
+    "development-testflight": {
+      "ios": {}
+    }
+  }
+}

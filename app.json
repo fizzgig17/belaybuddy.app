@@ -12,7 +12,10 @@
       "bundleIdentifier": "app.belaybuddy.ios",
       "supportsTablet": false,
       "usesAppleSignIn": true,
-      "associatedDomains": ["applinks:belaybuddy.app", "applinks:dev.belaybuddy.app"],
+      "associatedDomains": [
+        "applinks:belaybuddy.app",
+        "applinks:dev.belaybuddy.app"
+      ],
       "infoPlist": {
         "NSCameraUsageDescription": "Belay Buddy uses the camera to photograph gym walls so Route AI can highlight the holds on a route, and to scan a friend’s QR code.",
         "NSPhotoLibraryUsageDescription": "Belay Buddy lets you pick wall photos from your library for Route AI.",
@@ -101,6 +104,11 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "1813bd6c-408c-4e0f-9ac9-067b4d729f80"
+      }
     }
   }
 }
