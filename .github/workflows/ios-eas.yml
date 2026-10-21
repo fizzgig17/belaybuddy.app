@@ -39,4 +39,12 @@ jobs:
       - name: Build on EAS and submit to TestFlight
         run: |
           echo "Profile: $PROFILE"
-          npx eas-cli@latest build --platform ios --profile "$PROFILE" --non-interactive --wait --auto-submit
+          set +e
+          npx eas-cli@latest build --platform ios --profile "$PROFILE" --non-interactive --wait --auto-submit 2>&1 | tee eas.log
+          code=${PIPESTATUS[0]}
+          if [ "$code" != 0 ]; then
+            # The raw log is hard to open from a phone, so put the end of it in the error line.
+            msg=$(sed 's/\x1b\[[0-9;]*[a-zA-Z]//g' eas.log | grep -v '^\s*$' | tail -n 14 | tr '\n' '|' | head -c 1500)
+            echo "::error::EAS failed: ${msg//%/%25}"
+            exit "$code"
+          fi
