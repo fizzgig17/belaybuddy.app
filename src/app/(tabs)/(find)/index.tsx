@@ -385,14 +385,27 @@ export default function FindScreen() {
               {result && (
                 <ThemedText type="small" themeColor="textSecondary" style={styles.attribution}>
                   Gym data © OpenStreetMap contributors and Overture Maps Foundation. Crag data from OpenBeta.
-                  Missing a spot? These are open data sources that can be updated.
                 </ThemedText>
               )}
+              {result && !result.pending.gyms && !result.pending.crags && <MissingPlaceLink />}
             </>
           )}
         </View>
       )}
     </Screen>
+  );
+}
+
+function MissingPlaceLink() {
+  const theme = useTheme();
+  return (
+    <Link href="/suggest-place" asChild>
+      <Pressable accessibilityRole="link" hitSlop={8}>
+        <ThemedText type="smallBold" style={{ color: theme.accent }}>
+          Missing a gym or crag? Tell us
+        </ThemedText>
+      </Pressable>
+    </Link>
   );
 }
 

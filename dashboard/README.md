@@ -8,6 +8,11 @@ the production and dev Supabase projects through a switch at the top.
   session ends with the tab. On iPhone, set the authenticator code up in the Passwords app: the code then fills in
   with Face ID. (Supabase does not support Face ID/WebAuthn as a 2-step factor on hosted projects yet, 422
   "Enabling of MFA with WebAuthn not currently supported", so this is the closest option.)
+- **Tabs:** Overview (numbers and charts), Users (list and bulk delete), Suggestions (missing gyms, crags and
+  shops people send from the app/website, each with an automatic check; add to the catalog, mark duplicate,
+  reject, re-check a corrected position), Hours (approve or reject opening-hours suggestions), Admins (add by
+  email, remove; you cannot remove yourself or the last admin), Deleted accounts (log). Suggestions and Hours
+  show a count badge when something is waiting. Migration `20261021130000_place_submissions.sql`.
 - **Security lives in the database:** every number and action is a `dash_*` function (migration
   `20261020213500_dashboard.sql`) that refuses unless the caller is an admin AND signed in with 2-step.
   There is no service-role key anywhere. The publishable keys in `config.js` are public by design.
