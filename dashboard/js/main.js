@@ -1,5 +1,5 @@
 import { rpc, client, envNames, envLabel, signOutAll, touch, sessionExpired } from './api.js';
-import { renderAuth, faceIdAvailable, hasFaceId, setupFaceId } from './auth.js';
+import { renderAuth } from './auth.js';
 import { h, $, clear } from './util.js';
 import { overviewView } from './overview.js';
 import { usersView } from './users.js';
@@ -65,20 +65,13 @@ async function shell(env) {
   const sw = h('div', { class: 'envswitch', role: 'group', 'aria-label': 'Environment' },
     envNames().map((e) => h('button', { class: `${e === env ? 'on' : ''} ${e}`, onClick: () => e !== env && switchEnv(e) }, envLabel(e))));
   const email = (await client(env).auth.getUser()).data.user?.email || '';
-  const faceBtn = h('button', { class: 'btn small hidden', onClick: async () => {
-    faceBtn.disabled = true;
-    const r = await setupFaceId(env);
-    faceBtn.disabled = false;
-    if (r.ok) { faceBtn.classList.add('hidden'); faceBtn.after(h('span', { class: 'chip' }, 'Face ID on')); } else alert(r.message);
-  } }, 'Set up Face ID');
-  if (faceIdAvailable() && !(await hasFaceId(env))) faceBtn.classList.remove('hidden');
 
   clear(root).append(
     ...(env === 'dev' ? [h('div', { class: 'envstrip' }, 'DEV · test data, not the real site')] : []),
     h('header', { class: 'topbar' },
       h('div', { class: 'brand' }, h('div', { class: 'logo' }, 'B'), 'Belay Buddy'),
       sw, h('div', { class: 'spacer' }),
-      faceBtn, h('span', { class: 'small muted' }, email),
+      h('span', { class: 'small muted' }, email),
       h('button', { class: 'btn small', onClick: async () => { await signOutAll(); location.reload(); } }, 'Sign out')),
     tabs, view);
   draw();
