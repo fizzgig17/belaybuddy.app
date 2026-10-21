@@ -1,12 +1,11 @@
-import { rpc, client, envNames, envLabel, signOutAll } from './api.js';
-import { renderAuth } from './auth.js';
+import { rpc, client, envNames, envLabel, signOutAll, touch, sessionExpired } from './api.js';
+import { renderAuth, faceIdAvailable, hasFaceId, setupFaceId } from './auth.js';
 import { h, $, clear } from './util.js';
 import { overviewView } from './overview.js';
 import { usersView } from './users.js';
 import { logView } from './log.js';
 
 const root = $('#app');
-const IDLE_MS = 30 * 60 * 1000;
 
 const store = {
   get env() { try { return sessionStorage.getItem('bbdash-env') || 'prod'; } catch { return 'prod'; } },
@@ -21,13 +20,8 @@ const TABS = [
 ];
 const VIEWS = { overview: overviewView, users: usersView, log: logView };
 
-// Sign out everywhere after 30 quiet minutes.
-let idleTimer;
-function armIdle() {
-  clearTimeout(idleTimer);
-  idleTimer = setTimeout(async () => { await signOutAll(); location.reload(); }, IDLE_MS);
-}
-['pointerdown', 'keydown', 'scroll'].forEach((e) => window.addEventListener(e, armIdle, { passive: true }));
+// Logins last up to 7 quiet days (30 at most); using the page keeps the clock fresh.
+['pointerdown', 'keydown', 'scroll'].forEach((e) => window.addEventListener(e, touch, { passive: true }));
 
 function switchEnv(env) {
   store.env = env;
@@ -36,12 +30,13 @@ function switchEnv(env) {
 
 async function start() {
   const env = store.env;
+  if (sessionExpired()) await signOutAll();
   clear(root);
   await renderAuth(root, env, envLabel(env), () => shell(env), () => switchEnv(env === 'prod' ? 'dev' : 'prod'));
 }
 
 async function shell(env) {
-  armIdle();
+  touch();
   // Ask for something only admins can read. A non-admin gets a plain refusal, not a half-working page.
   try {
     await rpc(env, 'dash_overview');
@@ -70,13 +65,20 @@ async function shell(env) {
   const sw = h('div', { class: 'envswitch', role: 'group', 'aria-label': 'Environment' },
     envNames().map((e) => h('button', { class: `${e === env ? 'on' : ''} ${e}`, onClick: () => e !== env && switchEnv(e) }, envLabel(e))));
   const email = (await client(env).auth.getUser()).data.user?.email || '';
+  const faceBtn = h('button', { class: 'btn small hidden', onClick: async () => {
+    faceBtn.disabled = true;
+    const r = await setupFaceId(env);
+    faceBtn.disabled = false;
+    if (r.ok) { faceBtn.classList.add('hidden'); faceBtn.after(h('span', { class: 'chip' }, 'Face ID on')); } else alert(r.message);
+  } }, 'Set up Face ID');
+  if (faceIdAvailable() && !(await hasFaceId(env))) faceBtn.classList.remove('hidden');
 
   clear(root).append(
     ...(env === 'dev' ? [h('div', { class: 'envstrip' }, 'DEV · test data, not the real site')] : []),
     h('header', { class: 'topbar' },
       h('div', { class: 'brand' }, h('div', { class: 'logo' }, 'B'), 'Belay Buddy'),
       sw, h('div', { class: 'spacer' }),
-      h('span', { class: 'small muted' }, email),
+      faceBtn, h('span', { class: 'small muted' }, email),
       h('button', { class: 'btn small', onClick: async () => { await signOutAll(); location.reload(); } }, 'Sign out')),
     tabs, view);
   draw();
