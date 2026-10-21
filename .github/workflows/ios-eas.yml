@@ -1,6 +1,7 @@
 # Trial: builds the iOS app on Expo's servers (EAS Build) and sends it to TestFlight.
-# Runs only by hand (Actions > "iOS build with EAS (trial)" > Run workflow), so it never
-# competes with ios-testflight.yml. The build itself runs on Expo's Macs, so this job
+# Runs when a push to develop has [eas] in its commit message, or by hand once this file
+# is on the default branch (Actions > "iOS build with EAS (trial)" > Run workflow). It never
+# runs on master, so it can't compete with ios-testflight.yml. The build itself runs on Expo's Macs, so this job
 # uses a cheap Linux runner instead of GitHub macOS minutes.
 #   branch master  -> production profile (prod Supabase)
 #   other branches -> development-testflight profile (dev Supabase)
@@ -9,6 +10,8 @@
 name: iOS build with EAS (trial)
 
 on:
+  push:
+    branches: [develop]
   workflow_dispatch:
 
 concurrency:
@@ -17,6 +20,7 @@ concurrency:
 
 jobs:
   eas:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[eas]')
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
