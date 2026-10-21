@@ -42,8 +42,10 @@ jobs:
             -H "Authorization: Bearer $token" -H "Content-Type: application/json" -d "$body")
           echo "HTTP $code"
           if [ "$code" -ge 300 ]; then
-            echo "::error::Supabase said no (see response below). Face ID stays off; the dashboard falls back to authenticator codes."
-            head -c 600 resp.json; echo
+            reply=$(head -c 400 resp.json | tr '\n' ' ')
+            curl -sS "https://api.supabase.com/v1/projects/$PROJECT_ID/config/auth" -H "Authorization: Bearer $token" -o cur.json || true
+            keys=$(python3 -c "import json;d=json.load(open('cur.json'));print(', '.join(f'{k}={d[k]}' for k in sorted(d) if any(w in k.lower() for w in ('webauthn','passkey','mfa'))))" 2>&1 | head -c 700)
+            echo "::error::HTTP $code from Supabase: $reply || current fields: $keys"
             exit 1
           fi
           echo "Face ID (WebAuthn) is on for $TARGET"
