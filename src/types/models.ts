@@ -59,10 +59,10 @@ export type ClimberProfile = {
 
 export type BelayCert = 'top-rope' | 'lead';
 
-/** A saved gym or crag. Stores a snapshot because areas come from outside sources. */
+/** A saved gym, crag or shop. Stores a snapshot because places come from outside sources. */
 export type Favorite = {
   areaId: string;
-  areaKind: ClimbingArea['kind'];
+  areaKind: ClimbingArea['kind'] | 'shop';
   source: ClimbingArea['source'];
   name: string;
   location: LatLng;

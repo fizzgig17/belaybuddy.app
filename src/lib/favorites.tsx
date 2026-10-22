@@ -23,16 +23,30 @@ const fromRow = (r: FavoriteRow): Favorite => ({
   createdAt: r.created_at,
 });
 
+/** What can be saved: a gym or crag, or a shop. */
+export type Savable = {
+  id: string;
+  kind: Favorite['areaKind'];
+  source: Favorite['source'];
+  name: string;
+  location: Favorite['location'];
+};
+
+type PlaceFavorite = Favorite & { areaKind: ClimbingArea['kind'] };
+
 type FavoritesState = {
-  favorites: Favorite[];
+  /** Saved gyms and crags. Saved shops are in `savedShops`. */
+  favorites: PlaceFavorite[];
+  savedShops: Favorite[];
   isFavorite: (areaId: string) => boolean;
   /** Adds or removes. Resolves false if the user needs to sign in first. */
-  toggle: (area: ClimbingArea) => Promise<boolean>;
+  toggle: (area: Savable) => Promise<boolean>;
   error: string | null;
 };
 
 const FavoritesContext = createContext<FavoritesState>({
   favorites: [],
+  savedShops: [],
   isFavorite: () => false,
   toggle: async () => false,
   error: null,
@@ -66,7 +80,7 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
   const ids = useMemo(() => new Set(favorites.map((f) => f.areaId)), [favorites]);
 
   const toggle = useCallback(
-    async (area: ClimbingArea) => {
+    async (area: Savable) => {
       if (!user) return false;
       setError(null);
       const was = ids.has(area.id);
@@ -103,7 +117,13 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ favorites, isFavorite: (id: string) => ids.has(id), toggle, error }),
+    () => ({
+      favorites: favorites.filter((f): f is PlaceFavorite => f.areaKind !== 'shop'),
+      savedShops: favorites.filter((f) => f.areaKind === 'shop'),
+      isFavorite: (id: string) => ids.has(id),
+      toggle,
+      error,
+    }),
     [favorites, ids, toggle, error],
   );
   return <FavoritesContext.Provider value={value}>{children}</FavoritesContext.Provider>;

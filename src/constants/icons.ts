@@ -27,6 +27,7 @@ export const Icons = {
   search: icon('magnifyingglass', 'search'),
   external: icon('arrow.up.right.square', 'open_in_new'),
   website: icon('globe', 'language'),
+  phone: icon('phone', 'call'),
   warning: icon('exclamationmark.triangle', 'error'),
   favoriteOn: icon('star.fill', 'star_rate'),
   home: icon('house', 'home'),

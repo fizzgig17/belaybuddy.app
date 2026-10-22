@@ -1,8 +1,9 @@
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Button, Field, ToggleRow } from '@/components/form';
+import { IconButton } from '@/components/ui/icon-button';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -15,7 +16,7 @@ const blank = (): DayHours[] => DAY_NAMES.map(() => ({ closed: false, open: '', 
  * "Add the hours" for a gym or shop that has none. Signed-in people fill in a week;
  * it goes to a review queue and shows once approved.
  */
-export function SuggestHours({ place }: { place: { id: string; name: string; kind: 'gym' | 'shop' } }) {
+export function SuggestHours({ place, compact = false }: { place: { id: string; name: string; kind: 'gym' | 'shop' }; compact?: boolean }) {
   const theme = useTheme();
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
@@ -25,13 +26,18 @@ export function SuggestHours({ place }: { place: { id: string; name: string; kin
   const [sent, setSent] = useState(false);
 
   if (sent) {
-    return (
+    return compact ? (
+      <ThemedText type="small" themeColor="textSecondary">
+        Hours sent
+      </ThemedText>
+    ) : (
       <ThemedText type="small" themeColor="textSecondary">
         Thanks. We'll review those hours.
       </ThemedText>
     );
   }
   if (!user) {
+    if (compact) return <IconButton icon="clock" label="Sign in to add the hours" onPress={() => router.push('/profile')} />;
     return (
       <Link href="/profile" asChild>
         <Pressable accessibilityRole="link">
@@ -66,7 +72,11 @@ export function SuggestHours({ place }: { place: { id: string; name: string; kin
 
   return (
     <>
-      <Button title="Add the hours" variant="secondary" onPress={() => setOpen(true)} />
+      {compact ? (
+        <IconButton icon="clock" label="Add the hours" onPress={() => setOpen(true)} />
+      ) : (
+        <Button title="Add the hours" variant="secondary" onPress={() => setOpen(true)} />
+      )}
       <Modal visible={open} animationType="slide" onRequestClose={() => setOpen(false)}>
         {/* The keyboard must not cover the lower days: iPhone lets the scroll view make room, Android shrinks the sheet. */}
         <KeyboardAvoidingView
