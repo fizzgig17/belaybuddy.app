@@ -37,7 +37,7 @@ export function SuggestHours({ place, compact = false }: { place: { id: string; 
     );
   }
   if (!user) {
-    if (compact) return <IconButton icon="clock" label="Sign in to add the hours" onPress={() => router.push('/profile')} />;
+    if (compact) return <IconButton tipAbove icon="clock" label="Sign in to add the hours" onPress={() => router.push('/profile')} />;
     return (
       <Link href="/profile" asChild>
         <Pressable accessibilityRole="link">
@@ -73,7 +73,7 @@ export function SuggestHours({ place, compact = false }: { place: { id: string; 
   return (
     <>
       {compact ? (
-        <IconButton icon="clock" label="Add the hours" onPress={() => setOpen(true)} />
+        <IconButton tipAbove icon="clock" label="Add the hours" onPress={() => setOpen(true)} />
       ) : (
         <Button title="Add the hours" variant="secondary" onPress={() => setOpen(true)} />
       )}

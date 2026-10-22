@@ -275,11 +275,12 @@ function ShopRow({
         )}
       </View>
       <View style={styles.actions}>
-        <IconButton icon="directions" label="Directions" onPress={() => Linking.openURL(directionsUrl(shop))} />
-        {shop.phone && <IconButton icon="phone" label="Call" onPress={() => Linking.openURL(phoneUrl(shop.phone!))} />}
-        {shop.website && <IconButton icon="website" label="Website" onPress={() => Linking.openURL(shop.website!)} />}
+        <IconButton tipAbove icon="directions" label="Directions" onPress={() => Linking.openURL(directionsUrl(shop))} />
+        {shop.phone && <IconButton tipAbove icon="phone" label="Call" onPress={() => Linking.openURL(phoneUrl(shop.phone!))} />}
+        {shop.website && <IconButton tipAbove icon="website" label="Website" onPress={() => Linking.openURL(shop.website!)} />}
         {noHours && (
           <IconButton
+            tipAbove
             icon="search"
             label="Look up hours online"
             onPress={() => Linking.openURL(hoursSearchUrl(shop.name, shop.address))}

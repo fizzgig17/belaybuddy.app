@@ -11,7 +11,7 @@ import { useTheme } from '@/hooks/use-theme';
  * Round icon button with a tooltip: hover on the website, press and hold on a phone.
  * The label is also read by screen readers.
  */
-export function IconButton({ icon, label, onPress }: { icon: IconName; label: string; onPress: () => void }) {
+export function IconButton({ icon, label, onPress, tipAbove = false }: { icon: IconName; label: string; onPress: () => void; tipAbove?: boolean }) {
   const theme = useTheme();
   const [tip, setTip] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -46,11 +46,22 @@ export function IconButton({ icon, label, onPress }: { icon: IconName; label: st
         <SymbolView name={Icons[icon]} size={22} tintColor={theme.accent} />
       </Pressable>
       {tip && (
-        <View pointerEvents="none" style={[styles.tip, { backgroundColor: theme.text }]}>
-          <ThemedText type="small" style={{ color: theme.background }} numberOfLines={1}>
-            {label}
-          </ThemedText>
-        </View>
+        tipAbove ? (
+          // Centered over the button and above it, so a finger never covers it.
+          <View pointerEvents="none" style={styles.tipAboveWrap}>
+            <View style={[styles.tipAbove, { backgroundColor: theme.text }]}>
+              <ThemedText type="small" style={{ color: theme.background }} numberOfLines={1}>
+                {label}
+              </ThemedText>
+            </View>
+          </View>
+        ) : (
+          <View pointerEvents="none" style={[styles.tip, { backgroundColor: theme.text }]}>
+            <ThemedText type="small" style={{ color: theme.background }} numberOfLines={1}>
+              {label}
+            </ThemedText>
+          </View>
+        )
       )}
     </View>
   );
@@ -60,6 +71,8 @@ const styles = StyleSheet.create({
   wrap: { zIndex: 10 },
   button: { width: 40, height: 40, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center' },
   pressed: { opacity: 0.6 },
+  tipAboveWrap: { position: 'absolute', bottom: 46, left: -80, width: 200, alignItems: 'center' },
+  tipAbove: { paddingHorizontal: Spacing.two + 2, paddingVertical: Spacing.one, borderRadius: Spacing.two },
   tip: {
     position: 'absolute',
     top: 46,
