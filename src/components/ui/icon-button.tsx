@@ -56,10 +56,13 @@ export function IconButton({ icon, label, onPress, tipAbove = false }: { icon: I
             </View>
           </View>
         ) : (
-          <View pointerEvents="none" style={[styles.tip, { backgroundColor: theme.text }]}>
-            <ThemedText type="small" style={{ color: theme.background }} numberOfLines={1}>
-              {label}
-            </ThemedText>
+          // A wide wrapper: on a phone an absolute child is only as wide as the 40pt button, which cut the label to "Star…".
+          <View pointerEvents="none" style={styles.tipBelowWrap}>
+            <View style={[styles.tipAbove, { backgroundColor: theme.text }]}>
+              <ThemedText type="small" style={{ color: theme.background }} numberOfLines={1}>
+                {label}
+              </ThemedText>
+            </View>
           </View>
         )
       )}
@@ -73,14 +76,5 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.6 },
   tipAboveWrap: { position: 'absolute', bottom: 46, left: -80, width: 200, alignItems: 'center' },
   tipAbove: { paddingHorizontal: Spacing.two + 2, paddingVertical: Spacing.one, borderRadius: Spacing.two },
-  tip: {
-    position: 'absolute',
-    top: 46,
-    right: 0,
-    paddingHorizontal: Spacing.two + 2,
-    paddingVertical: Spacing.one,
-    borderRadius: Spacing.two,
-    minWidth: 72,
-    alignItems: 'center',
-  },
+  tipBelowWrap: { position: 'absolute', top: 46, right: 0, width: 220, alignItems: 'flex-end' },
 });
