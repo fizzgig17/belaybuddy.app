@@ -1,4 +1,4 @@
-import { Link, Stack } from 'expo-router';
+import { Link, Stack, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
@@ -22,7 +22,8 @@ const KINDS: { value: SubmissionKind; label: string }[] = [
 export default function SuggestPlaceScreen() {
   const theme = useTheme();
   const { user } = useAuth();
-  const [kind, setKind] = useState<SubmissionKind>('gym');
+  const { kind: startKind } = useLocalSearchParams<{ kind?: string }>();
+  const [kind, setKind] = useState<SubmissionKind>(startKind === 'shop' || startKind === 'crag' ? startKind : 'gym');
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [point, setPoint] = useState<LatLng | null>(null);

@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useMemo, useState } from 'react';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
@@ -170,12 +170,26 @@ export default function ShopsScreen() {
           ))}
           {shops && (
             <ThemedText type="small" themeColor="textSecondary">
-              Shop data © OpenStreetMap contributors. Missing a shop? It can be added at openstreetmap.org.
+              Shop data © OpenStreetMap contributors.
             </ThemedText>
           )}
+          {shops && <MissingShopLink />}
         </View>
       )}
     </Screen>
+  );
+}
+
+function MissingShopLink() {
+  const theme = useTheme();
+  return (
+    <Link href={{ pathname: '/suggest-place', params: { kind: 'shop' } }} asChild>
+      <Pressable accessibilityRole="link" hitSlop={8}>
+        <ThemedText type="smallBold" style={{ color: theme.accent }}>
+          Missing a shop? Tell us
+        </ThemedText>
+      </Pressable>
+    </Link>
   );
 }
 
