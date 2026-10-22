@@ -24,6 +24,12 @@ export default function Root({ children }: PropsWithChildren) {
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="manifest" href="/manifest.webmanifest" />
         <ScrollViewStyleReset />
+        {/* Pressing or holding a button or icon on a phone must not select its glyph or label, or open the link menu. */}
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `[role="button"],[role="link"],[role="tab"],[role="switch"],[role="checkbox"],[role="radio"]{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}`,
+          }}
+        />
       </head>
       <body>{children}</body>
     </html>
