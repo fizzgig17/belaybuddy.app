@@ -322,16 +322,50 @@ jobs:
             -authenticationKeyID "$ASC_KEY_ID" \
             -authenticationKeyIssuerID "$ASC_ISSUER_ID" 2>&1 | tee xcodebuild-export.log | tail -n 40
 
-      # TestFlight's list only shows version + build number, so write the
-      # branch, commit and backend into each build's "What to Test" text.
-      # Best effort: the build is already uploaded, so this never fails the run.
+      # Surface the real errors as annotations, since the logs themselves are
+      # hard to read from a phone.
+      - name: Annotate errors
+        if: failure()
+        run: |
+          cat xcodebuild-archive.log xcodebuild-export.log 2>/dev/null | grep -E ": error: |^error: |fatal error: |\*\* (ARCHIVE|EXPORT) FAILED|Validation failed|SDK version|Undefined symbols|No profiles|No signing certificate|Provisioning profile|doesn't match|Bundle identifier" | head -n 20 | while IFS= read -r line; do
+            echo "::error::${line//%/%25}"
+          done
+          # Anything else that failed (e.g. a build phase script), plus the end of the log.
+          grep -iE "error|failed" xcodebuild-archive.log 2>/dev/null | grep -vE "^\s*(warning|note):" | head -n 12 | while IFS= read -r line; do
+            echo "::error::log: ${line//%/%25}"
+          done
+          echo "::error::tail: $(tail -n 12 xcodebuild-archive.log 2>/dev/null | tr '\n' '|' | head -c 1200)"
+
+      - name: Remove the API key
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/asc"
+
+  # TestFlight's list only shows version + build number, so write the branch,
+  # commit and backend into each build's "What to Test" text. Apple takes several
+  # minutes to process an upload before it can be labeled, so this waits on a
+  # Linux runner instead of keeping the much more expensive macOS runner alive.
+  # Best effort: the build is already uploaded, so this never fails the run.
+  label:
+    needs: testflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      BUNDLE_ID: app.belaybuddy.ios
+      BUILD_NUMBER: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+
       - name: Label the build in TestFlight (What to Test)
         continue-on-error: true
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
           BRANCH: ${{ github.ref_name }}
         run: |
+          mkdir -p "$RUNNER_TEMP/asc"
+          printf '%s\n' "$ASC_KEY_P8" > "$RUNNER_TEMP/asc/AuthKey.p8"
+          chmod 600 "$RUNNER_TEMP/asc/AuthKey.p8"
           python3 -m pip install --quiet --break-system-packages pyjwt cryptography || python3 -m pip install --quiet pyjwt cryptography
           python3 - <<'PY'
           import json, os, subprocess, time, urllib.request, urllib.error, urllib.parse, jwt
@@ -386,20 +420,6 @@ jobs:
                              'relationships': {'build': {'data': {'type': 'builds', 'id': build_id}}}}})
           print('Labeled build', os.environ['BUILD_NUMBER'], 'as', branch)
           PY
-
-      # Surface the real errors as annotations, since the logs themselves are
-      # hard to read from a phone.
-      - name: Annotate errors
-        if: failure()
-        run: |
-          cat xcodebuild-archive.log xcodebuild-export.log 2>/dev/null | grep -E ": error: |^error: |fatal error: |\*\* (ARCHIVE|EXPORT) FAILED|Validation failed|SDK version|Undefined symbols|No profiles|No signing certificate|Provisioning profile|doesn't match|Bundle identifier" | head -n 20 | while IFS= read -r line; do
-            echo "::error::${line//%/%25}"
-          done
-          # Anything else that failed (e.g. a build phase script), plus the end of the log.
-          grep -iE "error|failed" xcodebuild-archive.log 2>/dev/null | grep -vE "^\s*(warning|note):" | head -n 12 | while IFS= read -r line; do
-            echo "::error::log: ${line//%/%25}"
-          done
-          echo "::error::tail: $(tail -n 12 xcodebuild-archive.log 2>/dev/null | tr '\n' '|' | head -c 1200)"
 
       - name: Remove the API key
         if: always()
