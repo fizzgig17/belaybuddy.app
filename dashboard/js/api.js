@@ -59,8 +59,10 @@ export function client(env) {
   return clients[env];
 }
 
-export async function rpc(env, fn, args) {
-  const { data, error } = await client(env).rpc(fn, args || {});
+/** Calls a database function. Pass { schema: 'edc' } for EDC Roulette's functions (they live in the edc schema). */
+export async function rpc(env, fn, args, { schema } = {}) {
+  const c = client(env);
+  const { data, error } = await (schema ? c.schema(schema) : c).rpc(fn, args || {});
   if (error) {
     const e = new Error(/Two-step/i.test(error.message) ? 'Two-step sign-in required' : /Not allowed/i.test(error.message) ? 'Not allowed' : error.message);
     e.code = e.message;

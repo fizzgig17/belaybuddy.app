@@ -7,6 +7,7 @@ import { logView } from './log.js';
 import { submissionsView } from './submissions.js';
 import { hoursView } from './hours.js';
 import { adminsView } from './admins.js';
+import { edcView } from './edc.js';
 
 const root = $('#app');
 
@@ -21,12 +22,13 @@ const TABS = [
   ['users', 'Users'],
   ['submissions', 'Suggestions'],
   ['hours', 'Hours'],
+  ['edc', 'EDC Roulette'],
   ['admins', 'Admins'],
   ['log', 'Deleted accounts'],
 ];
-const VIEWS = { overview: overviewView, users: usersView, submissions: submissionsView, hours: hoursView, admins: adminsView, log: logView };
+const VIEWS = { overview: overviewView, users: usersView, submissions: submissionsView, hours: hoursView, edc: edcView, admins: adminsView, log: logView };
 // Tabs that show how many items are waiting.
-const BADGES = { submissions: 'submissions', hours: 'hours' };
+const BADGES = { submissions: 'submissions', hours: 'hours', edc: 'edc_brands' };
 
 // Logins last up to 7 quiet days (30 at most); using the page keeps the clock fresh.
 ['pointerdown', 'keydown', 'scroll'].forEach((e) => window.addEventListener(e, touch, { passive: true }));
@@ -72,6 +74,8 @@ async function shell(env) {
   const badges = async () => {
     try {
       const counts = await rpc(env, 'dash_queue_counts');
+      // EDC Roulette's own waiting count (its functions are in the edc schema; absent until that app's database is set up).
+      try { Object.assign(counts, await rpc(env, 'dash_edc_counts', {}, { schema: 'edc' })); } catch { counts.edc_brands = 0; }
       for (const [tab, key] of Object.entries(BADGES)) {
         const el = tabs.querySelector(`[data-badge="${tab}"]`);
         if (!el) continue;
