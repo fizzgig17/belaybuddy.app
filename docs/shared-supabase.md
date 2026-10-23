@@ -31,6 +31,14 @@ Belay Buddy's migrations should never create, change or drop anything in the
 - **The Data API's exposed schemas** include `edc` (set by EDC's workflow).
 - **Free-plan limits** (database size, storage, egress) cover both apps.
 
+## Shared owner dashboard
+
+dashboard.belaybuddy.app manages both apps (no extra domain). Its **EDC Roulette** tab
+(`dashboard/js/edc.js`) calls functions in the `edc` schema (`edc.dash_*`, EDC's migration
+`0003_owner_dashboard.sql`). They call `public.dash_guard()` first, so the same admins and
+two-step sign-in apply. Belay Buddy's migrations must keep `public.dash_guard()` working and
+must not touch the `edc` schema.
+
 ## Still to handle before EDC Roulette launches sign-in
 
 - The owner dashboard counts every auth user, so EDC-only accounts would show as
