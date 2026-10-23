@@ -12,7 +12,8 @@
 #
 # Needs the existing App Store Connect API key secrets (ASC_KEY_ID,
 # ASC_ISSUER_ID, ASC_KEY_P8; the key needs the App Manager or Admin role) and an
-# Xcode Cloud workflow whose name matches XCODE_CLOUD_WORKFLOW below.
+# two Xcode Cloud workflows: "TestFlight Prod" (master, prod tester group) and
+# "TestFlight Dev" (every other branch, dev tester group).
 #
 # The old macOS build (ios-testflight.yml) still works as a manual fallback.
 name: Start iOS build on Xcode Cloud
@@ -35,7 +36,8 @@ jobs:
     timeout-minutes: 5
     env:
       BUNDLE_ID: app.belaybuddy.ios
-      XCODE_CLOUD_WORKFLOW: TestFlight
+      # master -> prod workflow/tester group, anything else -> dev.
+      XCODE_CLOUD_WORKFLOW: ${{ github.ref_name == 'master' && 'TestFlight Prod' || 'TestFlight Dev' }}
       BRANCH: ${{ github.ref_name }}
       ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
