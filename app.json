@@ -99,7 +99,8 @@
             }
           }
         ]
-      ]
+      ],
+      "./plugins/with-xcode-cloud"
     ],
     "experiments": {
       "typedRoutes": true,

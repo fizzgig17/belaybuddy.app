@@ -38,6 +38,8 @@ yarn-error.*
 
 example
 
-# generated native folders
-/ios
+# generated native folders (ios/ci_scripts is kept: Xcode Cloud needs it at
+# checkout, and plugins/with-xcode-cloud.js rewrites it on every prebuild)
+/ios/*
+!/ios/ci_scripts/
 /android
