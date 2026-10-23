@@ -70,11 +70,17 @@ jobs:
           allow=$(jq -r --arg site "$SITE/**" '
             ((.uri_allow_list // "") | split(",") | map(select(length > 0))) + ["belaybuddy://**", $site]
             | unique | join(",")' current.json)
-          jq -n --arg allow "$allow" --arg bundle "$APP_BUNDLE_ID" '{
+          # Apple: Belay Buddy's bundle id first, keeping any others already allowed
+          # (EDC Roulette shares these projects and adds app.edcroulette.ios).
+          apple=$(jq -r --arg bundle "$APP_BUNDLE_ID" '
+            [$bundle] + ((.external_apple_client_id // "") | split(",") | map(gsub("^\\s+|\\s+$"; "")) | map(select(length > 0 and . != $bundle)))
+            | join(",")' current.json)
+          jq -n --arg allow "$allow" --arg apple "$apple" '{
             uri_allow_list: $allow,
             external_apple_enabled: true,
-            external_apple_client_id: $bundle
+            external_apple_client_id: $apple
           }' > body.json
+          jq -r '"Apple client ids: \(.external_apple_client_id)"' body.json
           if [ -n "$GOOGLE_CLIENT_ID" ] && [ -n "$GOOGLE_CLIENT_SECRET" ]; then
             gid=$(printf '%s' "$GOOGLE_CLIENT_ID" | tr -d '[:space:]')
             gsecret=$(printf '%s' "$GOOGLE_CLIENT_SECRET" | tr -d '[:space:]')
