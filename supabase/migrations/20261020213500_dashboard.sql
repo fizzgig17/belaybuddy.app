@@ -1,4 +1,4 @@
--- Owner dashboard (dashboard.belaybuddy.app): growth and usage numbers, a user list, bulk delete.
+-- Owner dashboard (dashboard.fizzgig.app): growth and usage numbers, a user list, bulk delete.
 --
 -- Everything here is a function the dashboard calls with the signed-in admin's own token. Each one
 -- starts with dash_guard(): the caller must be in `admins` AND have signed in with a second step

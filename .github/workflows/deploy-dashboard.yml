@@ -1,11 +1,11 @@
-# Publishes the owner dashboard (dashboard/) to https://dashboard.belaybuddy.app on Spaceship.
+# Publishes the owner dashboard (dashboard/) to https://dashboard.fizzgig.app on Spaceship.
 # It is plain static files, so there is no build: the folder is packaged and synced to the
 # subdomain's document root. One copy manages both Prod and Dev (a switch inside the page), so
 # it only ever deploys from master.
 #
 # Repository secrets: the same SPACESHIP_* ones the website uses, plus
-#   SPACESHIP_DASHBOARD_PATH  absolute path of dashboard.belaybuddy.app's document root,
-#                             e.g. /home/youruser/dashboard.belaybuddy.app
+#   SPACESHIP_DASHBOARD_PATH  absolute path of dashboard.fizzgig.app's document root,
+#                             e.g. /home/youruser/dashboard.fizzgig.app
 name: Deploy dashboard
 
 on:
@@ -80,7 +80,7 @@ jobs:
             set -e
             DEST="${{ secrets.SPACESHIP_DASHBOARD_PATH }}"
             WORK="$HOME/belaybuddy-deploy/dashboard"
-            [ -d "$DEST" ] || { echo "Folder $DEST doesn't exist. Create the dashboard.belaybuddy.app subdomain in cPanel first."; exit 1; }
+            [ -d "$DEST" ] || { echo "Folder $DEST doesn't exist. Create the dashboard.fizzgig.app subdomain in cPanel first."; exit 1; }
             rm -rf "$WORK/site" && mkdir -p "$WORK/site"
             tar -xzf "$WORK/dashboard.tar.gz" -C "$WORK/site"
             if command -v rsync >/dev/null; then

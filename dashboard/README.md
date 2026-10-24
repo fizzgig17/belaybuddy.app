@@ -1,6 +1,6 @@
 # Belay Buddy dashboard
 
-Owner-only site at https://dashboard.belaybuddy.app. Static files (no build step); one copy manages both
+Owner-only site for Belay Buddy and EDC Roulette at https://dashboard.fizzgig.app. Static files (no build step); one copy manages both
 the production and dev Supabase projects through a switch at the top.
 
 - **Sign-in:** emailed code, then an authenticator-app code (2-step). Only accounts in `admins` work.
