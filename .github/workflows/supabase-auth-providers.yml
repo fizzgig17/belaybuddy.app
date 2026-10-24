@@ -1,7 +1,7 @@
 # Switches on the sign-in providers in Supabase through the Management API, so
 # nothing is set by hand in the dashboard.
-#   push to develop -> belaybuddy-dev
-#   push to master  -> belaybuddy-prod
+#   push to develop -> fizzgig-apps-dev
+#   push to master  -> fizzgig-apps-prod
 #
 #   Apple   the iPhone app signs in with Apple's system sheet, so Supabase only
 #           needs the app's bundle id (no secret). The website has no Apple
@@ -45,13 +45,13 @@ jobs:
       GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
       FACEBOOK_CLIENT_ID: ${{ secrets.FACEBOOK_CLIENT_ID }}
       FACEBOOK_CLIENT_SECRET: ${{ secrets.FACEBOOK_CLIENT_SECRET }}
-      TARGET: ${{ github.ref_name == 'master' && 'belaybuddy-prod' || 'belaybuddy-dev' }}
+      TARGET: ${{ github.ref_name == 'master' && 'fizzgig-apps-prod' || 'fizzgig-apps-dev' }}
       SITE: ${{ github.ref_name == 'master' && 'https://belaybuddy.app' || 'https://dev.belaybuddy.app' }}
       APP_BUNDLE_ID: app.belaybuddy.ios
     steps:
       - name: Check secrets
         run: |
-          if [ "$TARGET" = belaybuddy-prod ]; then PROJECT_ID="$PROD_PROJECT_ID"; else PROJECT_ID="$DEV_PROJECT_ID"; fi
+          if [ "$TARGET" = fizzgig-apps-prod ]; then PROJECT_ID="$PROD_PROJECT_ID"; else PROJECT_ID="$DEV_PROJECT_ID"; fi
           echo "PROJECT_ID=$PROJECT_ID" >> "$GITHUB_ENV"
           token=$(printf '%s' "$SUPABASE_ACCESS_TOKEN" | tr -d '[:space:]')
           echo "::add-mask::$token"

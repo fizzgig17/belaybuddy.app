@@ -340,7 +340,7 @@ jobs:
           sha = os.environ.get('GITHUB_SHA', '')[:7]
           subject = subprocess.run(['git', 'log', '-1', '--pretty=%s'], capture_output=True, text=True).stdout.strip()
           text = (f"{'PRODUCTION' if prod else 'DEVELOPMENT'} build\nBranch: {branch}\nCommit: {sha}\n"
-                  f"Backend: {'belaybuddy-prod' if prod else 'belaybuddy-dev'}\n{subject}")[:3900]
+                  f"Backend: {'fizzgig-apps-prod' if prod else 'fizzgig-apps-dev'}\n{subject}")[:3900]
 
           def token():
               now = int(time.time())

@@ -1,13 +1,13 @@
 # Applies new database migrations (supabase/migrations/*.sql) to Supabase.
-#   push to develop -> belaybuddy-dev
-#   push to master  -> belaybuddy-prod
+#   push to develop -> fizzgig-apps-dev
+#   push to master  -> fizzgig-apps-prod
 #
 # Repository secrets (Settings > Secrets and variables > Actions):
 #   SUPABASE_ACCESS_TOKEN   personal access token from supabase.com/dashboard/account/tokens
-#   DEV_PROJECT_ID          project ref of belaybuddy-dev (the xxxx in https://xxxx.supabase.co)
-#   DEV_DB_PASSWORD         database password of belaybuddy-dev
-#   PROD_PROJECT_ID         project ref of belaybuddy-prod
-#   PROD_DB_PASSWORD        database password of belaybuddy-prod
+#   DEV_PROJECT_ID          project ref of fizzgig-apps-dev (the xxxx in https://xxxx.supabase.co)
+#   DEV_DB_PASSWORD         database password of fizzgig-apps-dev
+#   PROD_PROJECT_ID         project ref of fizzgig-apps-prod
+#   PROD_DB_PASSWORD        database password of fizzgig-apps-prod
 name: Supabase migrations
 
 on:
@@ -36,7 +36,7 @@ jobs:
       DEV_PROJECT_ID: ${{ secrets.DEV_PROJECT_ID }}
       PROD_DB_PASSWORD: ${{ secrets.PROD_DB_PASSWORD }}
       PROD_PROJECT_ID: ${{ secrets.PROD_PROJECT_ID }}
-      TARGET: ${{ github.ref_name == 'master' && 'belaybuddy-prod' || 'belaybuddy-dev' }}
+      TARGET: ${{ github.ref_name == 'master' && 'fizzgig-apps-prod' || 'fizzgig-apps-dev' }}
       # Session pooler hosts (not secret). GitHub runners are IPv4-only and the
       # direct database host is IPv6-only, so migrations go through the pooler.
       # Copy from the project's Connect > Direct > Session pooler string.
@@ -47,7 +47,7 @@ jobs:
 
       - name: Pick ${{ env.TARGET }} settings
         run: |
-          if [ "$TARGET" = belaybuddy-prod ]; then
+          if [ "$TARGET" = fizzgig-apps-prod ]; then
             PROJECT_ID="$PROD_PROJECT_ID"; SUPABASE_DB_PASSWORD="$PROD_DB_PASSWORD"; POOLER_HOST="$PROD_POOLER_HOST"
           else
             PROJECT_ID="$DEV_PROJECT_ID"; SUPABASE_DB_PASSWORD="$DEV_DB_PASSWORD"; POOLER_HOST="$DEV_POOLER_HOST"

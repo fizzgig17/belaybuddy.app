@@ -1,8 +1,8 @@
 # Pushes the auth email templates in supabase/templates/ and the sign-in code
 # length to Supabase through the Management API, so they never have to be
 # edited in the dashboard.
-#   push to develop -> belaybuddy-dev
-#   push to master  -> belaybuddy-prod
+#   push to develop -> fizzgig-apps-dev
+#   push to master  -> fizzgig-apps-prod
 #
 # Uses the same secrets as supabase-migrations.yml. SUPABASE_ACCESS_TOKEN must
 # have write access to the projects' Auth settings.
@@ -31,7 +31,7 @@ jobs:
       # Picked in the shell below; see supabase-migrations.yml for why.
       DEV_PROJECT_ID: ${{ secrets.DEV_PROJECT_ID }}
       PROD_PROJECT_ID: ${{ secrets.PROD_PROJECT_ID }}
-      TARGET: ${{ github.ref_name == 'master' && 'belaybuddy-prod' || 'belaybuddy-dev' }}
+      TARGET: ${{ github.ref_name == 'master' && 'fizzgig-apps-prod' || 'fizzgig-apps-dev' }}
       SMTP_HOST: ${{ secrets.SMTP_HOST }}
       SMTP_PORT: ${{ secrets.SMTP_PORT }}
       SMTP_USER: ${{ secrets.SMTP_USER }}
@@ -41,7 +41,7 @@ jobs:
 
       - name: Check secrets
         run: |
-          if [ "$TARGET" = belaybuddy-prod ]; then PROJECT_ID="$PROD_PROJECT_ID"; else PROJECT_ID="$DEV_PROJECT_ID"; fi
+          if [ "$TARGET" = fizzgig-apps-prod ]; then PROJECT_ID="$PROD_PROJECT_ID"; else PROJECT_ID="$DEV_PROJECT_ID"; fi
           echo "PROJECT_ID=$PROJECT_ID" >> "$GITHUB_ENV"
           # Tokens pasted on a phone often pick up spaces or line breaks.
           token=$(printf '%s' "$SUPABASE_ACCESS_TOKEN" | tr -d '[:space:]')

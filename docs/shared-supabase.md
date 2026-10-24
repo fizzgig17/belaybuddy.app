@@ -1,8 +1,8 @@
 # Supabase is shared with EDC Roulette
 
-EDC Roulette (repo `fizzgig17/edcroulette.app`) uses Belay Buddy's Supabase
-projects: its develop branch uses **belaybuddy-dev**, its master uses
-**belaybuddy-prod**. Supabase's free plan allows two active projects per person,
+Belay Buddy and EDC Roulette (repo `fizzgig17/edcroulette.app`) share the Supabase
+projects: its develop branch uses **fizzgig-apps-dev**, its master uses
+**fizzgig-apps-prod**. Supabase's free plan allows two active projects per person,
 and these two are it.
 
 ## What EDC Roulette owns

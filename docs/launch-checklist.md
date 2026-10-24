@@ -1,7 +1,7 @@
 # Launch checklist (production)
 
 Pushing to `master` deploys production: Supabase migrations, functions, auth
-providers and email templates (belaybuddy-prod), the website (belaybuddy.app)
+providers and email templates (fizzgig-apps-prod), the website (belaybuddy.app)
 and an iOS TestFlight build that talks to the prod database. `develop` is the
 dev copy (orange DEV banner, "Belay Buddy Dev" on the home screen).
 
