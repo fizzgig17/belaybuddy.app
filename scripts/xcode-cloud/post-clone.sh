@@ -8,8 +8,9 @@
 #   - generates ios/ with expo prebuild and installs the pods
 #
 # Optional Xcode Cloud custom environment variables (workflow > Environment):
-#   any EXPO_PUBLIC_* variable, e.g. EXPO_PUBLIC_GOOGLE_SIGNIN=1 or
-#   EXPO_PUBLIC_FACEBOOK_SIGNIN=1, is passed through to the app bundle.
+#   any EXPO_PUBLIC_* variable is passed through to the app bundle.
+#   EXPO_PUBLIC_GOOGLE_SIGNIN and EXPO_PUBLIC_FACEBOOK_SIGNIN default to 1
+#   (buttons shown); set one to 0 to hide it.
 set -e
 
 cd "$CI_PRIMARY_REPOSITORY_PATH"
@@ -37,6 +38,12 @@ if [ "$TARGET" = "production" ]; then
   grep -E '^EXPO_PUBLIC_[A-Z_]+=' config/prod.env >> .env.local
 fi
 env | grep -E '^EXPO_PUBLIC_[A-Z_]+=' >> .env.local || true
+# "Continue with Google/Facebook" are shown when these are 1. They are on by
+# default so a missing Xcode Cloud variable can't hide them; set a variable to 0
+# in the workflow to hide that button (e.g. while a provider is being set up).
+for flag in EXPO_PUBLIC_GOOGLE_SIGNIN EXPO_PUBLIC_FACEBOOK_SIGNIN; do
+  if ! grep -q "^$flag=" .env.local; then echo "$flag=1" >> .env.local; fi
+done
 echo "Using: $(sed -E 's/=.*//' .env.local | tr '\n' ' ')"
 
 # --- app.json: build number, team, dev display name ----------------------------

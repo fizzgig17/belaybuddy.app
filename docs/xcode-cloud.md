@@ -39,10 +39,9 @@ starts **TestFlight Prod**, every other branch starts **TestFlight Dev**.
    - **Start Conditions:** remove the default *Branch Changes* condition so
      pushes don't build on their own; builds come from the GitHub job. Allow
      manual starts for `develop` and `master` (or any branch).
-   - **Environment:** latest release of Xcode and macOS. If Google/Facebook
-     sign-in are on, add custom variables `EXPO_PUBLIC_GOOGLE_SIGNIN=1` and/or
-     `EXPO_PUBLIC_FACEBOOK_SIGNIN=1` (the GitHub build sets these when the
-     `GOOGLE_CLIENT_ID` / `FACEBOOK_CLIENT_ID` secrets exist).
+   - **Environment:** latest release of Xcode and macOS. Google and Facebook sign-in buttons
+     are on by default (post-clone.sh); to hide one, add the custom variable
+     `EXPO_PUBLIC_GOOGLE_SIGNIN=0` or `EXPO_PUBLIC_FACEBOOK_SIGNIN=0`.
    - **Actions:** Archive – iOS, scheme `BelayBuddy`, distribution preparation
      **App Store Connect**.
    - **Post-Actions:** TestFlight Internal Testing → your **dev** tester group.
