@@ -18,6 +18,7 @@ import {
   norm,
   rng,
   sub,
+  ON_WALL_M,
   type RawDepthCapture,
   type V3,
   type WallFailure,
@@ -316,11 +317,87 @@ export async function buildMosaic(
   return { width, height, data: out };
 }
 
+/** Coarse map of where the depth says "this is the wall" and where it says "something else", on the stitched picture. */
+export type WallMask = { cell: number; cols: number; rows: number; near: Uint16Array; far: Uint16Array };
+
+/**
+ * Splats every depth sample onto the stitched picture's grid (at the same spot its pixel lands on the wall),
+ * counting samples near the wall plane and samples far from it. Upper sections beyond LiDAR range leave
+ * cells empty, which means "unknown", not "off the wall".
+ */
+export function buildWallMask(caps: RawDepthCapture[], w: TallWallFit, cell = 0.1): WallMask {
+  const cols = Math.max(1, Math.ceil((w.umax - w.umin) / cell));
+  const rows = Math.max(1, Math.ceil((w.vmax - w.vmin) / cell));
+  const near = new Uint16Array(cols * rows);
+  const far = new Uint16Array(cols * rows);
+  for (const cap of caps) {
+    const depth = floats(cap.depth);
+    const confidence = cap.confidence ? bytes(cap.confidence) : null;
+    const { depthWidth: dw, depthHeight: dh } = cap;
+    if (cap.transform.length !== 16 || depth.length < dw * dh) continue;
+    const [X, Y, Z, o] = [col(cap.transform, 0), col(cap.transform, 1), col(cap.transform, 2), col(cap.transform, 3)];
+    const scale = dw / cap.imageWidth;
+    const fx = cap.fx * scale;
+    const fy = cap.fy * scale;
+    const cx = cap.cx * scale;
+    const cy = cap.cy * scale;
+    const toPlane = dot(sub(w.p, o), w.n);
+    for (let v = 0; v < dh; v++) {
+      for (let u = 0; u < dw; u++) {
+        const i = v * dw + u;
+        const d = depth[i];
+        if (!(d > 0.3 && d < 8)) continue;
+        if (confidence && confidence[i] < 1) continue;
+        const rx = (u + 0.5 - cx) / fx;
+        const ry = -(v + 0.5 - cy) / fy;
+        const dir: V3 = [
+          X[0] * rx + Y[0] * ry - Z[0],
+          X[1] * rx + Y[1] * ry - Z[1],
+          X[2] * rx + Y[2] * ry - Z[2],
+        ];
+        const denom = dot(dir, w.n);
+        if (Math.abs(denom) < 1e-6) continue;
+        const s = toPlane / denom;
+        if (!(s > 0)) continue;
+        // Where the pixel lands on the wall (that is where the stitched picture draws it)...
+        const hit: V3 = [o[0] + dir[0] * s, o[1] + dir[1] * s, o[2] + dir[2] * s];
+        const c = Math.floor((dot(hit, w.uAxis) - w.umin) / cell);
+        const r = Math.floor((w.vmax - dot(hit, w.vAxis)) / cell);
+        if (c < 0 || r < 0 || c >= cols || r >= rows) continue;
+        // ...and how far the thing it saw is from the wall.
+        const seen: V3 = [o[0] + dir[0] * d, o[1] + dir[1] * d, o[2] + dir[2] * d];
+        if (Math.abs(dot(sub(seen, w.p), w.n)) < ON_WALL_M) near[r * cols + c]++;
+        else far[r * cols + c]++;
+      }
+    }
+  }
+  return { cell, cols, rows, near, far };
+}
+
 /** The same shape as a single-shot measurement, for a stitched picture: (nx, ny) are 0..1 over the picture. */
-export function mosaicGeometry(w: TallWallFit): WallGeometry {
+export function mosaicGeometry(w: TallWallFit, mask?: WallMask): WallGeometry {
   return {
     overhangDeg: w.overhangDeg,
     fit: w.fit,
+    onWall(nx, ny) {
+      if (!mask) return null;
+      const c0 = Math.floor((nx * (w.umax - w.umin)) / mask.cell);
+      const r0 = Math.floor((ny * (w.vmax - w.vmin)) / mask.cell); // row 0 is the top
+      // Wall-facing things shift a little between the depth and the photo, so look a couple of cells around.
+      let near = 0;
+      let far = 0;
+      for (let dr = -2; dr <= 2; dr++) {
+        for (let dc = -2; dc <= 2; dc++) {
+          const c = c0 + dc;
+          const r = r0 + dr;
+          if (c < 0 || r < 0 || c >= mask.cols || r >= mask.rows) continue;
+          near += mask.near[r * mask.cols + c];
+          far += mask.far[r * mask.cols + c];
+        }
+      }
+      if (near + far < 6) return null;
+      return near >= far;
+    },
     locate(nx, ny) {
       return { x: (w.umin + nx * (w.umax - w.umin)) * 100, y: (w.vmax - ny * (w.vmax - w.vmin)) * 100 };
     },

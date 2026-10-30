@@ -28,6 +28,8 @@ export const Icons = {
   external: icon('arrow.up.right.square', 'open_in_new'),
   website: icon('globe', 'language'),
   phone: icon('phone', 'call'),
+  zoomIn: icon('plus.magnifyingglass', 'zoom_in'),
+  zoomOut: icon('minus.magnifyingglass', 'zoom_out'),
   warning: icon('exclamationmark.triangle', 'error'),
   favoriteOn: icon('star.fill', 'star_rate'),
   home: icon('house', 'home'),

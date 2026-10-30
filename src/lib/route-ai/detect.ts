@@ -220,7 +220,22 @@ export function detectHolds(img: Pixels, seedOrSeeds: Seed | Seed[], sensitivity
     if (Math.max(bw, bh) > w * 0.2) continue;
     holds.push(blobToHold(blob, w, h, holds.length + 1));
   }
-  return holds;
+  return dropStrays(holds, w, h);
+}
+
+/**
+ * A route is a trail of holds; a same-colored thing far from all the others (a shirt, a bag, a sign across the
+ * gym) is not part of it. Drops holds with no other hold within about a fifth of the picture. Needs a few holds
+ * to judge by, so a handful found is left alone.
+ */
+export function dropStrays(holds: Hold[], w: number, h: number): Hold[] {
+  if (holds.length < 5) return holds;
+  const reach = 0.2 * Math.max(w, h);
+  const kept = holds.filter((a) =>
+    holds.some((b) => b !== a && Math.hypot((a.x - b.x) * w, (a.y - b.y) * h) <= reach),
+  );
+  // If that would throw most of them away the holds are just spread out: keep what was found.
+  return kept.length >= holds.length * 0.5 ? kept.map((k, i) => ({ ...k, id: i + 1 })) : holds;
 }
 
 /**

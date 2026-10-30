@@ -37,7 +37,15 @@ export type WallGeometry = {
   fit: number;
   /** A spot on the portrait photo (0..1 from the left and top) as centimeters on the wall: x to the right, y up the wall. */
   locate(nx: number, ny: number): { x: number; y: number } | null;
+  /**
+   * Whether the spot on the photo is on the wall (within about half a meter of the fitted plane), as opposed to
+   * the floor, mats, a ceiling, another wall or a person in front of it. Null when the scan has no depth there.
+   */
+  onWall?(nx: number, ny: number): boolean | null;
 };
+
+/** Holds and volumes stand out from the wall by less than this. */
+export const ON_WALL_M = 0.6;
 
 export const dot = (a: V3, b: V3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 export const sub = (a: V3, b: V3): V3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -204,6 +212,27 @@ function analyse(cap: RawDepthCapture): { wall: WallGeometry } | { failure: Wall
     wall: {
     overhangDeg: (-Math.asin(Math.max(-1, Math.min(1, n[1]))) * 180) / Math.PI,
     fit: inliers.length / points.length,
+    onWall(nx, ny) {
+      const u0 = Math.round(((ny * cap.imageWidth) * dw) / cap.imageWidth);
+      const v0 = Math.round((((1 - nx) * cap.imageHeight) * dh) / cap.imageHeight);
+      const ds: number[] = [];
+      for (let dv = -2; dv <= 2; dv++) {
+        for (let du = -2; du <= 2; du++) {
+          const u = u0 + du;
+          const v = v0 + dv;
+          if (u < 0 || v < 0 || u >= dw || v >= dh) continue;
+          const i = v * dw + u;
+          if (!(depth[i] > 0.3 && depth[i] < 8)) continue;
+          if (confidence && confidence[i] < 1) continue;
+          ds.push(depth[i]);
+        }
+      }
+      if (ds.length < 4) return null;
+      ds.sort((p, q) => p - q);
+      const d = ds[Math.floor(ds.length / 2)];
+      const P = toWorld([((u0 + 0.5 - cx) / fx) * d, (-(v0 + 0.5 - cy) / fy) * d, -d]);
+      return Math.abs(dot(sub(P, plane.p), n)) < ON_WALL_M;
+    },
     locate(nx, ny) {
       // Portrait (nx, ny) back to the landscape sensor image: lu = ny, lv = 1 - nx.
       const px = ny * cap.imageWidth;
