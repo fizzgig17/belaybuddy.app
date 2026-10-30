@@ -18,27 +18,40 @@ public class WallDepthModule: Module {
 
     AsyncFunction("capture") { (promise: Promise) in
       DispatchQueue.main.async {
-        guard let presenter = WallDepthModule.topViewController() else {
-          promise.reject("E_NO_UI", "Could not open the scanner.")
-          return
-        }
-        let scanner = ScanViewController()
-        scanner.modalPresentationStyle = .fullScreen
-        scanner.onFinish = { result in
-          switch result {
-          case .success(let payload):
-            promise.resolve(payload)
-          case .failure(let error):
-            if let scanError = error as? ScanError, scanError == .canceled {
-              promise.reject("E_CANCELED", "Canceled")
-            } else {
-              promise.reject("E_SCAN", error.localizedDescription)
-            }
-          }
-        }
-        presenter.present(scanner, animated: true)
+        WallDepthModule.present(multi: false, promise: promise)
       }
     }
+
+    // Tall walls: the camera stays open for several shots in one ARKit session (so the shots share a
+    // world and their poses can be combined) and resolves with { shots: [...] } when the person taps Done.
+    AsyncFunction("captureSections") { (promise: Promise) in
+      DispatchQueue.main.async {
+        WallDepthModule.present(multi: true, promise: promise)
+      }
+    }
+  }
+
+  static func present(multi: Bool, promise: Promise) {
+    guard let presenter = WallDepthModule.topViewController() else {
+      promise.reject("E_NO_UI", "Could not open the scanner.")
+      return
+    }
+    let scanner = ScanViewController()
+    scanner.multi = multi
+    scanner.modalPresentationStyle = .fullScreen
+    scanner.onFinish = { result in
+      switch result {
+      case .success(let payload):
+        promise.resolve(payload)
+      case .failure(let error):
+        if let scanError = error as? ScanError, scanError == .canceled {
+          promise.reject("E_CANCELED", "Canceled")
+        } else {
+          promise.reject("E_SCAN", error.localizedDescription)
+        }
+      }
+    }
+    presenter.present(scanner, animated: true)
   }
 
   static func topViewController() -> UIViewController? {
@@ -69,6 +82,11 @@ enum ScanError: LocalizedError, Equatable {
 
 final class ScanViewController: UIViewController {
   var onFinish: ((Result<[String: Any], Error>) -> Void)?
+  /// Tall-wall mode: each tap of the shutter adds a shot and the camera stays open until Done.
+  var multi = false
+  private var shots: [[String: Any]] = []
+  private static let maxShots = 8
+  private let doneButton = UIButton(type: .system)
 
   private let sceneView = ARSCNView()
   private let hint = UILabel()
@@ -82,7 +100,9 @@ final class ScanViewController: UIViewController {
     sceneView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
     view.addSubview(sceneView)
 
-    hint.text = "Stand 2 to 4 m from the wall with the route in view, then tap the button."
+    hint.text = multi
+      ? "Tall wall: stand 3 to 5 m back and start at the bottom. Tap the button, then raise the phone (or step back) so the next view overlaps the last by about a third. Repeat to the top, then tap Done."
+      : "Stand 2 to 4 m from the wall with the route in view, then tap the button."
     hint.textColor = .white
     hint.font = .systemFont(ofSize: 15, weight: .semibold)
     hint.numberOfLines = 0
@@ -104,6 +124,17 @@ final class ScanViewController: UIViewController {
     cancel.addTarget(self, action: #selector(cancelTapped), for: .touchUpInside)
     view.addSubview(cancel)
 
+    doneButton.setTitle("Done", for: .normal)
+    doneButton.setTitleColor(.white, for: .normal)
+    doneButton.titleLabel?.font = .systemFont(ofSize: 17, weight: .semibold)
+    doneButton.backgroundColor = UIColor.black.withAlphaComponent(0.45)
+    doneButton.layer.cornerRadius = 18
+    doneButton.contentEdgeInsets = UIEdgeInsets(top: 8, left: 16, bottom: 8, right: 16)
+    doneButton.translatesAutoresizingMaskIntoConstraints = false
+    doneButton.isHidden = true
+    doneButton.addTarget(self, action: #selector(doneTapped), for: .touchUpInside)
+    view.addSubview(doneButton)
+
     let shutter = UIButton(type: .custom)
     shutter.backgroundColor = .white
     shutter.layer.cornerRadius = 35
@@ -124,6 +155,8 @@ final class ScanViewController: UIViewController {
       shutter.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor, constant: -24),
       shutter.widthAnchor.constraint(equalToConstant: 70),
       shutter.heightAnchor.constraint(equalToConstant: 70),
+      doneButton.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -24),
+      doneButton.centerYAnchor.constraint(equalTo: shutter.centerYAnchor),
     ])
   }
 
@@ -151,9 +184,28 @@ final class ScanViewController: UIViewController {
       return
     }
     do {
-      finish(.success(try ScanViewController.payload(frame: frame, depth: depth)))
+      let payload = try ScanViewController.payload(frame: frame, depth: depth)
+      if multi {
+        shots.append(payload)
+        doneButton.isHidden = false
+        if shots.count >= ScanViewController.maxShots {
+          finish(.success(["shots": shots]))
+        } else {
+          hint.text = "Shot \(shots.count) saved. Move up so the next view overlaps it by about a third, tap the button again, and tap Done after the top."
+        }
+      } else {
+        finish(.success(payload))
+      }
     } catch {
       hint.text = error.localizedDescription
+    }
+  }
+
+  @objc private func doneTapped() {
+    if shots.isEmpty {
+      finish(.failure(ScanError.canceled))
+    } else {
+      finish(.success(["shots": shots]))
     }
   }
 

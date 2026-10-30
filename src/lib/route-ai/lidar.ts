@@ -6,6 +6,7 @@ import type { RawDepthCapture } from './depth';
 type WallDepthNative = {
   isSupported(): boolean;
   capture(): Promise<RawDepthCapture>;
+  captureSections(): Promise<{ shots: RawDepthCapture[] }>;
 };
 
 /** The native module only exists in iOS builds that include modules/wall-depth. */
@@ -25,6 +26,21 @@ export async function captureWall(): Promise<RawDepthCapture | null> {
   if (!native) return null;
   try {
     return await native.capture();
+  } catch (e) {
+    if ((e as { code?: string }).code === 'E_CANCELED') return null;
+    throw e;
+  }
+}
+
+/**
+ * Opens the LiDAR camera for a tall wall: the person takes several shots from the bottom up in one
+ * session (so the phone's position is tracked between them) and taps Done. Null if they cancel.
+ */
+export async function captureWallSections(): Promise<RawDepthCapture[] | null> {
+  if (!native) return null;
+  try {
+    const { shots } = await native.captureSections();
+    return shots.length > 0 ? shots : null;
   } catch (e) {
     if ((e as { code?: string }).code === 'E_CANCELED') return null;
     throw e;

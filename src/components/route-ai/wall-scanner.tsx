@@ -42,8 +42,9 @@ import {
   numberHolds,
   type RouteTips,
 } from '@/lib/route-ai/tips';
-import { measureWall, type WallGeometry } from '@/lib/route-ai/depth';
-import { captureWall, isLidarSupported } from '@/lib/route-ai/lidar';
+import { measureWall, type RawDepthCapture, type WallGeometry } from '@/lib/route-ai/depth';
+import { captureWall, captureWallSections, isLidarSupported } from '@/lib/route-ai/lidar';
+import { stitchTallWall } from '@/lib/route-ai/tall-wall-photo';
 import { chooseWallPhoto, loadWallPhoto, takeWallPhoto, type PickResult, type WallPhoto } from '@/lib/route-ai/photo';
 
 const SENSITIVITY_OPTIONS: { value: Sensitivity; label: string }[] = [
@@ -80,7 +81,8 @@ export function WallScanner() {
   const lidar = useMemo(() => isLidarSupported(), []);
   const { user } = useAuth();
   const { consent, set: setConsent, acknowledged, acknowledge } = useAiConsent();
-  const [pending, setPending] = useState<'lidar' | 'camera' | 'library' | null>(null);
+  const [pending, setPending] = useState<'lidar' | 'tall' | 'camera' | 'library' | null>(null);
+  const [stitching, setStitching] = useState(false);
   const [tips, setTips] = useState<RouteTips | null>(null);
   const [tipsBusy, setTipsBusy] = useState(false);
   const [tipsError, setTipsError] = useState<string | null>(null);
@@ -139,13 +141,9 @@ export function WallScanner() {
     [user, consent],
   );
 
-  /** LiDAR path: capture, then measure the wall and use the photo like any other. */
-  const scanWithLidar = useCallback(async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      const cap = await captureWall();
-      if (!cap) return;
+  /** Measures one LiDAR capture and uses its photo like any other. */
+  const useSingleCapture = useCallback(
+    async (cap: RawDepthCapture) => {
       const loaded = await loadWallPhoto(cap.uri);
       const measured = measureWall(cap);
       const geometry = 'wall' in measured ? measured.wall : null;
@@ -157,12 +155,55 @@ export function WallScanner() {
             : 'Not enough depth to measure the wall. Stand 2 to 4 m back and try again. Tips will use the photo only.',
         );
       }
+    },
+    [accept],
+  );
+
+  /** LiDAR path: capture, then measure the wall and use the photo like any other. */
+  const scanWithLidar = useCallback(async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const cap = await captureWall();
+      if (!cap) return;
+      await useSingleCapture(cap);
     } catch {
       setError('The LiDAR scan did not work. You can still take a regular photo.');
     } finally {
       setBusy(false);
     }
-  }, [accept]);
+  }, [useSingleCapture]);
+
+  /** Tall walls: several shots from the bottom up, stitched into one straight picture of the wall. */
+  const scanTallWall = useCallback(async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const caps = await captureWallSections();
+      if (!caps) return;
+      if (caps.length === 1) {
+        await useSingleCapture(caps[0]);
+        return;
+      }
+      setStitching(true);
+      const stitched = await stitchTallWall(caps);
+      if (!stitched.ok) {
+        setError(
+          stitched.failure === 'floor-or-ceiling'
+            ? 'Those shots were mostly floor or ceiling. Aim at the wall, start at the bottom, and try again.'
+            : 'Not enough depth to line the shots up. Start with the bottom of the wall in view, 3 to 5 m back, and try again.',
+        );
+        return;
+      }
+      const loaded = await loadWallPhoto(stitched.uri);
+      await accept(loaded, stitched.geometry);
+    } catch {
+      setError('The tall wall scan did not work. You can still scan one section, or take a regular photo.');
+    } finally {
+      setStitching(false);
+      setBusy(false);
+    }
+  }, [accept, useSingleCapture]);
 
   const pick = useCallback(async (run: () => Promise<PickResult>) => {
     setBusy(true);
@@ -263,13 +304,14 @@ export function WallScanner() {
     return [ne.locationX / width, ne.locationY / height];
   };
 
-  const runAction = (action: 'lidar' | 'camera' | 'library') => {
+  const runAction = (action: 'lidar' | 'tall' | 'camera' | 'library') => {
     if (action === 'lidar') void scanWithLidar();
+    else if (action === 'tall') void scanTallWall();
     else void pick(action === 'camera' ? takeWallPhoto : chooseWallPhoto);
   };
 
   /** Asks about AI the first time a signed-in person picks a photo, then carries on either way. */
-  const gate = (action: 'lidar' | 'camera' | 'library') => {
+  const gate = (action: 'lidar' | 'tall' | 'camera' | 'library') => {
     if (user && (consent === 'unset' || consent === 'loading')) setPending(action);
     else runAction(action);
   };
@@ -317,7 +359,20 @@ export function WallScanner() {
             Checking the photo…
           </ThemedText>
         )}
+        {stitching && (
+          <ThemedText type="small" themeColor="textSecondary">
+            Putting the shots together… this takes a few seconds.
+          </ThemedText>
+        )}
         {lidar && <Button title="Scan with LiDAR" onPress={() => gate('lidar')} loading={busy} />}
+        {lidar && (
+          <Button title="Scan a tall wall" variant="secondary" onPress={() => gate('tall')} loading={busy} />
+        )}
+        {lidar && (
+          <ThemedText type="small" themeColor="textSecondary">
+            Tall wall: take several shots from the bottom up, and we line them up into one picture with real distances.
+          </ThemedText>
+        )}
         {Platform.OS !== 'web' && (
           <Button
             title="Take a photo"

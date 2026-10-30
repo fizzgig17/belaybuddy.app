@@ -28,7 +28,9 @@ export function numberHolds(holds: Hold[]): NumberedHold[] {
 
 export const MAX_TIP_HOLDS = 60;
 
-async function sendableImage(photo: WallPhoto, width = 1024): Promise<string> {
+async function sendableImage(photo: WallPhoto, maxWidth = 1024): Promise<string> {
+  // A stitched tall wall is much taller than a phone photo; keep the pixel count (and upload size) about the same.
+  const width = Math.min(maxWidth, Math.floor(Math.sqrt((maxWidth * maxWidth * (4 / 3) * photo.width) / photo.height)));
   const small = await ImageManipulator.manipulateAsync(photo.uri, [{ resize: { width } }], {
     compress: 0.7,
     format: ImageManipulator.SaveFormat.JPEG,

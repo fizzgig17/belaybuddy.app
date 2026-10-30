@@ -28,7 +28,7 @@ export type RawDepthCapture = {
   transform: number[];
 };
 
-type V3 = [number, number, number];
+export type V3 = [number, number, number];
 
 export type WallGeometry = {
   /** Degrees past vertical toward the climber. Negative is a slab (leaning back). */
@@ -39,22 +39,22 @@ export type WallGeometry = {
   locate(nx: number, ny: number): { x: number; y: number } | null;
 };
 
-const dot = (a: V3, b: V3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-const sub = (a: V3, b: V3): V3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
-const cross = (a: V3, b: V3): V3 => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-const norm = (a: V3): V3 => {
+export const dot = (a: V3, b: V3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+export const sub = (a: V3, b: V3): V3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+export const cross = (a: V3, b: V3): V3 => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+export const norm = (a: V3): V3 => {
   const l = Math.hypot(a[0], a[1], a[2]) || 1;
   return [a[0] / l, a[1] / l, a[2] / l];
 };
 
-function bytes(b64: string): Uint8Array {
+export function bytes(b64: string): Uint8Array {
   const bin = atob(b64);
   const out = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
   return out;
 }
 
-function floats(b64: string): Float32Array {
+export function floats(b64: string): Float32Array {
   const raw = bytes(b64);
   const view = new DataView(raw.buffer, raw.byteOffset, raw.byteLength);
   const out = new Float32Array(Math.floor(raw.length / 4));
@@ -101,7 +101,7 @@ function smallestEigenvector(m: number[][]): V3 {
   return [v[0][best], v[1][best], v[2][best]];
 }
 
-function fitPlane(points: V3[]): { n: V3; p: V3 } {
+export function fitPlane(points: V3[]): { n: V3; p: V3 } {
   const c: V3 = [0, 0, 0];
   for (const p of points) { c[0] += p[0]; c[1] += p[1]; c[2] += p[2]; }
   c[0] /= points.length; c[1] /= points.length; c[2] /= points.length;
@@ -114,7 +114,7 @@ function fitPlane(points: V3[]): { n: V3; p: V3 } {
 }
 
 /** Deterministic pseudo-random numbers so a scan always gives the same answer. */
-function rng(seed: number) {
+export function rng(seed: number) {
   let s = seed >>> 0;
   return () => {
     s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
