@@ -35,7 +35,7 @@ type ShopRow = {
   climbing: boolean;
 };
 
-const byRelevance = (a: Shop, b: Shop) => Number(b.climbing) - Number(a.climbing) || a.distanceKm - b.distanceKm;
+const byRelevance = (a: Shop, b: Shop) => a.distanceKm - b.distanceKm;
 
 /** Shops from our own catalog (seeded for popular areas). Empty if the area isn't seeded. */
 async function fetchShopCatalog(center: LatLng, radiusKm: number): Promise<Shop[]> {
@@ -112,6 +112,6 @@ async function fetchShopsLive(center: LatLng, radiusKm: number): Promise<Shop[]>
       distanceKm: distanceKm(center, location),
     });
   }
-  // Climbing shops first, then nearest.
+  // Nearest first.
   return shops.filter((x) => x.distanceKm <= radiusKm).sort(byRelevance);
 }
