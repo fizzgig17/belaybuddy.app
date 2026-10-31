@@ -242,7 +242,7 @@ function Editor({ uri, photoWidth, photoHeight, holds, hasColor, busy, onTap, on
               <Svg width={bw} height={bh} style={StyleSheet.absoluteFill} pointerEvents="none">
                 {holds.map((h) =>
                   h.outline ? (
-                    <Path key={`o${h.id}`} d={outlinePath(h.outline, bw, bh)} fill="none" stroke="#FFFFFF" strokeWidth={4.5 * line} strokeLinejoin="round" strokeLinecap="round" />
+                    <Path key={`o${h.id}`} d={outlinePath(h.outline, bw, bh)} fill="none" stroke="#FFFFFF" strokeWidth={3 * line} strokeLinejoin="round" strokeLinecap="round" />
                   ) : (
                     <Rect
                       key={`o${h.id}`}
@@ -253,14 +253,14 @@ function Editor({ uri, photoWidth, photoHeight, holds, hasColor, busy, onTap, on
                       rx={8 * line}
                       fill="none"
                       stroke="#FFFFFF"
-                      strokeWidth={4.5 * line}
+                      strokeWidth={3 * line}
                       strokeDasharray={h.manual ? `${6 * line} ${4 * line}` : undefined}
                     />
                   ),
                 )}
                 {holds.map((h) =>
                   h.outline ? (
-                    <Path key={`i${h.id}`} d={outlinePath(h.outline, bw, bh)} fill="none" stroke={theme.accent} strokeWidth={2.5 * line} strokeLinejoin="round" strokeLinecap="round" />
+                    <Path key={`i${h.id}`} d={outlinePath(h.outline, bw, bh)} fill="none" stroke={theme.accent} strokeWidth={1.5 * line} strokeLinejoin="round" strokeLinecap="round" />
                   ) : (
                     <Rect
                       key={`i${h.id}`}
@@ -271,7 +271,7 @@ function Editor({ uri, photoWidth, photoHeight, holds, hasColor, busy, onTap, on
                       rx={8 * line}
                       fill="none"
                       stroke={theme.accent}
-                      strokeWidth={2.5 * line}
+                      strokeWidth={1.5 * line}
                       strokeDasharray={h.manual ? `${6 * line} ${4 * line}` : undefined}
                     />
                   ),

@@ -287,13 +287,20 @@ export function WallScanner() {
       } else {
         const blobs = detectHolds(p.pixels, s, level === 'low' ? 'normal' : 'high', { maxArea: 0.08, maxSpan: 0.3 });
         const tap = tapRef.current;
-        const proposals = proposePoints(p.pixels, s, level, [...(tap ? [tap] : []), ...blobs.map((h) => [h.x, h.y] as [number, number])]);
+        // Fingers cover the hold and taps land a little off, so also try spots just below the tap.
+        const nearTap: [number, number][] = tap ? [tap, [tap[0], Math.min(0.995, tap[1] + 0.02)], [tap[0], Math.min(0.995, tap[1] + 0.045)]] : [];
+        const proposals = proposePoints(p.pixels, s, level, [...nearTap, ...blobs.map((h) => [h.x, h.y] as [number, number])]);
         const segments = await segmentHolds(p.uri, proposals);
         if (segments) {
           let real = holdsFromSegments(segments, p.pixels, s, level);
           // The hold the person tapped is the route by definition: it counts even if its color test is borderline.
-          const own = tap ? segments[0] : null;
-          if (tap && own && !holdAt(real, tap[0], tap[1]) && own.area < 0.06 && own.x1 - own.x0 < 0.3 && own.y1 - own.y0 < 0.3) {
+          const own = tap
+            ? segments
+                .slice(0, 3)
+                .filter((g) => g.area < 0.06 && g.x1 - g.x0 < 0.3 && g.y1 - g.y0 < 0.3 && g.area > 0.00008)
+                .sort((a, b) => b.iou - a.iou)[0] ?? null
+            : null;
+          if (tap && own && !holdAt(real, tap[0], tap[1])) {
             real = [
               ...real,
               { id: 0, x: (own.x0 + own.x1) / 2, y: (own.y0 + own.y1) / 2, w: own.x1 - own.x0, h: own.y1 - own.y0, outline: outlineOf(own) },
@@ -580,7 +587,7 @@ export function WallScanner() {
             <Svg width={dw} height={dh} style={StyleSheet.absoluteFill} pointerEvents="none">
               {holds.map((h) =>
                 h.outline ? (
-                  <Path key={`w${h.id}`} d={outlinePath(h.outline, dw, dh)} fill="none" stroke="#FFFFFF" strokeWidth={5} strokeLinejoin="round" strokeLinecap="round" />
+                  <Path key={`w${h.id}`} d={outlinePath(h.outline, dw, dh)} fill="none" stroke="#FFFFFF" strokeWidth={3} strokeLinejoin="round" strokeLinecap="round" />
                 ) : (
                   <Rect
                     key={h.id}
@@ -591,14 +598,14 @@ export function WallScanner() {
                     rx={8}
                     fill="none"
                     stroke="#FFFFFF"
-                    strokeWidth={4.5}
+                    strokeWidth={3}
                     strokeDasharray={h.manual ? '6 4' : undefined}
                   />
                 ),
               )}
               {holds.map((h) =>
                 h.outline ? (
-                  <Path key={`a${h.id}`} d={outlinePath(h.outline, dw, dh)} fill="none" stroke={theme.accent} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+                  <Path key={`a${h.id}`} d={outlinePath(h.outline, dw, dh)} fill="none" stroke={theme.accent} strokeWidth={1.5} strokeLinejoin="round" strokeLinecap="round" />
                 ) : (
                   <Rect
                     key={`i${h.id}`}
@@ -609,7 +616,7 @@ export function WallScanner() {
                     rx={8}
                     fill="none"
                     stroke={theme.accent}
-                    strokeWidth={2.5}
+                    strokeWidth={1.5}
                     strokeDasharray={h.manual ? '6 4' : undefined}
                   />
                 ),
