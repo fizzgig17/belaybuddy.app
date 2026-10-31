@@ -25,6 +25,7 @@ import {
   detectHolds,
   refineWithObjects,
   growHoldAt,
+  routeArea,
   holdAt,
   isSimilarSeed,
   sampleSeed,
@@ -69,6 +70,9 @@ export function WallScanner() {
   const [seeds, setSeeds] = useState<Seed[]>([]);
   const seed = seeds[0] ?? null;
   const [seedRgb, setSeedRgb] = useState<string>('#FFD400');
+  // Where the first tap landed: the route is in one area of the wall, around this hold.
+  const [anchor, setAnchor] = useState<[number, number] | null>(null);
+  const [oneArea, setOneArea] = useState<'area' | 'wall'>('area');
   const [sensitivity, setSensitivity] = useState<Sensitivity>('normal');
   const [auto, setAuto] = useState<Hold[]>([]);
   const [removedPts, setRemovedPts] = useState<[number, number][]>([]);
@@ -97,15 +101,26 @@ export function WallScanner() {
 
   // With a LiDAR scan, detections that the depth says are not on the wall (floor, mats, other walls, people) are skipped.
   const offWall = useMemo(() => auto.filter((h) => wall?.onWall?.(h.x, h.y) === false), [auto, wall]);
+  const kept = useMemo(
+    () =>
+      auto.filter(
+        (h) =>
+          !offWall.includes(h) && !removedPts.some(([x, y]) => Math.abs(x - h.x) <= h.w / 2 && Math.abs(y - h.y) <= h.h / 2),
+      ),
+    [auto, offWall, removedPts],
+  );
+  // One route sits in one area: holds of the same color far from the tapped one belong to other routes.
+  const inArea = useMemo(
+    () => (oneArea === 'area' && anchor && photo ? routeArea(kept, anchor, photo.width, photo.height) : null),
+    [kept, oneArea, anchor, photo],
+  );
+  const farAway = inArea ? kept.length - inArea.length : 0;
   const holds = useMemo(() => {
-    const kept = auto.filter(
-      (h) =>
-        !offWall.includes(h) && !removedPts.some(([x, y]) => Math.abs(x - h.x) <= h.w / 2 && Math.abs(y - h.y) <= h.h / 2),
-    );
+    const base = inArea ?? kept;
     // A hand-added hold that detection now finds on its own isn't drawn twice.
-    const extra = manual.filter((m) => !holdAt(kept, m.x, m.y, 0.005));
-    return [...kept, ...extra];
-  }, [auto, offWall, removedPts, manual]);
+    const extra = manual.filter((m) => !holdAt(base, m.x, m.y, 0.005));
+    return [...base, ...extra];
+  }, [inArea, kept, manual]);
   const numbered = useMemo(() => numberHolds(holds), [holds]);
   const signature = numbered.map((h) => `${h.x.toFixed(3)},${h.y.toFixed(3)}`).join('|');
   // Tips describe a particular set of holds; editing the holds makes them stale.
@@ -135,7 +150,7 @@ export function WallScanner() {
     setReviewNote(null);
     setEditing(false);
     setPhoto(null);
-    setSeeds([]);
+    setSeeds([]); setAnchor(null);
     setAuto([]);
     setRemovedPts([]);
     setManual([]);
@@ -163,7 +178,7 @@ export function WallScanner() {
       }
       setPhoto(loaded);
       setWall(geometry);
-      setSeeds([]);
+      setSeeds([]); setAnchor(null);
       setAuto([]);
       setRemovedPts([]);
       setManual([]);
@@ -279,6 +294,7 @@ export function WallScanner() {
         const i = (Math.round(ny * (h - 1)) * w + Math.round(nx * (w - 1))) * 4;
         setSeedRgb(`rgb(${data[i]},${data[i + 1]},${data[i + 2]})`);
         setSeeds([s]);
+        setAnchor([nx, ny]);
         setRemovedPts([]);
         setManual([]);
         select();
@@ -311,7 +327,7 @@ export function WallScanner() {
     setReviewing(true);
     setReviewNote(null);
     try {
-      const review = await reviewHolds(photo, numbered, seedRgb);
+      const review = await reviewHolds(photo, numbered, seedRgb, oneArea === 'area' ? anchor : null);
       if (review.unsafe) {
         reset();
         setError("That photo can't be used in Route AI. Please choose a different one.");
@@ -341,7 +357,7 @@ export function WallScanner() {
     } finally {
       setReviewing(false);
     }
-  }, [photo, numbered, seedRgb, manual.length, reviewing, reset]);
+  }, [photo, numbered, seedRgb, anchor, oneArea, manual.length, reviewing, reset]);
 
   const getTips = useCallback(async () => {
     if (!photo) return;
@@ -580,6 +596,20 @@ export function WallScanner() {
             </ThemedText>
           )}
           <Segmented
+            label="Which holds"
+            options={[
+              { value: 'area', label: 'Route near my tap' },
+              { value: 'wall', label: 'Whole wall' },
+            ]}
+            value={oneArea}
+            onChange={setOneArea}
+          />
+          {farAway > 0 && (
+            <ThemedText type="small" themeColor="textSecondary">
+              Left out {farAway} {farAway === 1 ? 'hold' : 'holds'} of this color far from your route. Choose “Whole wall” to see them.
+            </ThemedText>
+          )}
+          <Segmented
             label="How many holds to find"
             options={SENSITIVITY_OPTIONS}
             value={sensitivity}
@@ -671,7 +701,7 @@ export function WallScanner() {
               title="Pick another color"
               variant="secondary"
               onPress={() => {
-                setSeeds([]);
+                setSeeds([]); setAnchor(null);
                 setAuto([]);
                 setRemovedPts([]);
                 setManual([]);
@@ -695,7 +725,7 @@ export function WallScanner() {
         onTap={onTap}
         onRemoveBox={removeInBox}
         onPickAnotherColor={() => {
-          setSeeds([]);
+          setSeeds([]); setAnchor(null);
           setAuto([]);
           setRemovedPts([]);
           setManual([]);

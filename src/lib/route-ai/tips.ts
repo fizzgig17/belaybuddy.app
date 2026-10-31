@@ -103,13 +103,19 @@ export type HoldReview = { remove: number[]; missed: { x: number; y: number }[];
  * Asks the AI to check the holds found by color: which numbered boxes are not holds of the route's color, and where
  * holds of that color were missed. The photo goes out with the boxes drawn on it. Throws an Error safe to show.
  */
-export async function reviewHolds(photo: WallPhoto, holds: NumberedHold[], color: string): Promise<HoldReview> {
+export async function reviewHolds(
+  photo: WallPhoto,
+  holds: NumberedHold[],
+  color: string,
+  anchor?: [number, number] | null,
+): Promise<HoldReview> {
   const image = annotatedPhoto(photo.pixels, holds);
   const { data, error } = await supabase.functions.invoke<HoldReview>('route-tips', {
     body: {
       mode: 'review',
       image,
       color,
+      ...(anchor ? { tap: { x: anchor[0], y: anchor[1] } } : {}),
       holds: holds.map((h) => ({ n: h.n, x: h.x, y: h.y, w: h.w, h: h.h })),
     },
   });

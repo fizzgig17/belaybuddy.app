@@ -440,3 +440,26 @@ export function refineWithObjects(holds: Hold[], mask: { width: number; height: 
     return { ...hold, x: (b.minX + b.maxX + 1) / 2 / mw, y: (b.minY + b.maxY + 1) / 2 / mh, w, h };
   });
 }
+
+/**
+ * A route lives in one area of the wall. Starting from the hold nearest the first tap, keeps every hold reachable by
+ * hops of at most `link` (a fraction of the photo's width) and sets the rest aside. Returns null when nothing is near
+ * the tap to start from, so the caller keeps everything.
+ */
+export function routeArea(holds: Hold[], tap: [number, number], w: number, h: number, link = 0.18): Hold[] | null {
+  const dist = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot((a.x - b.x) * w, (a.y - b.y) * h) / w;
+  let start: Hold | null = null;
+  let best = Infinity;
+  for (const k of holds) {
+    const d = dist(k, { x: tap[0], y: tap[1] });
+    if (d < best) { best = d; start = k; }
+  }
+  if (!start || best > 0.1) return null;
+  const seen = new Set<Hold>([start]);
+  const queue = [start];
+  while (queue.length) {
+    const a = queue.pop()!;
+    for (const b of holds) if (!seen.has(b) && dist(a, b) <= link) { seen.add(b); queue.push(b); }
+  }
+  return holds.filter((x) => seen.has(x));
+}

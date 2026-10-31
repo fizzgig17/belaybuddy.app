@@ -28,7 +28,7 @@ A climber photographed an indoor climbing wall and tapped one hold of the route 
 
 Your job:
 1. "remove": the numbers of boxes that are NOT a hold of the route color. Typical mistakes: a hold of a different color, a patch of the wall or its panels that is merely a similar tint, a rope, quickdraw, bolt, tag, sign, light, person, clothing, shadow, or a box that covers a cluster of several holds. Keep a box if it is on a hold of the route color, even if the hold is blurry, in shadow, or partly hidden.
-2. "missed": holds of the route color that have NO box on them. Give the center of each as x (fraction from the left, 0 to 1) and y (fraction from the top, 0 to 1). Only list holds you are confident are the route color. Do not list anything that already has a box. At most 40.
+2. "missed": holds of the route color that have NO box on them. Give the center of each as x (fraction from the left, 0 to 1) and y (fraction from the top, 0 to 1). Only list holds you are confident are the route color. When the climber's tap position is given, the route is one connected trail of holds in one area of the wall around it: list missed holds only if they belong to that trail, and put in "remove" any boxed hold of the same color that clearly belongs to a separate trail elsewhere. Do not list anything that already has a box. At most 40.
 
 Always answer by calling the report_review tool, once. If the photo has nudity, sexual content, graphic violence, or anything not suitable for all ages, set unsafe to true and leave everything else empty. Do not identify or describe any person.`;
 
@@ -233,11 +233,15 @@ Deno.serve(async (req) => {
   }
 
   if ((body as { mode?: unknown })?.mode === 'review') {
-    const b = body as { image?: unknown; color?: unknown; holds?: unknown };
+    const b = body as { image?: unknown; color?: unknown; holds?: unknown; tap?: { x?: unknown; y?: unknown } };
     if (typeof b.image !== 'string' || b.image.length < 100 || b.image.length > MAX_IMAGE_CHARS) {
       return json({ error: 'Send a photo.' }, 400);
     }
     const color = typeof b.color === 'string' ? b.color.slice(0, 40) : '';
+    const tap =
+      typeof b.tap?.x === 'number' && typeof b.tap?.y === 'number' && b.tap.x >= 0 && b.tap.x <= 1 && b.tap.y >= 0 && b.tap.y <= 1
+        ? ` The climber tapped a hold at x=${b.tap.x.toFixed(2)}, y=${b.tap.y.toFixed(2)} (fractions from the left and top).`
+        : '';
     const known = new Set<number>(
       Array.isArray(b.holds)
         ? (b.holds as { n?: unknown }[]).map((h) => h?.n).filter((n): n is number => typeof n === 'number')
@@ -260,7 +264,7 @@ Deno.serve(async (req) => {
             role: 'user',
             content: [
               { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b.image.replace(/^data:image\/\w+;base64,/, '') } },
-              { type: 'text', text: `Route color: ${color || 'the color of the tapped hold'}. Boxes are numbered ${[...known].sort((x, y) => x - y).join(', ')}.` },
+              { type: 'text', text: `Route color: ${color || 'the color of the tapped hold'}. Boxes are numbered ${[...known].sort((x, y) => x - y).join(', ')}.${tap}` },
             ],
           },
         ],
