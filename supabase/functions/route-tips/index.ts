@@ -270,7 +270,6 @@ Deno.serve(async (req) => {
         max_tokens: 400,
         system: TAG_SYSTEM,
         tools: [TAG_TOOL],
-        tool_choice: { type: 'tool', name: 'report_tag' },
         messages: [
           {
             role: 'user',
@@ -327,7 +326,6 @@ Deno.serve(async (req) => {
         max_tokens: 1500,
         system: REVIEW_SYSTEM,
         tools: [REVIEW_TOOL],
-        tool_choice: { type: 'tool', name: 'report_review' },
         messages: [
           {
             role: 'user',
