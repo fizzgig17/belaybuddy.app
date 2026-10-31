@@ -228,7 +228,7 @@ function Editor({ uri, photoWidth, photoHeight, holds, hasColor, busy, onTap, on
     <View style={[styles.root, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <View style={styles.bar}>
         <ThemedText type="smallBold" style={styles.light}>
-          {hasColor ? `${holds.length} ${holds.length === 1 ? 'hold' : 'holds'}` : 'Tap one hold on your route'}
+          {!hasColor ? 'Tap one hold on your route' : busy ? 'Updating…' : `${holds.length} ${holds.length === 1 ? 'hold' : 'holds'}`}
         </ThemedText>
         <Pill label="Done" onPress={onClose} primary />
       </View>
@@ -271,13 +271,6 @@ function Editor({ uri, photoWidth, photoHeight, holds, hasColor, busy, onTap, on
             </Animated.View>
           )}
           <Animated.View pointerEvents="none" style={[styles.box, boxStyle]} />
-          {busy && (
-            <View style={[StyleSheet.absoluteFill, styles.busy]} pointerEvents="none">
-              <ThemedText type="smallBold" style={styles.light}>
-                Finding holds…
-              </ThemedText>
-            </View>
-          )}
         </View>
       </GestureDetector>
 
@@ -337,7 +330,6 @@ const styles = StyleSheet.create({
   light: { color: '#FFFFFF' },
   pill: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: 999 },
   box: { position: 'absolute', borderWidth: 2, borderColor: '#FF5A4D', borderStyle: 'dashed', backgroundColor: 'rgba(255,90,77,0.2)' },
-  busy: { alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.4)' },
   hintWrap: { paddingHorizontal: Spacing.three, paddingTop: Spacing.two },
   hint: { color: 'rgba(255,255,255,0.8)', textAlign: 'center' },
 });

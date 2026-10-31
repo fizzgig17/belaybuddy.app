@@ -58,6 +58,49 @@ export function rgbToLab(r: number, g: number, b: number): Seed {
   return { L: 116 * fy - 16, a: 500 * (fx - fy), b: 200 * (fy - fz) };
 }
 
+/**
+ * Unsharp mask: adds back the difference between the picture and a blurred copy of it, so a soft, out-of-focus
+ * hold gets crisper edges and its true color pulls away from the wall. Cached per picture.
+ */
+const sharpCache = new WeakMap<object, Pixels>();
+export function sharpened(img: Pixels, radius = 3, amount = 1.4): Pixels {
+  const cached = sharpCache.get(img);
+  if (cached) return cached;
+  const { width: w, height: h } = img;
+  const out = new Uint8ClampedArray(img.data.length);
+  const blurred = new Float32Array(w * h);
+  const tmp = new Float32Array(w * h);
+  for (let c = 0; c < 3; c++) {
+    // Box blur, horizontal then vertical, with running sums.
+    for (let y = 0; y < h; y++) {
+      let sum = 0;
+      for (let x = -radius; x <= radius; x++) sum += img.data[(y * w + Math.min(w - 1, Math.max(0, x))) * 4 + c];
+      for (let x = 0; x < w; x++) {
+        tmp[y * w + x] = sum / (2 * radius + 1);
+        sum += img.data[(y * w + Math.min(w - 1, x + radius + 1)) * 4 + c];
+        sum -= img.data[(y * w + Math.max(0, x - radius)) * 4 + c];
+      }
+    }
+    for (let x = 0; x < w; x++) {
+      let sum = 0;
+      for (let y = -radius; y <= radius; y++) sum += tmp[Math.min(h - 1, Math.max(0, y)) * w + x];
+      for (let y = 0; y < h; y++) {
+        blurred[y * w + x] = sum / (2 * radius + 1);
+        sum += tmp[Math.min(h - 1, y + radius + 1) * w + x];
+        sum -= tmp[Math.max(0, y - radius) * w + x];
+      }
+    }
+    for (let i = 0; i < w * h; i++) {
+      const v = img.data[i * 4 + c];
+      out[i * 4 + c] = v + (v - blurred[i]) * amount;
+    }
+  }
+  for (let i = 0; i < w * h; i++) out[i * 4 + 3] = 255;
+  const result = { width: w, height: h, data: out };
+  sharpCache.set(img, result);
+  return result;
+}
+
 /** Lab for every pixel, as three flat arrays. */
 function toLab(img: Pixels) {
   const n = img.width * img.height;
@@ -79,7 +122,7 @@ const labCache = new WeakMap<object, LabImage>();
 function labOf(img: Pixels): LabImage {
   let cached = labCache.get(img);
   if (!cached) {
-    cached = { ...toLab(img), width: img.width, height: img.height };
+    cached = { ...toLab(sharpened(img)), width: img.width, height: img.height };
     labCache.set(img, cached);
   }
   return cached;
@@ -91,7 +134,8 @@ function median(values: number[]) {
 }
 
 /** Median color of a small patch around a tapped point (nx, ny in 0..1). */
-export function sampleSeed(img: Pixels, nx: number, ny: number, radius = 3): Seed {
+export function sampleSeed(source: Pixels, nx: number, ny: number, radius = 3): Seed {
+  const img = sharpened(source);
   const cx = Math.round(nx * (img.width - 1));
   const cy = Math.round(ny * (img.height - 1));
   const rs: number[] = [];
@@ -108,7 +152,7 @@ export function sampleSeed(img: Pixels, nx: number, ny: number, radius = 3): See
   return rgbToLab(median(rs), median(gs), median(bs));
 }
 
-function colorMask(lab: LabImage, seed: Seed, threshold: number, hueTol: number) {
+function colorMask(lab: LabImage, seed: Seed, threshold: number, hueTol: number, chromaFloor = 0.55) {
   const n = lab.width * lab.height;
   const mask = new Uint8Array(n);
   const seedChroma = Math.hypot(seed.a, seed.b);
@@ -125,7 +169,7 @@ function colorMask(lab: LabImage, seed: Seed, threshold: number, hueTol: number)
     const chroma = Math.hypot(lab.A[i], lab.B[i]);
     if (neutral && Math.hypot(lab.A[i], lab.B[i]) > 12) continue;
     if (seedChroma > 5) {
-      if (chroma < seedChroma * 0.55) continue;
+      if (chroma < seedChroma * chromaFloor) continue;
       let dh = Math.abs(Math.atan2(lab.B[i], lab.A[i]) - seedHue);
       if (dh > Math.PI) dh = 2 * Math.PI - dh;
       if ((dh * 180) / Math.PI > hueTol) continue;
@@ -219,6 +263,34 @@ export function detectHolds(img: Pixels, seedOrSeeds: Seed | Seed[], sensitivity
     // Real holds are small next to the wall; a huge box is a shadow or a wall panel.
     if (Math.max(bw, bh) > w * 0.2) continue;
     holds.push(blobToHold(blob, w, h, holds.length + 1));
+  }
+
+  // Second, more forgiving pass for blurry holds: out of focus, a hold's color washes toward the wall, so the strict
+  // match misses it. Accept a washed-out blob only when it is round and solid, big enough not to be noise, and sits
+  // in the trail of holds already found (so a stray yellow shirt still doesn't count).
+  if (holds.length >= 3) {
+    const loose = new Uint8Array(w * h);
+    for (const seed of seeds) {
+      const m = colorMask(lab, seed, THRESHOLD[sensitivity] * 1.4, HUE_TOLERANCE[sensitivity] + 12, 0.3);
+      for (let i = 0; i < m.length; i++) if (m[i]) loose[i] = 1;
+    }
+    const reach = 0.2 * Math.max(w, h);
+    for (const blob of components(clean(loose, w, h), w, h)) {
+      if (blob.area < minArea * 3 || blob.area > maxArea) continue;
+      const bw = blob.maxX - blob.minX + 1;
+      const bh = blob.maxY - blob.minY + 1;
+      if (Math.max(bw, bh) / Math.min(bw, bh) > 2.5) continue;
+      if (blob.area / (bw * bh) < 0.5) continue;
+      if (Math.max(bw, bh) > w * 0.12) continue;
+      const hold = blobToHold(blob, w, h, 0);
+      const overlaps = holds.some(
+        (o) => Math.abs(o.x - hold.x) < (o.w + hold.w) / 2 && Math.abs(o.y - hold.y) < (o.h + hold.h) / 2,
+      );
+      if (overlaps) continue;
+      const near = holds.some((o) => Math.hypot((o.x - hold.x) * w, (o.y - hold.y) * h) <= reach);
+      if (!near) continue;
+      holds.push({ ...hold, id: holds.length + 1 });
+    }
   }
   return dropStrays(holds, w, h);
 }
