@@ -47,7 +47,7 @@ import {
   type RouteTips,
 } from '@/lib/route-ai/tips';
 import { measureWall, type RawDepthCapture, type WallGeometry } from '@/lib/route-ai/depth';
-import { captureWall, captureWallSections, canSegmentHolds, findObjects, isLidarSupported, segmentHolds, type ObjectMask } from '@/lib/route-ai/lidar';
+import { captureWall, captureWallSections, canSegmentHolds, findObjects, segmenterReport, isLidarSupported, segmentHolds, type ObjectMask } from '@/lib/route-ai/lidar';
 import { holdsFromSegments } from '@/lib/route-ai/segment';
 import { stitchTallWall } from '@/lib/route-ai/tall-wall-photo';
 import { chooseWallPhoto, loadWallPhoto, takeWallPhoto, type PickResult, type WallPhoto } from '@/lib/route-ai/photo';
@@ -94,6 +94,7 @@ export function WallScanner() {
   const [pending, setPending] = useState<'lidar' | 'tall' | 'camera' | 'library' | null>(null);
   const [stitching, setStitching] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [segNote, setSegNote] = useState<string | null>(null);
   const [reviewing, setReviewing] = useState(false);
   const [reviewNote, setReviewNote] = useState<string | null>(null);
   const [tips, setTips] = useState<RouteTips | null>(null);
@@ -278,7 +279,10 @@ export function WallScanner() {
       const strict = detectHolds(p.pixels, s, level);
       let found = strict;
       let cutOut = false;
-      if (canSegmentHolds()) {
+      setSegNote(null);
+      if (!canSegmentHolds()) {
+        setSegNote(Platform.OS === 'ios' ? 'Segmentation model: not in this build.' : null);
+      } else {
         const proposals = detectHolds(p.pixels, s, level === 'low' ? 'normal' : 'high', { maxArea: 0.08, maxSpan: 0.3 }).slice(0, 150);
         const segments = await segmentHolds(
           p.uri,
@@ -289,8 +293,10 @@ export function WallScanner() {
           if (real.length > 0) {
             found = real;
             cutOut = true;
+            setSegNote(`Segmentation model: checked ${proposals.length} spots, kept ${real.length}.`);
           }
         }
+        if (!cutOut) setSegNote(`Segmentation model did not give holds (${proposals.length} spots).\n${await segmenterReport(p.uri)}`);
       }
       if (!cutOut) {
         if (objects.current?.uri !== p.uri) objects.current = { uri: p.uri, mask: await findObjects(p.uri) };
@@ -629,6 +635,11 @@ export function WallScanner() {
               {holds.length} {holds.length === 1 ? 'hold' : 'holds'} found
             </ThemedText>
           </View>
+          {segNote && (
+            <ThemedText type="small" themeColor="textSecondary">
+              {segNote}
+            </ThemedText>
+          )}
           {wall && (
             <ThemedText type="small" themeColor="textSecondary">
               LiDAR: {wallLabel(wall.overhangDeg)}. Tips will use real distances.

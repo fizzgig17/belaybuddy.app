@@ -10,6 +10,7 @@ type WallDepthNative = {
   captureSections(): Promise<{ shots: RawDepthCapture[] }>;
   instanceMask(uri: string, maxEdge: number): Promise<{ width: number; height: number; data: string } | null>;
   canSegment(): boolean;
+  segmenterReport(uri: string): Promise<string>;
   segmentHolds(uri: string, points: number[][]): Promise<Record<string, unknown>[] | null>;
 };
 
@@ -94,5 +95,15 @@ export async function segmentHolds(uri: string, points: [number, number][]): Pro
     );
   } catch {
     return null;
+  }
+}
+
+/** A short account of what the on-phone segmentation model did with this photo (for diagnosing it). */
+export async function segmenterReport(uri: string): Promise<string> {
+  if (!native?.segmenterReport) return 'This build has no segmentation model.';
+  try {
+    return await native.segmenterReport(uri);
+  } catch (e) {
+    return `Report failed: ${e instanceof Error ? e.message : String(e)}`;
   }
 }

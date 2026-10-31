@@ -234,4 +234,57 @@ final class HoldSegmenter {
     }
     return results
   }
+
+  /// A plain-text account of every step, for finding out why the model does not work on a particular phone.
+  func report(uri: String) -> String {
+    lock.lock()
+    defer { lock.unlock() }
+    var lines: [String] = []
+    let bundle = HoldSegmenter.modelsBundle()
+    lines.append("bundle: \(bundle != nil ? "found" : "MISSING")")
+    lines.append("encoder file: \(bundle?.url(forResource: "encoder", withExtension: "bin") != nil ? "found" : "MISSING")")
+    lines.append("decoder file: \(bundle?.url(forResource: "decoder", withExtension: "bin") != nil ? "found" : "MISSING")")
+    do {
+      cachedURI = nil
+      let started = Date()
+      try prepare(uri: uri)
+      lines.append("encoder ran in \(String(format: "%.1f", Date().timeIntervalSince(started))) s, photo \(validW)x\(validH)")
+      if let embedding = embedding {
+        let strides = embedding.strides.map { $0.intValue }
+        let shape = embedding.shape.map { $0.intValue }
+        lines.append("embedding shape \(shape) strides \(strides) type \(embedding.dataType.rawValue)")
+        if shape.count == 4, strides.count == 4 {
+          let read = HoldSegmenter.reader(embedding)
+          var sum = 0.0, sumSquares = 0.0, low = Float.infinity, high = -Float.infinity
+          var bad = 0
+          var n = 0
+          for c in 0..<shape[1] {
+            for y in 0..<shape[2] {
+              for x in 0..<shape[3] {
+                let v = read(c * strides[1] + y * strides[2] + x * strides[3])
+                if v.isNaN || v.isInfinite { bad += 1; continue }
+                sum += Double(v)
+                sumSquares += Double(v) * Double(v)
+                if v < low { low = v }
+                if v > high { high = v }
+                n += 1
+              }
+            }
+          }
+          let mean = n > 0 ? sum / Double(n) : 0
+          let sd = n > 0 ? (sumSquares / Double(n) - mean * mean).squareRoot() : 0
+          lines.append("embedding mean \(String(format: "%.4f", mean)) sd \(String(format: "%.4f", sd)) min \(low) max \(high) bad \(bad)")
+        }
+      }
+      let cut = try segment(x: 0.5, y: 0.5)
+      if cut.isEmpty {
+        lines.append("decoder ran, nothing found at the center")
+      } else {
+        lines.append("decoder ran: iou \(cut["iou"] ?? "?") area \(cut["area"] ?? "?")")
+      }
+    } catch {
+      lines.append("FAILED: \(error) / \(error.localizedDescription)")
+    }
+    return lines.joined(separator: "\n")
+  }
 }

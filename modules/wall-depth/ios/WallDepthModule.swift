@@ -29,6 +29,10 @@ public class WallDepthModule: Module {
       return HoldSegmenter.isAvailable()
     }
 
+    AsyncFunction("segmenterReport") { (uri: String) -> String in
+      return HoldSegmenter.shared.report(uri: uri)
+    }
+
     AsyncFunction("segmentHolds") { (uri: String, points: [[Double]]) -> [[String: Any]]? in
       do {
         return try HoldSegmenter.shared.run(uri: uri, points: points)
