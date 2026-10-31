@@ -674,14 +674,26 @@ export function WallScanner() {
           <ThemedText type="small" themeColor="textSecondary">
             Missing holds? Tap one of them, or try "More". Too many? Try "Fewer", or tap the extras to remove them.
           </ThemedText>
-          {user && consent === 'allowed' && holds.length >= 1 && (
-            <Button
-              title="Check with AI"
-              variant="secondary"
-              onPress={checkWithAi}
-              loading={reviewing}
-              disabled={holds.length > 150}
-            />
+          {!user ? (
+            <Link href="/profile" asChild>
+              <Pressable accessibilityRole="link">
+                <ThemedText type="smallBold" style={{ color: theme.accent }}>
+                  Sign in to check holds with AI
+                </ThemedText>
+              </Pressable>
+            </Link>
+          ) : consent !== 'allowed' ? (
+            <Button title="Turn on AI to check holds" variant="secondary" onPress={() => setConsent('allowed')} />
+          ) : (
+            holds.length >= 1 && (
+              <Button
+                title="Check with AI"
+                variant="secondary"
+                onPress={checkWithAi}
+                loading={reviewing}
+                disabled={holds.length > 150}
+              />
+            )
           )}
           {user && consent === 'allowed' && holds.length >= 1 && (
             <ThemedText type="small" themeColor="textSecondary">
