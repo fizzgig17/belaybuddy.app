@@ -152,6 +152,20 @@ export function sampleSeed(source: Pixels, nx: number, ny: number, radius = 3): 
   return rgbToLab(median(rs), median(gs), median(bs));
 }
 
+/** Whether one Lab color is a match for the seed (same rules as the whole-photo color mask, a little more forgiving). */
+export function matchesSeed(color: Seed, seed: Seed, sensitivity: Sensitivity = 'normal', slack = 1.3): boolean {
+  const seedChroma = Math.hypot(seed.a, seed.b);
+  const neutral = seedChroma <= 5;
+  const dL = (color.L - seed.L) * (neutral ? 1 : L_WEIGHT);
+  if (Math.sqrt(dL * dL + (color.a - seed.a) ** 2 + (color.b - seed.b) ** 2) > THRESHOLD[sensitivity] * slack) return false;
+  const chroma = Math.hypot(color.a, color.b);
+  if (neutral) return chroma <= 14;
+  if (chroma < seedChroma * 0.45) return false;
+  let dh = Math.abs(Math.atan2(color.b, color.a) - Math.atan2(seed.b, seed.a));
+  if (dh > Math.PI) dh = 2 * Math.PI - dh;
+  return (dh * 180) / Math.PI <= HUE_TOLERANCE[sensitivity] + 8;
+}
+
 function colorMask(lab: LabImage, seed: Seed, threshold: number, hueTol: number, chromaFloor = 0.55) {
   const n = lab.width * lab.height;
   const mask = new Uint8Array(n);

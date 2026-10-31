@@ -23,6 +23,20 @@ public class WallDepthModule: Module {
       }
     }
 
+    // On-phone "segment anything": the outline of the object under each point (x, y in 0...1). Empty entries
+    // mean nothing was found at that point. Throws away nothing and sends nothing off the phone.
+    Function("canSegment") { () -> Bool in
+      return HoldSegmenter.isAvailable()
+    }
+
+    AsyncFunction("segmentHolds") { (uri: String, points: [[Double]]) -> [[String: Any]]? in
+      do {
+        return try HoldSegmenter.shared.run(uri: uri, points: points)
+      } catch {
+        return nil
+      }
+    }
+
     // Apple Vision's object finder (iOS 17+): one byte per pixel, 0 is background and 1, 2, 3... are separate
     // objects, as base64 at a modest size. Null when this iPhone can't do it. Runs on the phone.
     AsyncFunction("instanceMask") { (uri: String, maxEdge: Int) -> [String: Any]? in

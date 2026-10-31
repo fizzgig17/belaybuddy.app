@@ -2,12 +2,15 @@ import { requireOptionalNativeModule } from 'expo';
 import { Platform } from 'react-native';
 
 import type { RawDepthCapture } from './depth';
+import type { Segment } from './segment';
 
 type WallDepthNative = {
   isSupported(): boolean;
   capture(): Promise<RawDepthCapture>;
   captureSections(): Promise<{ shots: RawDepthCapture[] }>;
   instanceMask(uri: string, maxEdge: number): Promise<{ width: number; height: number; data: string } | null>;
+  canSegment(): boolean;
+  segmentHolds(uri: string, points: number[][]): Promise<Record<string, unknown>[] | null>;
 };
 
 /** The native module only exists in iOS builds that include modules/wall-depth. */
@@ -63,6 +66,32 @@ export async function findObjects(uri: string, maxEdge = 640): Promise<ObjectMas
     const labels = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) labels[i] = bin.charCodeAt(i);
     return labels.length === r.width * r.height ? { width: r.width, height: r.height, labels } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Whether this build carries the on-phone segmentation model (iPhone builds only). */
+export function canSegmentHolds(): boolean {
+  try {
+    return !!native?.canSegment?.();
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Cuts out the object under each point (x, y in 0..1) with the on-phone "segment anything" model. One entry per
+ * point, null where nothing was found; null overall if the model could not run, so callers fall back to colors.
+ */
+export async function segmentHolds(uri: string, points: [number, number][]): Promise<(Segment | null)[] | null> {
+  if (!native || points.length === 0) return null;
+  try {
+    const raw = await native.segmentHolds(uri, points);
+    if (!raw) return null;
+    return raw.map((r) =>
+      typeof r.x0 === 'number' && typeof r.grid === 'string' ? (r as unknown as Segment) : null,
+    );
   } catch {
     return null;
   }

@@ -16,6 +16,8 @@ Pod::Spec.new do |s|
   s.dependency 'ExpoModulesCore'
 
   s.source_files = "**/*.{h,m,swift}"
+  # The segmentation models are packed as plain files (a Core ML package is a folder, which Xcode would treat specially).
+  s.resource_bundles = { 'WallDepthModels' => ['models/*.bin'] }
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
     'SWIFT_COMPILATION_MODE' => 'wholemodule'

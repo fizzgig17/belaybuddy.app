@@ -47,7 +47,8 @@ import {
   type RouteTips,
 } from '@/lib/route-ai/tips';
 import { measureWall, type RawDepthCapture, type WallGeometry } from '@/lib/route-ai/depth';
-import { captureWall, captureWallSections, findObjects, isLidarSupported, type ObjectMask } from '@/lib/route-ai/lidar';
+import { captureWall, captureWallSections, canSegmentHolds, findObjects, isLidarSupported, segmentHolds, type ObjectMask } from '@/lib/route-ai/lidar';
+import { holdsFromSegments } from '@/lib/route-ai/segment';
 import { stitchTallWall } from '@/lib/route-ai/tall-wall-photo';
 import { chooseWallPhoto, loadWallPhoto, takeWallPhoto, type PickResult, type WallPhoto } from '@/lib/route-ai/photo';
 
@@ -271,16 +272,38 @@ export function WallScanner() {
   const runDetect = useCallback((p: WallPhoto, s: Seed[], level: Sensitivity, previous?: Seed[]) => {
     setBusy(true);
     setTimeout(async () => {
-      if (objects.current?.uri !== p.uri) objects.current = { uri: p.uri, mask: await findObjects(p.uri) };
-      const mask = objects.current.mask;
-      let found = detectHolds(p.pixels, s, level);
+      // The color match only proposes spots. On an iPhone, a "segment anything" model then cuts out the object at each
+      // spot, and a spot counts as a hold only if that object itself is the route's color. Without the model (or if it
+      // fails), the color match stands on its own.
+      const strict = detectHolds(p.pixels, s, level);
+      let found = strict;
+      let cutOut = false;
+      if (canSegmentHolds()) {
+        const proposals = detectHolds(p.pixels, s, level === 'low' ? 'normal' : 'high').slice(0, 120);
+        const segments = await segmentHolds(
+          p.uri,
+          proposals.map((h) => [h.x, h.y] as [number, number]),
+        );
+        if (segments) {
+          const real = holdsFromSegments(segments, p.pixels, s, level);
+          if (real.length > 0) {
+            found = real;
+            cutOut = true;
+          }
+        }
+      }
+      if (!cutOut) {
+        if (objects.current?.uri !== p.uri) objects.current = { uri: p.uri, mask: await findObjects(p.uri) };
+        const mask = objects.current.mask;
+        if (mask) found = refineWithObjects(found, mask);
+      }
       // Adding a color that makes the count balloon means it matched the wall: undo that color.
       if (previous && previous.length && found.length > autoCount.current * 1.5 + 6) {
         found = detectHolds(p.pixels, previous, level);
         setSeeds(previous);
       }
       autoCount.current = found.length;
-      setAuto(mask ? refineWithObjects(found, mask) : found);
+      setAuto(found);
       setBusy(false);
     }, 30);
   }, [accept]);
