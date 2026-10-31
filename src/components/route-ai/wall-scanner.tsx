@@ -4,10 +4,8 @@ import {
   Image,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   View,
-  useWindowDimensions,
   type GestureResponderEvent,
   type LayoutChangeEvent,
 } from 'react-native';
@@ -17,7 +15,7 @@ import Svg, { Circle, Rect, Text as SvgText } from 'react-native-svg';
 import { Button, ButtonIcon, Field, Segmented, SingleChoice } from '@/components/form';
 import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/group';
-import { IconButton } from '@/components/ui/icon-button';
+import { HoldEditor } from '@/components/route-ai/hold-editor';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAiConsent } from '@/lib/ai-consent';
@@ -86,11 +84,7 @@ export function WallScanner() {
   const { consent, set: setConsent, acknowledged, acknowledge } = useAiConsent();
   const [pending, setPending] = useState<'lidar' | 'tall' | 'camera' | 'library' | null>(null);
   const [stitching, setStitching] = useState(false);
-  const [zoom, setZoom] = useState(1);
-  const screen = useWindowDimensions();
-  const vScroll = useRef<ScrollView>(null);
-  const hScroll = useRef<ScrollView>(null);
-  const scrollAt = useRef({ x: 0, y: 0 });
+  const [editing, setEditing] = useState(false);
   const [tips, setTips] = useState<RouteTips | null>(null);
   const [tipsBusy, setTipsBusy] = useState(false);
   const [tipsError, setTipsError] = useState<string | null>(null);
@@ -114,36 +108,25 @@ export function WallScanner() {
     setTipsError(null);
   }, [signature]);
   const height = photo ? (width * photo.height) / photo.width : 0;
-  // Zoomed, the photo is bigger than the screen and pans inside a window; taps and outlines use the zoomed size.
-  const dw = width * zoom;
-  const dh = height * zoom;
-  const viewH = zoom === 1 ? dh : Math.min(dh, Math.round(screen.height * 0.7));
+  const dw = width;
+  const dh = height;
 
-  /** Changes the zoom and keeps whatever was in the middle of the window in the middle. */
-  const zoomTo = useCallback(
-    (next: number) => {
-      if (next === zoom || width <= 0) return;
-      const fx = zoom === 1 ? 0.5 : (scrollAt.current.x + width / 2) / (width * zoom);
-      const fy = zoom === 1 ? 0.5 : (scrollAt.current.y + viewH / 2) / (height * zoom);
-      const nextViewH = next === 1 ? height : Math.min(height * next, Math.round(screen.height * 0.7));
-      setZoom(next);
-      if (next === 1) {
-        scrollAt.current = { x: 0, y: 0 };
-        return;
-      }
-      setTimeout(() => {
-        const x = Math.max(0, fx * width * next - width / 2);
-        const y = Math.max(0, fy * height * next - nextViewH / 2);
-        scrollAt.current = { x, y };
-        hScroll.current?.scrollTo({ x, animated: false });
-        vScroll.current?.scrollTo({ y, animated: false });
-      }, 60);
+  /** Removes every hold whose center is inside the box (0..1 coordinates) and says how many went. */
+  const removeInBox = useCallback(
+    (x0: number, y0: number, x1: number, y1: number) => {
+      const inBox = (h: Hold) => h.x >= x0 && h.x <= x1 && h.y >= y0 && h.y <= y1;
+      const gone = holds.filter(inBox);
+      if (gone.length === 0) return 0;
+      setManual((m) => m.filter((h) => !inBox(h)));
+      setRemovedPts((r) => [...r, ...gone.filter((h) => !h.manual).map((h) => [h.x, h.y] as [number, number])]);
+      select();
+      return gone.length;
     },
-    [zoom, width, height, viewH, screen.height],
+    [holds],
   );
 
   const reset = useCallback(() => {
-    setZoom(1);
+    setEditing(false);
     setPhoto(null);
     setSeeds([]);
     setAuto([]);
@@ -171,7 +154,6 @@ export function WallScanner() {
         }
         setLook(result);
       }
-      setZoom(1);
       setPhoto(loaded);
       setWall(geometry);
       setSeeds([]);
@@ -459,17 +441,11 @@ export function WallScanner() {
         </ThemedText>
       )}
 
-      <View style={styles.zoomRow}>
-        <ThemedText type="small" themeColor="textSecondary" style={styles.zoomLabel}>
-          {zoom === 1 ? 'Zoom' : `Zoom ${zoom}×. Drag to move around.`}
-        </ThemedText>
-        <IconButton icon="zoomOut" label="Zoom out" tipAbove onPress={() => zoomTo(ZOOMS[Math.max(0, ZOOMS.indexOf(zoom) - 1)])} />
-        <IconButton icon="zoomIn" label="Zoom in" tipAbove onPress={() => zoomTo(ZOOMS[Math.min(ZOOMS.length - 1, ZOOMS.indexOf(zoom) + 1)])} />
-      </View>
+      <Button title="Open full screen to zoom and select" variant="secondary" onPress={() => setEditing(true)} />
 
       <View onLayout={onLayout} style={styles.imageWrap}>
         {width > 0 && (
-          <ZoomWindow zoom={zoom} width={width} height={viewH} vRef={vScroll} hRef={hScroll} at={scrollAt}>
+          <>
           <Pressable
             accessibilityLabel="Wall photo. Tap a hold."
             ref={imageRef}
@@ -536,7 +512,7 @@ export function WallScanner() {
               </View>
             )}
           </Pressable>
-          </ZoomWindow>
+          </>
         )}
       </View>
 
@@ -640,57 +616,30 @@ export function WallScanner() {
           <Button title="New photo" variant="secondary" onPress={reset} />
         </View>
       </View>
+
+      <HoldEditor
+        visible={editing}
+        uri={photo.uri}
+        photoWidth={photo.width}
+        photoHeight={photo.height}
+        holds={holds}
+        hasColor={!!seed}
+        busy={busy}
+        onTap={onTap}
+        onRemoveBox={removeInBox}
+        onPickAnotherColor={() => {
+          setSeeds([]);
+          setAuto([]);
+          setRemovedPts([]);
+          setManual([]);
+        }}
+        onClose={() => setEditing(false)}
+      />
     </View>
   );
 }
 
-const ZOOMS = [1, 2, 3, 4, 6];
-
-/** Shows the photo as is, or (zoomed) inside a window that pans in both directions. */
-function ZoomWindow({
-  zoom,
-  width,
-  height,
-  vRef,
-  hRef,
-  at,
-  children,
-}: {
-  zoom: number;
-  width: number;
-  height: number;
-  vRef: React.RefObject<ScrollView | null>;
-  hRef: React.RefObject<ScrollView | null>;
-  at: React.MutableRefObject<{ x: number; y: number }>;
-  children: React.ReactNode;
-}) {
-  if (zoom === 1) return <>{children}</>;
-  return (
-    <ScrollView
-      ref={vRef}
-      style={{ width, height, borderRadius: Spacing.three }}
-      nestedScrollEnabled
-      scrollEventThrottle={16}
-      onScroll={(e) => {
-        at.current = { ...at.current, y: e.nativeEvent.contentOffset.y };
-      }}>
-      <ScrollView
-        ref={hRef}
-        horizontal
-        nestedScrollEnabled
-        scrollEventThrottle={16}
-        onScroll={(e) => {
-          at.current = { ...at.current, x: e.nativeEvent.contentOffset.x };
-        }}>
-        {children}
-      </ScrollView>
-    </ScrollView>
-  );
-}
-
 const styles = StyleSheet.create({
-  zoomRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: Spacing.two },
-  zoomLabel: { flex: 1 },
   gap: { gap: Spacing.three },
   pad: { padding: Spacing.three, gap: Spacing.three, borderRadius: Spacing.three },
   imageWrap: { width: '100%' },
