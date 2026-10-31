@@ -48,7 +48,7 @@ import {
 } from '@/lib/route-ai/tips';
 import { measureWall, type RawDepthCapture, type WallGeometry } from '@/lib/route-ai/depth';
 import { captureWall, captureWallSections, canSegmentHolds, findObjects, segmenterReport, isLidarSupported, segmentHolds, type ObjectMask } from '@/lib/route-ai/lidar';
-import { holdsFromSegments, outlineOf, outlinePath } from '@/lib/route-ai/segment';
+import { holdsFromSegments, outlineOf, outlinePath, proposePoints } from '@/lib/route-ai/segment';
 import { stitchTallWall } from '@/lib/route-ai/tall-wall-photo';
 import { chooseWallPhoto, loadWallPhoto, takeWallPhoto, type PickResult, type WallPhoto } from '@/lib/route-ai/photo';
 
@@ -73,6 +73,8 @@ export function WallScanner() {
   const [seedRgb, setSeedRgb] = useState<string>('#FFD400');
   // Where the first tap landed: the route is in one area of the wall, around this hold.
   const [anchor, setAnchor] = useState<[number, number] | null>(null);
+  // The same tap, for detection code that runs right after it (state would still be the old value).
+  const tapRef = useRef<[number, number] | null>(null);
   const [oneArea, setOneArea] = useState<'area' | 'wall'>('area');
   const [sensitivity, setSensitivity] = useState<Sensitivity>('normal');
   const [auto, setAuto] = useState<Hold[]>([]);
@@ -283,13 +285,20 @@ export function WallScanner() {
       if (!canSegmentHolds()) {
         setSegNote(Platform.OS === 'ios' ? 'Segmentation model: not in this build.' : null);
       } else {
-        const proposals = detectHolds(p.pixels, s, level === 'low' ? 'normal' : 'high', { maxArea: 0.08, maxSpan: 0.3 }).slice(0, 150);
-        const segments = await segmentHolds(
-          p.uri,
-          proposals.map((h) => [h.x, h.y] as [number, number]),
-        );
+        const blobs = detectHolds(p.pixels, s, level === 'low' ? 'normal' : 'high', { maxArea: 0.08, maxSpan: 0.3 });
+        const tap = tapRef.current;
+        const proposals = proposePoints(p.pixels, s, level, [...(tap ? [tap] : []), ...blobs.map((h) => [h.x, h.y] as [number, number])]);
+        const segments = await segmentHolds(p.uri, proposals);
         if (segments) {
-          const real = holdsFromSegments(segments, p.pixels, s, level);
+          let real = holdsFromSegments(segments, p.pixels, s, level);
+          // The hold the person tapped is the route by definition: it counts even if its color test is borderline.
+          const own = tap ? segments[0] : null;
+          if (tap && own && !holdAt(real, tap[0], tap[1]) && own.area < 0.06 && own.x1 - own.x0 < 0.3 && own.y1 - own.y0 < 0.3) {
+            real = [
+              ...real,
+              { id: 0, x: (own.x0 + own.x1) / 2, y: (own.y0 + own.y1) / 2, w: own.x1 - own.x0, h: own.y1 - own.y0, outline: outlineOf(own) },
+            ].map((h, i) => ({ ...h, id: i + 1 }));
+          }
           if (real.length > 0) {
             found = real;
             cutOut = true;
@@ -324,6 +333,7 @@ export function WallScanner() {
         setSeedRgb(`rgb(${data[i]},${data[i + 1]},${data[i + 2]})`);
         setSeeds([s]);
         setAnchor([nx, ny]);
+        tapRef.current = [nx, ny];
         setRemovedPts([]);
         setManual([]);
         select();

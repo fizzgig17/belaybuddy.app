@@ -158,8 +158,14 @@ final class HoldSegmenter {
   }
 
   /// The object under one point (x, y in 0...1 across the photo): its box, how sure the model is, and a 64x64 mask.
-  private func segment(x: Double, y: Double) throws -> [String: Any] {
+  private func segment(x: Double, y: Double, covered: inout [Bool]) throws -> [String: Any] {
     guard let decoder = decoder, let embedding = embedding else { throw SegError.model }
+    // A point inside an object already cut out is the same object: skip it.
+    let lowWidth = Double(validW) / 4
+    let lowHeight = Double(validH) / 4
+    let startCol = min(255, max(0, Int(x * lowWidth)))
+    let startRow = min(255, max(0, Int(y * lowHeight)))
+    if covered[startRow * 256 + startCol] { return [:] }
     let points = try MLMultiArray(shape: [1, 1, 2], dataType: .float32)
     points[0] = NSNumber(value: Float(x * Double(validW)))
     points[1] = NSNumber(value: Float(y * Double(validH)))
@@ -184,9 +190,11 @@ final class HoldSegmenter {
     let rows = min(256, Int(lowH.rounded(.up)))
     var minX = cols, maxX = -1, minY = rows, maxY = -1
     var count = 0
+    var inside: [Int] = []
     for r in 0..<rows {
       for c in 0..<cols where read(r * rowStride + c * colStride) > 0 {
         count += 1
+        inside.append(r * 256 + c)
         if c < minX { minX = c }
         if c > maxX { maxX = c }
         if r < minY { minY = r }
@@ -194,6 +202,10 @@ final class HoldSegmenter {
       }
     }
     if count == 0 { return [:] }
+    // Hold-sized objects mark their area as done; a wall-sized one would hide the holds on it, so it doesn't.
+    if Double(count) / (lowW * lowH) < 0.03 {
+      for index in inside { covered[index] = true }
+    }
     let gridSize = 64
     let boxW = maxX - minX + 1
     let boxH = maxY - minY + 1
@@ -225,12 +237,13 @@ final class HoldSegmenter {
     defer { lock.unlock() }
     try prepare(uri: uri)
     var results: [[String: Any]] = []
+    var covered = [Bool](repeating: false, count: 256 * 256)
     for p in points {
       if p.count < 2 {
         results.append([:])
         continue
       }
-      results.append((try? segment(x: p[0], y: p[1])) ?? [:])
+      results.append((try? segment(x: p[0], y: p[1], covered: &covered)) ?? [:])
     }
     return results
   }
@@ -276,7 +289,8 @@ final class HoldSegmenter {
           lines.append("embedding mean \(String(format: "%.4f", mean)) sd \(String(format: "%.4f", sd)) min \(low) max \(high) bad \(bad)")
         }
       }
-      let cut = try segment(x: 0.5, y: 0.5)
+      var none = [Bool](repeating: false, count: 256 * 256)
+      let cut = try segment(x: 0.5, y: 0.5, covered: &none)
       if cut.isEmpty {
         lines.append("decoder ran, nothing found at the center")
       } else {

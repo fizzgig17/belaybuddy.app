@@ -154,3 +154,38 @@ export function outlinePath(outline: [number, number, number, number][], w: numb
   for (const [x1, y1, x2, y2] of outline) d += `M${(x1 * w).toFixed(1)} ${(y1 * h).toFixed(1)}L${(x2 * w).toFixed(1)} ${(y2 * h).toFixed(1)}`;
   return d;
 }
+
+/**
+ * Spots to hand the segmentation model: the color blobs' centers first, then a grid over the photo, keeping grid spots
+ * whose color is even loosely like the route's. The model skips spots inside something it already cut out, so a dense
+ * grid costs little, and holds the color blob step missed (small, shaded, split by a rope) still get a look.
+ */
+export function proposePoints(
+  pixels: Pixels,
+  seeds: Seed[],
+  sensitivity: Sensitivity,
+  first: [number, number][],
+  limit = 500,
+): [number, number][] {
+  const { width: w, height: h, data } = pixels;
+  const points: [number, number][] = [...first];
+  const step = Math.max(8, Math.round(w / 100));
+  for (let y = Math.floor(step / 2); y < h - 1; y += step) {
+    for (let x = Math.floor(step / 2); x < w - 1; x += step) {
+      let r = 0;
+      let g = 0;
+      let b = 0;
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const k = ((y + dy) * w + (x + dx)) * 4;
+          r += data[k];
+          g += data[k + 1];
+          b += data[k + 2];
+        }
+      }
+      const lab = rgbToLab(r / 9, g / 9, b / 9);
+      if (seeds.some((s) => matchesSeed(lab, s, sensitivity, 1.8))) points.push([(x + 0.5) / w, (y + 0.5) / h]);
+    }
+  }
+  return points.slice(0, limit);
+}
