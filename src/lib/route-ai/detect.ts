@@ -388,3 +388,55 @@ export function isSimilarSeed(base: Seed, candidate: Seed): boolean {
   if (dh > Math.PI) dh = 2 * Math.PI - dh;
   return (dh * 180) / Math.PI <= 45;
 }
+
+/**
+ * Tightens each hold's box using Apple Vision's separate objects. When the object under a hold is hold-sized and
+ * about the size of the color box, the object's own box replaces it (it follows the hold's real edge, blurry or not).
+ * Anything that looks off (wall-sized object, a cluster, no object there) keeps the color box.
+ */
+export function refineWithObjects(holds: Hold[], mask: { width: number; height: number; labels: Uint8Array }): Hold[] {
+  const { width: mw, height: mh, labels } = mask;
+  const boxes = new Map<number, { minX: number; maxX: number; minY: number; maxY: number; area: number }>();
+  for (let y = 0; y < mh; y++) {
+    for (let x = 0; x < mw; x++) {
+      const l = labels[y * mw + x];
+      if (!l) continue;
+      const b = boxes.get(l);
+      if (!b) boxes.set(l, { minX: x, maxX: x, minY: y, maxY: y, area: 1 });
+      else {
+        if (x < b.minX) b.minX = x;
+        if (x > b.maxX) b.maxX = x;
+        if (y < b.minY) b.minY = y;
+        if (y > b.maxY) b.maxY = y;
+        b.area++;
+      }
+    }
+  }
+  return holds.map((hold) => {
+    // The object most common under the hold's middle.
+    const counts = new Map<number, number>();
+    const cx = Math.round(hold.x * (mw - 1));
+    const cy = Math.round(hold.y * (mh - 1));
+    const rx = Math.max(1, Math.round((hold.w * mw) / 6));
+    const ry = Math.max(1, Math.round((hold.h * mh) / 6));
+    for (let y = Math.max(0, cy - ry); y <= Math.min(mh - 1, cy + ry); y++) {
+      for (let x = Math.max(0, cx - rx); x <= Math.min(mw - 1, cx + rx); x++) {
+        const l = labels[y * mw + x];
+        if (l) counts.set(l, (counts.get(l) ?? 0) + 1);
+      }
+    }
+    let label = 0;
+    let best = 0;
+    counts.forEach((n, l) => {
+      if (n > best) { best = n; label = l; }
+    });
+    const b = label ? boxes.get(label) : undefined;
+    if (!b) return hold;
+    const w = (b.maxX - b.minX + 1) / mw;
+    const h = (b.maxY - b.minY + 1) / mh;
+    if (w > 0.2 || h > 0.2) return hold;
+    const ratio = (w * h) / (hold.w * hold.h);
+    if (ratio < 0.5 || ratio > 2.5) return hold;
+    return { ...hold, x: (b.minX + b.maxX + 1) / 2 / mw, y: (b.minY + b.maxY + 1) / 2 / mh, w, h };
+  });
+}

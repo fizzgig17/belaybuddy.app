@@ -7,6 +7,7 @@ type WallDepthNative = {
   isSupported(): boolean;
   capture(): Promise<RawDepthCapture>;
   captureSections(): Promise<{ shots: RawDepthCapture[] }>;
+  instanceMask(uri: string, maxEdge: number): Promise<{ width: number; height: number; data: string } | null>;
 };
 
 /** The native module only exists in iOS builds that include modules/wall-depth. */
@@ -44,5 +45,25 @@ export async function captureWallSections(): Promise<RawDepthCapture[] | null> {
   } catch (e) {
     if ((e as { code?: string }).code === 'E_CANCELED') return null;
     throw e;
+  }
+}
+
+export type ObjectMask = { width: number; height: number; labels: Uint8Array };
+
+/**
+ * Apple Vision's separate-objects finder (iPhone, iOS 17 and later, on the phone): every pixel is labeled with the
+ * object it belongs to, 0 for background. Null anywhere it isn't available, and the app uses colors alone.
+ */
+export async function findObjects(uri: string, maxEdge = 640): Promise<ObjectMask | null> {
+  if (!native) return null;
+  try {
+    const r = await native.instanceMask(uri, maxEdge);
+    if (!r) return null;
+    const bin = atob(r.data);
+    const labels = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) labels[i] = bin.charCodeAt(i);
+    return labels.length === r.width * r.height ? { width: r.width, height: r.height, labels } : null;
+  } catch {
+    return null;
   }
 }

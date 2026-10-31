@@ -23,6 +23,7 @@ import { useAuth } from '@/lib/auth';
 import { select } from '@/lib/haptics';
 import {
   detectHolds,
+  refineWithObjects,
   growHoldAt,
   holdAt,
   isSimilarSeed,
@@ -44,7 +45,7 @@ import {
   type RouteTips,
 } from '@/lib/route-ai/tips';
 import { measureWall, type RawDepthCapture, type WallGeometry } from '@/lib/route-ai/depth';
-import { captureWall, captureWallSections, isLidarSupported } from '@/lib/route-ai/lidar';
+import { captureWall, captureWallSections, findObjects, isLidarSupported, type ObjectMask } from '@/lib/route-ai/lidar';
 import { stitchTallWall } from '@/lib/route-ai/tall-wall-photo';
 import { chooseWallPhoto, loadWallPhoto, takeWallPhoto, type PickResult, type WallPhoto } from '@/lib/route-ai/photo';
 
@@ -76,6 +77,8 @@ export function WallScanner() {
   const [width, setWidth] = useState(0);
   const imageRef = useRef<View>(null);
   const autoCount = useRef(0);
+  // Apple Vision's separate objects for the current photo: looked up once, then reused for every re-detect.
+  const objects = useRef<{ uri: string; mask: ObjectMask | null } | null>(null);
   const [wall, setWall] = useState<WallGeometry | null>(null);
   const [checking, setChecking] = useState(false);
   const [look, setLook] = useState<PhotoCheck | null>(null);
@@ -248,7 +251,9 @@ export function WallScanner() {
   /** Runs detection after letting the spinner paint, since it takes a moment on a phone. */
   const runDetect = useCallback((p: WallPhoto, s: Seed[], level: Sensitivity, previous?: Seed[]) => {
     setBusy(true);
-    setTimeout(() => {
+    setTimeout(async () => {
+      if (objects.current?.uri !== p.uri) objects.current = { uri: p.uri, mask: await findObjects(p.uri) };
+      const mask = objects.current.mask;
       let found = detectHolds(p.pixels, s, level);
       // Adding a color that makes the count balloon means it matched the wall: undo that color.
       if (previous && previous.length && found.length > autoCount.current * 1.5 + 6) {
@@ -256,7 +261,7 @@ export function WallScanner() {
         setSeeds(previous);
       }
       autoCount.current = found.length;
-      setAuto(found);
+      setAuto(mask ? refineWithObjects(found, mask) : found);
       setBusy(false);
     }, 30);
   }, [accept]);
