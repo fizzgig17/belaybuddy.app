@@ -253,7 +253,13 @@ function blobToHold(blob: Blob, w: number, h: number, id: number, manual?: boole
 }
 
 /** Finds every hold matching the seed color. */
-export function detectHolds(img: Pixels, seedOrSeeds: Seed | Seed[], sensitivity: Sensitivity = 'normal'): Hold[] {
+export function detectHolds(
+  img: Pixels,
+  seedOrSeeds: Seed | Seed[],
+  sensitivity: Sensitivity = 'normal',
+  /** Proposing spots for the segmentation model can allow bigger blobs, since the model checks each one. */
+  limits: { maxArea?: number; maxSpan?: number } = {},
+): Hold[] {
   const { width: w, height: h } = img;
   const lab = labOf(img);
   // Several seeds (a lit hold, a shaded one) match the union of their colors.
@@ -265,7 +271,7 @@ export function detectHolds(img: Pixels, seedOrSeeds: Seed | Seed[], sensitivity
   }
   const mask = clean(joined, w, h);
   const minArea = Math.max(24, w * h * 0.00005);
-  const maxArea = w * h * 0.03;
+  const maxArea = w * h * (limits.maxArea ?? 0.03);
   const holds: Hold[] = [];
   for (const blob of components(mask, w, h)) {
     if (blob.area < minArea || blob.area > maxArea) continue;
@@ -275,7 +281,7 @@ export function detectHolds(img: Pixels, seedOrSeeds: Seed | Seed[], sensitivity
     if (Math.max(bw, bh) / Math.min(bw, bh) > 4.5) continue;
     if (blob.area / (bw * bh) < 0.35) continue;
     // Real holds are small next to the wall; a huge box is a shadow or a wall panel.
-    if (Math.max(bw, bh) > w * 0.2) continue;
+    if (Math.max(bw, bh) > w * (limits.maxSpan ?? 0.2)) continue;
     holds.push(blobToHold(blob, w, h, holds.length + 1));
   }
 

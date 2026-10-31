@@ -38,8 +38,8 @@ export function holdsFromSegments(
     if (!seg || seg.iou < 0.6) continue;
     const bw = seg.x1 - seg.x0;
     const bh = seg.y1 - seg.y0;
-    if (bw <= 0 || bh <= 0 || seg.area > 0.03 || seg.area < 0.00008) continue;
-    if (bw > 0.2 || bh > 0.2) continue;
+    if (bw <= 0 || bh <= 0 || seg.area > 0.06 || seg.area < 0.00008) continue;
+    if (bw > 0.3 || bh > 0.3) continue;
     const pxW = bw * w;
     const pxH = bh * h;
     if (Math.max(pxW, pxH) / Math.max(1, Math.min(pxW, pxH)) > 4) continue;

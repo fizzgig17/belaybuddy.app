@@ -279,7 +279,7 @@ export function WallScanner() {
       let found = strict;
       let cutOut = false;
       if (canSegmentHolds()) {
-        const proposals = detectHolds(p.pixels, s, level === 'low' ? 'normal' : 'high').slice(0, 120);
+        const proposals = detectHolds(p.pixels, s, level === 'low' ? 'normal' : 'high', { maxArea: 0.08, maxSpan: 0.3 }).slice(0, 150);
         const segments = await segmentHolds(
           p.uri,
           proposals.map((h) => [h.x, h.y] as [number, number]),
@@ -330,15 +330,34 @@ export function WallScanner() {
         if (hit.manual) setManual((m) => m.filter((x) => x.id !== hit.id));
         else setRemovedPts((r) => [...r, [hit.x, hit.y]]);
       } else {
-        const added = growHoldAt(photo.pixels, nx, ny, 10000 + manual.length);
-        setManual((m) => [...m, added]);
-        // A missed hold teaches the match its color (e.g. a lit hold after picking a shaded one).
-        const tapped = sampleSeed(photo.pixels, nx, ny, 2);
-        if (!added.guessed && isSimilarSeed(seeds[0], tapped)) {
-          const next = [...seeds, tapped].slice(0, 6);
-          setSeeds(next);
-          runDetect(photo, next, sensitivity, seeds);
-        }
+        const id = 10000 + manual.length;
+        void (async () => {
+          // On an iPhone the segmentation model cuts out the exact outline of the tapped hold.
+          let added: Hold | null = null;
+          if (canSegmentHolds()) {
+            const cut = (await segmentHolds(photo.uri, [[nx, ny]]))?.[0];
+            if (cut && cut.area < 0.06 && cut.x1 - cut.x0 < 0.3 && cut.y1 - cut.y0 < 0.3) {
+              added = {
+                id,
+                x: (cut.x0 + cut.x1) / 2,
+                y: (cut.y0 + cut.y1) / 2,
+                w: cut.x1 - cut.x0,
+                h: cut.y1 - cut.y0,
+                manual: true,
+              };
+            }
+          }
+          if (!added) added = growHoldAt(photo.pixels, nx, ny, id);
+          const hold = added;
+          setManual((m) => [...m, hold]);
+          // A missed hold teaches the match its color (e.g. a lit hold after picking a shaded one).
+          const tapped = sampleSeed(photo.pixels, nx, ny, 2);
+          if (!hold.guessed && isSimilarSeed(seeds[0], tapped)) {
+            const next = [...seeds, tapped].slice(0, 6);
+            setSeeds(next);
+            runDetect(photo, next, sensitivity, seeds);
+          }
+        })();
       }
     },
     [photo, seed, seeds, busy, holds, manual.length, sensitivity, runDetect],
