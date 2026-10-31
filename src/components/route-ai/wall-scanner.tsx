@@ -297,7 +297,7 @@ export function WallScanner() {
           const own = tap
             ? segments
                 .slice(0, 3)
-                .filter((g) => g.area < 0.06 && g.x1 - g.x0 < 0.3 && g.y1 - g.y0 < 0.3 && g.area > 0.00008)
+                .filter((g): g is NonNullable<typeof g> => !!g && g.area < 0.06 && g.x1 - g.x0 < 0.3 && g.y1 - g.y0 < 0.3 && g.area > 0.00008)
                 .sort((a, b) => b.iou - a.iou)[0] ?? null
             : null;
           if (tap && own && !holdAt(real, tap[0], tap[1])) {
