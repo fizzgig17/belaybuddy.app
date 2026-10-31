@@ -35,6 +35,7 @@ import {
 import {
   checkPhoto,
   fetchRouteTips,
+  reviewHolds,
   reportTips,
   TIP_REPORT_REASONS,
   type TipReportReason,
@@ -88,6 +89,8 @@ export function WallScanner() {
   const [pending, setPending] = useState<'lidar' | 'tall' | 'camera' | 'library' | null>(null);
   const [stitching, setStitching] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
+  const [reviewNote, setReviewNote] = useState<string | null>(null);
   const [tips, setTips] = useState<RouteTips | null>(null);
   const [tipsBusy, setTipsBusy] = useState(false);
   const [tipsError, setTipsError] = useState<string | null>(null);
@@ -129,6 +132,7 @@ export function WallScanner() {
   );
 
   const reset = useCallback(() => {
+    setReviewNote(null);
     setEditing(false);
     setPhoto(null);
     setSeeds([]);
@@ -300,6 +304,44 @@ export function WallScanner() {
     },
     [photo, seed, seeds, busy, holds, manual.length, sensitivity, runDetect],
   );
+
+  /** The AI looks at the photo with the boxes drawn on it: drops wrong ones and adds holds that were missed. */
+  const checkWithAi = useCallback(async () => {
+    if (!photo || reviewing) return;
+    setReviewing(true);
+    setReviewNote(null);
+    try {
+      const review = await reviewHolds(photo, numbered, seedRgb);
+      if (review.unsafe) {
+        reset();
+        setError("That photo can't be used in Route AI. Please choose a different one.");
+        return;
+      }
+      const gone = numbered.filter((h) => review.remove.includes(h.n));
+      const keptHolds = numbered.filter((h) => !review.remove.includes(h.n));
+      const added: Hold[] = [];
+      review.missed.forEach((p, i) => {
+        if (holdAt([...keptHolds, ...added], p.x, p.y, 0.01)) return;
+        added.push(growHoldAt(photo.pixels, p.x, p.y, 20000 + manual.length + i));
+      });
+      if (gone.length) {
+        const goneManual = new Set(gone.filter((h) => h.manual).map((h) => h.id));
+        setManual((m) => m.filter((h) => !goneManual.has(h.id)));
+        setRemovedPts((r) => [...r, ...gone.filter((h) => !h.manual).map((h) => [h.x, h.y] as [number, number])]);
+      }
+      if (added.length) setManual((m) => [...m, ...added]);
+      select();
+      setReviewNote(
+        gone.length === 0 && added.length === 0
+          ? 'The AI agrees with these holds.'
+          : `The AI removed ${gone.length} and added ${added.length}.`,
+      );
+    } catch (e) {
+      setReviewNote(e instanceof Error ? e.message : 'Could not check the holds.');
+    } finally {
+      setReviewing(false);
+    }
+  }, [photo, numbered, seedRgb, manual.length, reviewing, reset]);
 
   const getTips = useCallback(async () => {
     if (!photo) return;
@@ -549,6 +591,26 @@ export function WallScanner() {
           <ThemedText type="small" themeColor="textSecondary">
             Missing holds? Tap one of them, or try "More". Too many? Try "Fewer", or tap the extras to remove them.
           </ThemedText>
+          {user && consent === 'allowed' && holds.length >= 1 && (
+            <Button
+              title="Check with AI"
+              variant="secondary"
+              onPress={checkWithAi}
+              loading={reviewing}
+              disabled={holds.length > 150}
+            />
+          )}
+          {user && consent === 'allowed' && holds.length >= 1 && (
+            <ThemedText type="small" themeColor="textSecondary">
+              The AI check sends the photo, with the boxes drawn on it, to an AI service (Anthropic’s Claude) and is not
+              kept by us.
+            </ThemedText>
+          )}
+          {reviewNote && (
+            <ThemedText type="small" themeColor="textSecondary">
+              {reviewNote}
+            </ThemedText>
+          )}
         </Card>
       )}
 

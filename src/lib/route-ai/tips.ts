@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import type { Hold } from './detect';
 import type { WallGeometry } from './depth';
 import type { WallPhoto } from './photo';
+import { annotatedPhoto } from './annotate';
 
 export type NumberedHold = Hold & { n: number };
 
@@ -93,6 +94,37 @@ export async function fetchRouteTips(
   }
   if (data?.unsafe) return { overview: '', order: [], holds: [], caveats: '', unsafe: true };
   if (!data?.holds) throw new Error('Could not get tips. Try again.');
+  return data;
+}
+
+export type HoldReview = { remove: number[]; missed: { x: number; y: number }[]; unsafe?: boolean };
+
+/**
+ * Asks the AI to check the holds found by color: which numbered boxes are not holds of the route's color, and where
+ * holds of that color were missed. The photo goes out with the boxes drawn on it. Throws an Error safe to show.
+ */
+export async function reviewHolds(photo: WallPhoto, holds: NumberedHold[], color: string): Promise<HoldReview> {
+  const image = annotatedPhoto(photo.pixels, holds);
+  const { data, error } = await supabase.functions.invoke<HoldReview>('route-tips', {
+    body: {
+      mode: 'review',
+      image,
+      color,
+      holds: holds.map((h) => ({ n: h.n, x: h.x, y: h.y, w: h.w, h: h.h })),
+    },
+  });
+  if (error) {
+    const context = (error as { context?: Response }).context;
+    let message = 'Could not check the holds. Check your connection and try again.';
+    try {
+      const body = await context?.json();
+      if (body?.error) message = String(body.error);
+    } catch {
+      // Keep the default message.
+    }
+    throw new Error(message);
+  }
+  if (!data || !Array.isArray(data.remove)) throw new Error('Could not check the holds. Try again.');
   return data;
 }
 

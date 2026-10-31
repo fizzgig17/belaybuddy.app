@@ -23,6 +23,36 @@ const CHECK_MODEL = Deno.env.get('ROUTE_AI_CHECK_MODEL') ?? 'claude-haiku-5-5';
 const MAX_HOLDS = 60;
 const MAX_IMAGE_CHARS = 2_000_000; // base64 characters, about 1.5 MB
 
+const REVIEW_SYSTEM = `You check hold detection for a climbing-route app.
+A climber photographed an indoor climbing wall and tapped one hold of the route they want. Software then looked for every hold of that color and drew a numbered magenta box around each one it found. The route color is given as an rgb value.
+
+Your job:
+1. "remove": the numbers of boxes that are NOT a hold of the route color. Typical mistakes: a hold of a different color, a patch of the wall or its panels that is merely a similar tint, a rope, quickdraw, bolt, tag, sign, light, person, clothing, shadow, or a box that covers a cluster of several holds. Keep a box if it is on a hold of the route color, even if the hold is blurry, in shadow, or partly hidden.
+2. "missed": holds of the route color that have NO box on them. Give the center of each as x (fraction from the left, 0 to 1) and y (fraction from the top, 0 to 1). Only list holds you are confident are the route color. Do not list anything that already has a box. At most 40.
+
+Always answer by calling the report_review tool, once. If the photo has nudity, sexual content, graphic violence, or anything not suitable for all ages, set unsafe to true and leave everything else empty. Do not identify or describe any person.`;
+
+const REVIEW_TOOL = {
+  name: 'report_review',
+  description: 'Report which boxes to remove and which holds were missed.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      remove: { type: 'array', items: { type: 'integer' }, description: 'Box numbers that are not holds of the route color.' },
+      missed: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: { x: { type: 'number' }, y: { type: 'number' } },
+          required: ['x', 'y'],
+        },
+      },
+      unsafe: { type: 'boolean' },
+    },
+    required: ['remove', 'missed'],
+  },
+};
+
 const HOLD_TYPES = ['jug', 'crimp', 'sloper', 'pinch', 'pocket', 'edge', 'volume', 'foot', 'unclear', 'not_a_hold'];
 
 const SYSTEM = `You help climbers read routes from a photo of an indoor climbing wall.
@@ -200,6 +230,61 @@ Deno.serve(async (req) => {
     const out = (checkData.content ?? []).find((c: { type: string }) => c.type === 'tool_use')?.input;
     const kind = ['climbing_wall', 'other', 'unsafe'].includes(out?.kind) ? out.kind : 'unknown';
     return json({ kind, what: kind === 'unsafe' ? '' : String(out?.what ?? '').slice(0, 120) });
+  }
+
+  if ((body as { mode?: unknown })?.mode === 'review') {
+    const b = body as { image?: unknown; color?: unknown; holds?: unknown };
+    if (typeof b.image !== 'string' || b.image.length < 100 || b.image.length > MAX_IMAGE_CHARS) {
+      return json({ error: 'Send a photo.' }, 400);
+    }
+    const color = typeof b.color === 'string' ? b.color.slice(0, 40) : '';
+    const known = new Set<number>(
+      Array.isArray(b.holds)
+        ? (b.holds as { n?: unknown }[]).map((h) => h?.n).filter((n): n is number => typeof n === 'number')
+        : [],
+    );
+    if (known.size < 1 || known.size > 200) return json({ error: 'Pick a color first.' }, 400);
+    const { data: ok } = await supabase.rpc('take_route_ai_quota', { p_limit: DAILY_LIMIT });
+    if (!ok) return json({ error: `You have used today's ${DAILY_LIMIT} AI checks. Try again tomorrow.` }, 429);
+    const reviewRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: 1500,
+        system: REVIEW_SYSTEM,
+        tools: [REVIEW_TOOL],
+        tool_choice: { type: 'tool', name: 'report_review' },
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: b.image.replace(/^data:image\/\w+;base64,/, '') } },
+              { type: 'text', text: `Route color: ${color || 'the color of the tapped hold'}. Boxes are numbered ${[...known].sort((x, y) => x - y).join(', ')}.` },
+            ],
+          },
+        ],
+      }),
+    });
+    if (!reviewRes.ok) {
+      console.error('Anthropic review error', reviewRes.status, (await reviewRes.text()).slice(0, 300));
+      const busy = reviewRes.status === 429 || reviewRes.status === 529 || reviewRes.status >= 500;
+      return json({ error: busy ? 'The AI service is busy. Try again in a moment.' : 'The AI check could not run.' }, 502);
+    }
+    const reviewData = await reviewRes.json();
+    const out = (reviewData.content ?? []).find((c: { type: string }) => c.type === 'tool_use')?.input;
+    if (out?.unsafe === true) return json({ unsafe: true, remove: [], missed: [] });
+    if (!out || !Array.isArray(out.remove)) return json({ error: 'Could not read the check. Try again.' }, 502);
+    return json({
+      remove: out.remove.filter((n: unknown) => typeof n === 'number' && known.has(n)),
+      missed: (Array.isArray(out.missed) ? out.missed : [])
+        .filter(
+          (p: { x?: unknown; y?: unknown }) =>
+            typeof p?.x === 'number' && typeof p?.y === 'number' && p.x >= 0 && p.x <= 1 && p.y >= 0 && p.y <= 1,
+        )
+        .slice(0, 40)
+        .map((p: { x: number; y: number }) => ({ x: p.x, y: p.y })),
+    });
   }
 
   const parsed = validate(body);
