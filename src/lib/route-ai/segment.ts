@@ -64,7 +64,7 @@ export function holdsFromSegments(
     if (on < 12 || on / (seg.gw * seg.gh) < 0.3) continue;
     const color = rgbToLab(median(rs), median(gs), median(bs));
     if (!seeds.some((s) => matchesSeed(color, s, sensitivity, 1.5))) continue;
-    found.push({ id: 0, x: (seg.x0 + seg.x1) / 2, y: (seg.y0 + seg.y1) / 2, w: bw, h: bh });
+    found.push({ id: 0, x: (seg.x0 + seg.x1) / 2, y: (seg.y0 + seg.y1) / 2, w: bw, h: bh, outline: outlineOf(seg) });
   }
   // Two spots can land on the same hold: keep one.
   const kept: Hold[] = [];
@@ -78,4 +78,79 @@ export function holdsFromSegments(
     if (!twin) kept.push(hold);
   }
   return kept.map((k, i) => ({ ...k, id: i + 1 }));
+}
+
+/**
+ * The outline of a cut-out as line pieces in photo coordinates (0..1). Holes inside the object (a bolt hole) are
+ * filled first so only the outer edge is drawn.
+ */
+export function outlineOf(seg: Segment): [number, number, number, number][] {
+  const { gw, gh } = seg;
+  const bin = atob(seg.grid);
+  const cells = new Uint8Array(gw * gh);
+  for (let i = 0; i < gw * gh; i++) cells[i] = bin.charCodeAt(i) === 1 ? 1 : 0;
+  // Anything not reachable from the border without crossing the object is a hole: fill it.
+  const outside = new Uint8Array(gw * gh);
+  const stack: number[] = [];
+  const seed = (i: number) => {
+    if (!cells[i] && !outside[i]) {
+      outside[i] = 1;
+      stack.push(i);
+    }
+  };
+  for (let i = 0; i < gw; i++) {
+    seed(i);
+    seed((gh - 1) * gw + i);
+  }
+  for (let j = 0; j < gh; j++) {
+    seed(j * gw);
+    seed(j * gw + gw - 1);
+  }
+  while (stack.length) {
+    const k = stack.pop()!;
+    const x = k % gw;
+    const y = (k - x) / gw;
+    if (x > 0) seed(k - 1);
+    if (x < gw - 1) seed(k + 1);
+    if (y > 0) seed(k - gw);
+    if (y < gh - 1) seed(k + gw);
+  }
+  for (let i = 0; i < gw * gh; i++) if (!cells[i] && !outside[i]) cells[i] = 1;
+
+  const on = (i: number, j: number) => i >= 0 && j >= 0 && i < gw && j < gh && cells[j * gw + i] === 1;
+  const bw = seg.x1 - seg.x0;
+  const bh = seg.y1 - seg.y0;
+  const px = (i: number) => seg.x0 + (i / gw) * bw;
+  const py = (j: number) => seg.y0 + (j / gh) * bh;
+  const out: [number, number, number, number][] = [];
+  for (let j = 0; j <= gh; j++) {
+    let start = -1;
+    for (let i = 0; i <= gw; i++) {
+      const edge = i < gw && on(i, j - 1) !== on(i, j);
+      if (edge && start < 0) start = i;
+      if (!edge && start >= 0) {
+        out.push([px(start), py(j), px(i), py(j)]);
+        start = -1;
+      }
+    }
+  }
+  for (let i = 0; i <= gw; i++) {
+    let start = -1;
+    for (let j = 0; j <= gh; j++) {
+      const edge = j < gh && on(i - 1, j) !== on(i, j);
+      if (edge && start < 0) start = j;
+      if (!edge && start >= 0) {
+        out.push([px(i), py(start), px(i), py(j)]);
+        start = -1;
+      }
+    }
+  }
+  return out;
+}
+
+/** An SVG path for an outline, scaled to a drawing of the given size. */
+export function outlinePath(outline: [number, number, number, number][], w: number, h: number): string {
+  let d = '';
+  for (const [x1, y1, x2, y2] of outline) d += `M${(x1 * w).toFixed(1)} ${(y1 * h).toFixed(1)}L${(x2 * w).toFixed(1)} ${(y2 * h).toFixed(1)}`;
+  return d;
 }

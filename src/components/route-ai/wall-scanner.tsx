@@ -10,7 +10,7 @@ import {
   type LayoutChangeEvent,
 } from 'react-native';
 import { Link } from 'expo-router';
-import Svg, { Circle, Rect, Text as SvgText } from 'react-native-svg';
+import Svg, { Circle, Path, Rect, Text as SvgText } from 'react-native-svg';
 
 import { Button, ButtonIcon, Field, Segmented, SingleChoice } from '@/components/form';
 import { ThemedText } from '@/components/themed-text';
@@ -48,7 +48,7 @@ import {
 } from '@/lib/route-ai/tips';
 import { measureWall, type RawDepthCapture, type WallGeometry } from '@/lib/route-ai/depth';
 import { captureWall, captureWallSections, canSegmentHolds, findObjects, segmenterReport, isLidarSupported, segmentHolds, type ObjectMask } from '@/lib/route-ai/lidar';
-import { holdsFromSegments } from '@/lib/route-ai/segment';
+import { holdsFromSegments, outlineOf, outlinePath } from '@/lib/route-ai/segment';
 import { stitchTallWall } from '@/lib/route-ai/tall-wall-photo';
 import { chooseWallPhoto, loadWallPhoto, takeWallPhoto, type PickResult, type WallPhoto } from '@/lib/route-ai/photo';
 
@@ -350,6 +350,7 @@ export function WallScanner() {
                 w: cut.x1 - cut.x0,
                 h: cut.y1 - cut.y0,
                 manual: true,
+                outline: outlineOf(cut),
               };
             }
           }
@@ -567,44 +568,42 @@ export function WallScanner() {
             style={{ width: dw, height: dh }}>
             <Image source={{ uri: photo.uri }} style={{ width: dw, height: dh, borderRadius: Spacing.three }} />
             <Svg width={dw} height={dh} style={StyleSheet.absoluteFill} pointerEvents="none">
-              {holds.map((h) => {
-                const pad = 5;
-                const x = (h.x - h.w / 2) * dw - pad;
-                const y = (h.y - h.h / 2) * dh - pad;
-                const w = h.w * dw + pad * 2;
-                const hh = h.h * dh + pad * 2;
-                return (
+              {holds.map((h) =>
+                h.outline ? (
+                  <Path key={`w${h.id}`} d={outlinePath(h.outline, dw, dh)} fill="none" stroke="#FFFFFF" strokeWidth={5} strokeLinejoin="round" strokeLinecap="round" />
+                ) : (
                   <Rect
                     key={h.id}
-                    x={x}
-                    y={y}
-                    width={w}
-                    height={hh}
+                    x={(h.x - h.w / 2) * dw - 5}
+                    y={(h.y - h.h / 2) * dh - 5}
+                    width={h.w * dw + 10}
+                    height={h.h * dh + 10}
                     rx={8}
                     fill="none"
                     stroke="#FFFFFF"
-                    strokeWidth={h.manual ? 4.5 : 4.5}
+                    strokeWidth={4.5}
                     strokeDasharray={h.manual ? '6 4' : undefined}
                   />
-                );
-              })}
-              {holds.map((h) => {
-                const pad = 5;
-                return (
+                ),
+              )}
+              {holds.map((h) =>
+                h.outline ? (
+                  <Path key={`a${h.id}`} d={outlinePath(h.outline, dw, dh)} fill="none" stroke={theme.accent} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+                ) : (
                   <Rect
                     key={`i${h.id}`}
-                    x={(h.x - h.w / 2) * dw - pad}
-                    y={(h.y - h.h / 2) * dh - pad}
-                    width={h.w * dw + pad * 2}
-                    height={h.h * dh + pad * 2}
+                    x={(h.x - h.w / 2) * dw - 5}
+                    y={(h.y - h.h / 2) * dh - 5}
+                    width={h.w * dw + 10}
+                    height={h.h * dh + 10}
                     rx={8}
                     fill="none"
                     stroke={theme.accent}
                     strokeWidth={2.5}
                     strokeDasharray={h.manual ? '6 4' : undefined}
                   />
-                );
-              })}
+                ),
+              )}
               {tips &&
                 numbered.map((h) => {
                   const cx = (h.x - h.w / 2) * dw - 5;

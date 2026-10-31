@@ -157,7 +157,7 @@ final class HoldSegmenter {
     }
   }
 
-  /// The object under one point (x, y in 0...1 across the photo): its box, how sure the model is, and a 48x48 mask.
+  /// The object under one point (x, y in 0...1 across the photo): its box, how sure the model is, and a 64x64 mask.
   private func segment(x: Double, y: Double) throws -> [String: Any] {
     guard let decoder = decoder, let embedding = embedding else { throw SegError.model }
     let points = try MLMultiArray(shape: [1, 1, 2], dataType: .float32)
@@ -194,7 +194,7 @@ final class HoldSegmenter {
       }
     }
     if count == 0 { return [:] }
-    let gridSize = 48
+    let gridSize = 64
     let boxW = maxX - minX + 1
     let boxH = maxY - minY + 1
     var grid = Data(count: gridSize * gridSize)

@@ -3,13 +3,14 @@ import { Image, Modal, Pressable, StyleSheet, View, type LayoutChangeEvent } fro
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Rect } from 'react-native-svg';
+import Svg, { Path, Rect } from 'react-native-svg';
 import { scheduleOnRN } from 'react-native-worklets';
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import type { Hold } from '@/lib/route-ai/detect';
+import { outlinePath } from '@/lib/route-ai/segment';
 
 const MAX_ZOOM = 8;
 
@@ -239,34 +240,42 @@ function Editor({ uri, photoWidth, photoHeight, holds, hasColor, busy, onTap, on
             <Animated.View style={[{ width: bw, height: bh }, photoStyle]}>
               <Image source={{ uri }} style={{ width: bw, height: bh }} />
               <Svg width={bw} height={bh} style={StyleSheet.absoluteFill} pointerEvents="none">
-                {holds.map((h) => (
-                  <Rect
-                    key={`o${h.id}`}
-                    x={(h.x - h.w / 2) * bw - pad}
-                    y={(h.y - h.h / 2) * bh - pad}
-                    width={h.w * bw + pad * 2}
-                    height={h.h * bh + pad * 2}
-                    rx={8 * line}
-                    fill="none"
-                    stroke="#FFFFFF"
-                    strokeWidth={4.5 * line}
-                    strokeDasharray={h.manual ? `${6 * line} ${4 * line}` : undefined}
-                  />
-                ))}
-                {holds.map((h) => (
-                  <Rect
-                    key={`i${h.id}`}
-                    x={(h.x - h.w / 2) * bw - pad}
-                    y={(h.y - h.h / 2) * bh - pad}
-                    width={h.w * bw + pad * 2}
-                    height={h.h * bh + pad * 2}
-                    rx={8 * line}
-                    fill="none"
-                    stroke={theme.accent}
-                    strokeWidth={2.5 * line}
-                    strokeDasharray={h.manual ? `${6 * line} ${4 * line}` : undefined}
-                  />
-                ))}
+                {holds.map((h) =>
+                  h.outline ? (
+                    <Path key={`o${h.id}`} d={outlinePath(h.outline, bw, bh)} fill="none" stroke="#FFFFFF" strokeWidth={4.5 * line} strokeLinejoin="round" strokeLinecap="round" />
+                  ) : (
+                    <Rect
+                      key={`o${h.id}`}
+                      x={(h.x - h.w / 2) * bw - pad}
+                      y={(h.y - h.h / 2) * bh - pad}
+                      width={h.w * bw + pad * 2}
+                      height={h.h * bh + pad * 2}
+                      rx={8 * line}
+                      fill="none"
+                      stroke="#FFFFFF"
+                      strokeWidth={4.5 * line}
+                      strokeDasharray={h.manual ? `${6 * line} ${4 * line}` : undefined}
+                    />
+                  ),
+                )}
+                {holds.map((h) =>
+                  h.outline ? (
+                    <Path key={`i${h.id}`} d={outlinePath(h.outline, bw, bh)} fill="none" stroke={theme.accent} strokeWidth={2.5 * line} strokeLinejoin="round" strokeLinecap="round" />
+                  ) : (
+                    <Rect
+                      key={`i${h.id}`}
+                      x={(h.x - h.w / 2) * bw - pad}
+                      y={(h.y - h.h / 2) * bh - pad}
+                      width={h.w * bw + pad * 2}
+                      height={h.h * bh + pad * 2}
+                      rx={8 * line}
+                      fill="none"
+                      stroke={theme.accent}
+                      strokeWidth={2.5 * line}
+                      strokeDasharray={h.manual ? `${6 * line} ${4 * line}` : undefined}
+                    />
+                  ),
+                )}
               </Svg>
             </Animated.View>
           )}

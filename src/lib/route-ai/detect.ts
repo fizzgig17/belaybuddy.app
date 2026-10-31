@@ -19,6 +19,8 @@ export type Hold = {
   manual?: boolean;
   /** A manual hold where no coherent region grew (drawn as a small circle). */
   guessed?: boolean;
+  /** The hold's real outline as line pieces [x1, y1, x2, y2] (0..1), when the segmentation model cut it out. */
+  outline?: [number, number, number, number][];
 };
 
 export type Sensitivity = 'low' | 'normal' | 'high';
