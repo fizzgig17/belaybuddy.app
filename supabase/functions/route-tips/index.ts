@@ -53,6 +53,29 @@ const REVIEW_TOOL = {
   },
 };
 
+const TAG_SYSTEM = `You read the tag or label on an indoor climbing route or boulder problem from a photo. Tags are small cards or stickers near the first hold, with a grade (like 5.10a, 5.9+, V4, V3-4), usually a hold color, sometimes a name, a setter, or a date.
+Report only what is clearly printed or written. Never guess a grade that is not legible. If there is no tag, or no grade can be read, set found to false.
+Grade: copy it as written, e.g. "5.10b", "5.11+", "V4". Ignore other grading systems (French, Font) unless that is the only grade shown, then copy it as written.
+Do not identify or describe any person. If the photo has nudity, sexual content or graphic violence, set unsafe to true.
+Always answer by calling the report_tag tool, once.`;
+
+const TAG_TOOL = {
+  name: 'report_tag',
+  description: 'Report what the route tag says.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      found: { type: 'boolean', description: 'True only if a legible grade was read.' },
+      grade: { type: 'string' },
+      color: { type: 'string', description: 'Hold color if printed or clearly marked, else empty.' },
+      name: { type: 'string', description: 'Route name if printed, else empty.' },
+      setter: { type: 'string', description: 'Setter name if printed, else empty.' },
+      unsafe: { type: 'boolean' },
+    },
+    required: ['found'],
+  },
+};
+
 const HOLD_TYPES = ['jug', 'crimp', 'sloper', 'pinch', 'pocket', 'edge', 'volume', 'foot', 'unclear', 'not_a_hold'];
 
 const SYSTEM = `You help climbers read routes from a photo of an indoor climbing wall.
@@ -230,6 +253,52 @@ Deno.serve(async (req) => {
     const out = (checkData.content ?? []).find((c: { type: string }) => c.type === 'tool_use')?.input;
     const kind = ['climbing_wall', 'other', 'unsafe'].includes(out?.kind) ? out.kind : 'unknown';
     return json({ kind, what: kind === 'unsafe' ? '' : String(out?.what ?? '').slice(0, 120) });
+  }
+
+  if ((body as { mode?: unknown })?.mode === 'tag') {
+    const image = (body as { image?: unknown }).image;
+    if (typeof image !== 'string' || image.length < 100 || image.length > MAX_IMAGE_CHARS) {
+      return json({ error: 'Send a photo.' }, 400);
+    }
+    const { data: ok } = await supabase.rpc('take_route_ai_quota', { p_limit: DAILY_LIMIT });
+    if (!ok) return json({ error: `You have used today's ${DAILY_LIMIT} AI scans. Try again tomorrow.` }, 429);
+    const tagRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: 400,
+        system: TAG_SYSTEM,
+        tools: [TAG_TOOL],
+        tool_choice: { type: 'tool', name: 'report_tag' },
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: image.replace(/^data:image\/\w+;base64,/, '') } },
+              { type: 'text', text: 'Read this route tag.' },
+            ],
+          },
+        ],
+      }),
+    });
+    if (!tagRes.ok) {
+      console.error('Anthropic tag error', tagRes.status, (await tagRes.text()).slice(0, 300));
+      const busy = tagRes.status === 429 || tagRes.status === 529 || tagRes.status >= 500;
+      return json({ error: busy ? 'The AI service is busy. Try again in a moment.' : 'The tag could not be read.' }, 502);
+    }
+    const tagData = await tagRes.json();
+    const out = (tagData.content ?? []).find((c: { type: string }) => c.type === 'tool_use')?.input;
+    if (out?.unsafe === true) return json({ found: false, unsafe: true });
+    const clean = (v: unknown, n: number) => (typeof v === 'string' ? v.trim().slice(0, n) : '');
+    const grade = clean(out?.grade, 12);
+    return json({
+      found: out?.found === true && grade.length > 0,
+      grade,
+      color: clean(out?.color, 30),
+      name: clean(out?.name, 60),
+      setter: clean(out?.setter, 60),
+    });
   }
 
   if ((body as { mode?: unknown })?.mode === 'review') {

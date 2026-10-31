@@ -31,6 +31,8 @@ import { success, tap } from '@/lib/haptics';
 import { useFavorites } from '@/lib/favorites';
 import { checkIn, checkOut } from '@/lib/friends';
 import { useHomeGyms } from '@/lib/home-gyms';
+import { useAiConsent } from '@/lib/ai-consent';
+import { scanRouteTag } from '@/lib/route-tag';
 
 const OTHER = '__other__';
 const DEFAULT_GRADE: Record<Discipline, string> = { boulder: 'V2', route: '5.9' };
@@ -171,6 +173,42 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now());
   const [finished, setFinished] = useState<ClimbSession | null>(null);
+  const [scanning, setScanning] = useState(false);
+  const [tagNote, setTagNote] = useState<string | null>(null);
+  const { consent, set: setConsent } = useAiConsent();
+
+  async function scanTag() {
+    if (scanning) return;
+    setError(null);
+    setTagNote(null);
+    setScanning(true);
+    try {
+      const res = await scanRouteTag();
+      if (!res) return;
+      if ('error' in res) return setError(res.error);
+      const t = res.tag;
+      setDiscipline(t.discipline);
+      setGrade(t.grade);
+      setMod(t.mod);
+      rememberGrade(t.discipline, t.grade);
+      success();
+      const bits = [t.color, t.name, t.setter ? `set by ${t.setter}` : ''].filter(Boolean);
+      setTagNote(`Read ${t.grade}${t.mod}${bits.length ? ` · ${bits.join(' · ')}` : ''}. Check it, then tap Sent, Flash or Attempt.`);
+    } finally {
+      setScanning(false);
+    }
+  }
+
+  function askScan() {
+    if (consent === 'allowed') return void scanTag();
+    if (consent === 'loading') return;
+    const msg = 'The photo of the tag is sent to an AI service to read it. Turn on AI features to use this?';
+    if (Platform.OS === 'web') return;
+    Alert.alert('Scan the route tag', msg, [
+      { text: 'Not now', style: 'cancel' },
+      { text: 'Turn on AI', onPress: () => void setConsent('allowed').then(scanTag) },
+    ]);
+  }
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 30_000);
@@ -282,6 +320,11 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
           { value: 'route', label: 'Routes' },
         ]}
       />
+
+      {Platform.OS !== 'web' && (
+        <Button title={scanning ? 'Reading the tag…' : 'Scan route tag'} variant="secondary" onPress={askScan} disabled={scanning} />
+      )}
+      {tagNote && <ThemedText type="small" themeColor="textSecondary">{tagNote}</ThemedText>}
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.grades} keyboardShouldPersistTaps="handled">
         {grades.map((g) => {
