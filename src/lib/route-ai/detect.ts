@@ -478,12 +478,12 @@ export function routeArea(holds: Hold[], tap: [number, number], w: number, h: nu
   }
   if (!start || best > 0.1) return null;
   // Routes climb up and down the wall, so holds are allowed to sit farther apart vertically than sideways.
-  const reach = (a: Hold, b: Hold) => Math.hypot((a.x - b.x) * w, (a.y - b.y) * h * 0.55) / w;
+  const reach = (a: Hold, b: Hold) => Math.hypot((a.x - b.x) * w, (a.y - b.y) * h * 0.8) / w;
   const seen = new Set<Hold>([start]);
   const queue = [start];
   while (queue.length) {
     const a = queue.pop()!;
-    for (const b of holds) if (!seen.has(b) && reach(a, b) <= link * 1.2) { seen.add(b); queue.push(b); }
+    for (const b of holds) if (!seen.has(b) && reach(a, b) <= link) { seen.add(b); queue.push(b); }
   }
   return holds.filter((x) => seen.has(x));
 }

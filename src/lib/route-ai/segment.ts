@@ -22,9 +22,79 @@ function median(values: number[]) {
 }
 
 /**
- * Turns cut-outs into holds. Each cut-out was made at a spot the color match suggested; it is kept only if the object
- * itself (not its surroundings) is the route's color, and it is hold-sized and compact. The hold's box is then the
- * object's real outline box, which is what lets this tell a hold from a patch of similarly tinted wall.
+ * Keeps only the part of a cut-out that is the route's color, and only its largest connected piece. The model often
+ * pulls a hold together with what sits against it (a route tag, a bolt plate, chalk); those parts are another color.
+ * Returns the trimmed cut-out with its box shrunk to what is left, or null if too little remains.
+ */
+export function trimToColor(seg: Segment, pixels: Pixels, seeds: Seed[], sensitivity: Sensitivity, slack = 2.4): Segment | null {
+  const { width: w, height: h, data } = pixels;
+  const { gw, gh } = seg;
+  const bw = seg.x1 - seg.x0;
+  const bh = seg.y1 - seg.y0;
+  const bin = atob(seg.grid);
+  const cells = new Uint8Array(gw * gh);
+  for (let j = 0; j < gh; j++) {
+    for (let i = 0; i < gw; i++) {
+      if (bin.charCodeAt(j * gw + i) !== 1) continue;
+      const x = Math.min(w - 1, Math.max(0, Math.floor((seg.x0 + ((i + 0.5) / gw) * bw) * w)));
+      const y = Math.min(h - 1, Math.max(0, Math.floor((seg.y0 + ((j + 0.5) / gh) * bh) * h)));
+      const k = (y * w + x) * 4;
+      const lab = rgbToLab(data[k], data[k + 1], data[k + 2]);
+      if (seeds.some((sd) => matchesSeed(lab, sd, sensitivity, slack))) cells[j * gw + i] = 1;
+    }
+  }
+  // Largest connected piece.
+  const label = new Int32Array(gw * gh);
+  let best = 0;
+  let bestId = 0;
+  let id = 0;
+  for (let start = 0; start < gw * gh; start++) {
+    if (!cells[start] || label[start]) continue;
+    id++;
+    let count = 0;
+    const stack = [start];
+    label[start] = id;
+    while (stack.length) {
+      const k = stack.pop()!;
+      count++;
+      const x = k % gw;
+      const y = (k - x) / gw;
+      const nb = [x > 0 ? k - 1 : -1, x < gw - 1 ? k + 1 : -1, y > 0 ? k - gw : -1, y < gh - 1 ? k + gw : -1];
+      for (const n of nb) if (n >= 0 && cells[n] && !label[n]) { label[n] = id; stack.push(n); }
+    }
+    if (count > best) { best = count; bestId = id; }
+  }
+  if (best < 12) return null;
+  let minI = gw, maxI = -1, minJ = gh, maxJ = -1;
+  let out = '';
+  for (let k = 0; k < gw * gh; k++) {
+    const on = label[k] === bestId;
+    out += on ? '\u0001' : '\u0000';
+    if (on) {
+      const x = k % gw;
+      const y = (k - x) / gw;
+      if (x < minI) minI = x;
+      if (x > maxI) maxI = x;
+      if (y < minJ) minJ = y;
+      if (y > maxJ) maxJ = y;
+    }
+  }
+  const area = seg.area * (best / Math.max(1, bin.split('\u0001').length - 1));
+  return {
+    ...seg,
+    x0: seg.x0 + (minI / gw) * bw,
+    x1: seg.x0 + ((maxI + 1) / gw) * bw,
+    y0: seg.y0 + (minJ / gh) * bh,
+    y1: seg.y0 + ((maxJ + 1) / gh) * bh,
+    area,
+    grid: btoa(out),
+  };
+}
+
+/**
+ * Turns cut-outs into holds. Each cut-out was made at a spot the color match suggested; it is trimmed to the route's
+ * color, and kept only if it is then hold-sized and compact. The hold's box is the object's real outline box, which
+ * is what lets this tell a hold from a patch of similarly tinted wall.
  */
 export function holdsFromSegments(
   segments: (Segment | null)[],
@@ -32,39 +102,11 @@ export function holdsFromSegments(
   seeds: Seed[],
   sensitivity: Sensitivity = 'normal',
 ): Hold[] {
-  const { width: w, height: h, data } = pixels;
   const found: Hold[] = [];
   for (const seg of segments) {
     if (!seg || seg.iou < 0.6) continue;
-    const bw = seg.x1 - seg.x0;
-    const bh = seg.y1 - seg.y0;
-    if (bw <= 0 || bh <= 0 || seg.area > 0.06 || seg.area < 0.00008) continue;
-    if (bw > 0.3 || bh > 0.3) continue;
-    const pxW = bw * w;
-    const pxH = bh * h;
-    if (Math.max(pxW, pxH) / Math.max(1, Math.min(pxW, pxH)) > 4) continue;
-    const bin = atob(seg.grid);
-    const rs: number[] = [];
-    const gs: number[] = [];
-    const bs: number[] = [];
-    let on = 0;
-    for (let j = 0; j < seg.gh; j++) {
-      for (let i = 0; i < seg.gw; i++) {
-        if (bin.charCodeAt(j * seg.gw + i) !== 1) continue;
-        on++;
-        const x = Math.min(w - 1, Math.max(0, Math.floor((seg.x0 + ((i + 0.5) / seg.gw) * bw) * w)));
-        const y = Math.min(h - 1, Math.max(0, Math.floor((seg.y0 + ((j + 0.5) / seg.gh) * bh) * h)));
-        const k = (y * w + x) * 4;
-        rs.push(data[k]);
-        gs.push(data[k + 1]);
-        bs.push(data[k + 2]);
-      }
-    }
-    // A mask that fills little of its own box is a ragged shape, not a hold.
-    if (on < 12 || on / (seg.gw * seg.gh) < 0.3) continue;
-    const color = rgbToLab(median(rs), median(gs), median(bs));
-    if (!seeds.some((s) => matchesSeed(color, s, sensitivity, 1.5))) continue;
-    found.push({ id: 0, x: (seg.x0 + seg.x1) / 2, y: (seg.y0 + seg.y1) / 2, w: bw, h: bh, outline: outlineOf(seg) });
+    const hold = holdFromSegment(seg, pixels, seeds, sensitivity);
+    if (hold) found.push(hold);
   }
   // Two spots can land on the same hold: keep one.
   const kept: Hold[] = [];
@@ -188,4 +230,25 @@ export function proposePoints(
     }
   }
   return points.slice(0, limit);
+}
+
+/** One cut-out as a hold, or null if, once trimmed to the route's color, it is not a hold-sized compact object. */
+export function holdFromSegment(seg: Segment, pixels: Pixels, seeds: Seed[], sensitivity: Sensitivity, slack = 1.5): Hold | null {
+  const { width: w, height: h } = pixels;
+  const t = trimToColor(seg, pixels, seeds, sensitivity);
+  if (!t) return null;
+  const bw = t.x1 - t.x0;
+  const bh = t.y1 - t.y0;
+  if (bw <= 0 || bh <= 0 || t.area > 0.06 || t.area < 0.00008) return null;
+  if (bw > 0.3 || bh > 0.3) return null;
+  const pxW = bw * w;
+  const pxH = bh * h;
+  if (Math.max(pxW, pxH) / Math.max(1, Math.min(pxW, pxH)) > 4) return null;
+  // The trimmed piece must still be mostly the route's color at its core, and fill a fair share of its box.
+  const bin = atob(t.grid);
+  let on = 0;
+  for (let i = 0; i < bin.length; i++) if (bin.charCodeAt(i) === 1) on++;
+  if (on < 12 || on / (t.gw * t.gh) < 0.3) return null;
+  void slack;
+  return { id: 0, x: (t.x0 + t.x1) / 2, y: (t.y0 + t.y1) / 2, w: bw, h: bh, outline: outlineOf(t) };
 }

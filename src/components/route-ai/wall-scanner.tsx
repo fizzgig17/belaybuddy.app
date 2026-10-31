@@ -48,7 +48,7 @@ import {
 } from '@/lib/route-ai/tips';
 import { measureWall, type RawDepthCapture, type WallGeometry } from '@/lib/route-ai/depth';
 import { captureWall, captureWallSections, canSegmentHolds, findObjects, segmenterReport, isLidarSupported, segmentHolds, type ObjectMask } from '@/lib/route-ai/lidar';
-import { holdsFromSegments, outlineOf, outlinePath, proposePoints } from '@/lib/route-ai/segment';
+import { holdFromSegment, holdsFromSegments, outlineOf, outlinePath, proposePoints } from '@/lib/route-ai/segment';
 import { stitchTallWall } from '@/lib/route-ai/tall-wall-photo';
 import { chooseWallPhoto, loadWallPhoto, takeWallPhoto, type PickResult, type WallPhoto } from '@/lib/route-ai/photo';
 
@@ -294,17 +294,16 @@ export function WallScanner() {
         if (segments) {
           let real = holdsFromSegments(segments, p.pixels, s, level);
           // The hold the person tapped is the route by definition: it counts even if its color test is borderline.
-          const own = tap
-            ? segments
-                .slice(0, 3)
-                .filter((g): g is NonNullable<typeof g> => !!g && g.area < 0.06 && g.x1 - g.x0 < 0.3 && g.y1 - g.y0 < 0.3 && g.area > 0.00008)
-                .sort((a, b) => b.iou - a.iou)[0] ?? null
-            : null;
-          if (tap && own && !holdAt(real, tap[0], tap[1])) {
-            real = [
-              ...real,
-              { id: 0, x: (own.x0 + own.x1) / 2, y: (own.y0 + own.y1) / 2, w: own.x1 - own.x0, h: own.y1 - own.y0, outline: outlineOf(own) },
-            ].map((h, i) => ({ ...h, id: i + 1 }));
+          // Try the tap itself first; only if that gives nothing usable try the spots just below it.
+          let own: Hold | null = null;
+          if (tap) {
+            for (const g of segments.slice(0, 3)) {
+              const cand = g ? holdFromSegment(g, p.pixels, s, level) : null;
+              if (cand) { own = cand; break; }
+            }
+          }
+          if (tap && own && !holdAt(real, tap[0], tap[1]) && !real.some((r) => Math.abs(r.x - own.x) < 0.01 && Math.abs(r.y - own.y) < 0.01)) {
+            real = [...real, own].map((h, i) => ({ ...h, id: i + 1 }));
           }
           if (real.length > 0) {
             found = real;
