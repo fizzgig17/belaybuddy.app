@@ -43,6 +43,49 @@ export function trimToColor(seg: Segment, pixels: Pixels, seeds: Seed[], sensiti
       if (seeds.some((sd) => matchesSeed(lab, sd, sensitivity, slack))) cells[j * gw + i] = 1;
     }
   }
+  // A rope lying across or against a hold is the same red as the hold and gets cut out with it. Opening the mask (shrink,
+  // then grow back) removes parts thinner than a rope and leaves the hold. If that would eat most of the shape it was
+  // a small hold or a thin one, so the mask is left alone.
+  const pxW = bw * w;
+  const pxH = bh * h;
+  const ropePx = Math.min(7, 0.25 * Math.min(pxW, pxH));
+  const r = Math.round((ropePx / (pxW / gw) - 1) / 2);
+  if (r >= 1 && r <= Math.floor(Math.min(gw, gh) / 6)) {
+    const erode = (src: Uint8Array) => {
+      const out = new Uint8Array(gw * gh);
+      for (let j = 0; j < gh; j++)
+        for (let i = 0; i < gw; i++) {
+          let all = 1;
+          for (let dj = -r; dj <= r && all; dj++)
+            for (let di = -r; di <= r; di++) {
+              const x = i + di;
+              const y = j + dj;
+              if (x < 0 || y < 0 || x >= gw || y >= gh || !src[y * gw + x]) { all = 0; break; }
+            }
+          out[j * gw + i] = all;
+        }
+      return out;
+    };
+    const eroded = erode(cells);
+    const opened = new Uint8Array(gw * gh);
+    for (let j = 0; j < gh; j++)
+      for (let i = 0; i < gw; i++) {
+        if (!eroded[j * gw + i]) continue;
+        for (let dj = -r; dj <= r; dj++)
+          for (let di = -r; di <= r; di++) {
+            const x = i + di;
+            const y = j + dj;
+            if (x >= 0 && y >= 0 && x < gw && y < gh) opened[y * gw + x] = 1;
+          }
+      }
+    let before = 0;
+    let after = 0;
+    for (let k = 0; k < gw * gh; k++) {
+      before += cells[k];
+      after += opened[k] && cells[k] ? 1 : 0;
+    }
+    if (after >= before * 0.5) for (let k = 0; k < gw * gh; k++) cells[k] = opened[k] && cells[k] ? 1 : 0;
+  }
   // Largest connected piece.
   const label = new Int32Array(gw * gh);
   let best = 0;
