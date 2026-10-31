@@ -250,5 +250,19 @@ export function holdFromSegment(seg: Segment, pixels: Pixels, seeds: Seed[], sen
   for (let i = 0; i < bin.length; i++) if (bin.charCodeAt(i) === 1) on++;
   if (on < 12 || on / (t.gw * t.gh) < 0.3) return null;
   void slack;
+  // Ropes and cables run through the photo in the same red or pink as holds. They cut out as long thin slivers, so
+  // a piece much longer than it is wide is dropped: width is estimated from area and edge length (a strip's is its width).
+  const cw = (pxW / t.gw);
+  const ch = (pxH / t.gh);
+  let edge = 0;
+  const cell = (i: number, j: number) => i >= 0 && j >= 0 && i < t.gw && j < t.gh && bin.charCodeAt(j * t.gw + i) === 1;
+  for (let j = 0; j <= t.gh; j++) {
+    for (let i = 0; i <= t.gw; i++) {
+      if (cell(i, j) !== cell(i, j - 1)) edge += cw; // horizontal edge above this cell
+      if (cell(i, j) !== cell(i - 1, j)) edge += ch; // vertical edge left of this cell
+    }
+  }
+  const width = (4 * on * cw * ch) / Math.max(edge, 1) / 2;
+  if (Math.max(pxW, pxH) / Math.max(width, 1) > 4.8) return null;
   return { id: 0, x: (t.x0 + t.x1) / 2, y: (t.y0 + t.y1) / 2, w: bw, h: bh, outline: outlineOf(t) };
 }
