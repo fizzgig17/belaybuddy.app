@@ -51,6 +51,7 @@ export default function TabLayout() {
               <Stack.Screen name="about" />
               <Stack.Screen name="privacy" />
               <Stack.Screen name="support" />
+              <Stack.Screen name="manual" />
               <Stack.Screen name="terms" />
               <Stack.Screen name="delete-account" />
               <Stack.Screen name="suggest-place" />
