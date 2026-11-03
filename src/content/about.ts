@@ -27,7 +27,7 @@ export const ABOUT_FEATURES: { title: string; body: string }[] = [
   },
   {
     title: 'Record a route',
-    body: 'Tap the round button, photograph the route tag, and the grade and hold color fill in for you. The tag reading is optional and only runs if you turn on AI features. It can be wrong, so check it before you log.',
+    body: 'Tap the round button to record a session, then log each climb with one tap. Photograph a route tag and the grade, hold color and name fill in for you. Your climbs show up as beads with the grade on each. Tag reading is optional and only runs if you turn on AI features. It can be wrong, so check it before you log.',
   },
 ];
 

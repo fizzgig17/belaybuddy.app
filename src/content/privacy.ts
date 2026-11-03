@@ -3,7 +3,7 @@
  * app really does: when a feature starts sending data somewhere new, update it here first.
  */
 
-export const PRIVACY_UPDATED = 'October 18, 2026';
+export const PRIVACY_UPDATED = 'November 2, 2026';
 export const PRIVACY_CONTACT = 'support@belaybuddy.app';
 
 export type PolicySection = { title: string; body: string[] };
@@ -16,10 +16,11 @@ export const PRIVACY_SECTIONS: PolicySection[] = [
     title: 'What we collect',
     body: [
       'Account: your email address, used to sign you in and send notifications you choose. If you sign in with Apple or Google, they tell us your email address (Apple may give a private relay address instead) and a sign-in ID. We never see your Apple or Google password.',
-      'Profile and activity: the name and climbing details you add, favorite gyms, home gyms, partner posts and chats, climbing sessions you log, and your notification settings.',
+      'Profile and activity: the name and climbing details you add, favorite gyms, home gyms, partner posts and chats, climbing sessions you log (each climb’s grade, result, and, if you add them, its route color and name), and your notification settings.',
       'Friends: your friend code, who you are friends with or have asked, and, only if you choose to check in, the gym you are at and when the check-in ends (a few hours at most). Friends can see your name and your check-in. Nobody sees a live position. You can also let climbers who share a home gym find you by name, and switch that off.',
       'Your AI choice: whether you allowed or declined sending photos to the AI service, and when you chose. It is saved on your account, so it follows you to other devices.',
       'Notifications: a device token (so we can send push notifications to your phone) and your time zone (so reminder times read correctly).',
+      'Camera: used only when you tap to scan a friend’s QR code or photograph a route tag. A friend’s QR code is read on your phone. A tag photo is handled as described under Artificial intelligence below.',
       'Location: when you allow it, your phone uses its location to find gyms and shops near you. We ask our servers and the map services for a coarse area (about 10 km), not your exact position.',
     ],
   },

@@ -1,13 +1,8 @@
-/**
- * Terms of use, shown at /terms. THIS IS A DRAFT: it must be reviewed by a lawyer before the app is released,
- * and the governing-law placeholder below filled in. While TERMS_IS_DRAFT is true the page says so.
- */
+/** Terms of use, shown at /terms (on the website and in the app). Keep it in step with what the app really does. */
 
-export const TERMS_IS_DRAFT = true;
-export const TERMS_UPDATED = 'October 17, 2026';
+export const TERMS_UPDATED = 'November 2, 2026';
 export const TERMS_CONTACT = 'support@belaybuddy.app';
-/** Fill in before release, for example "the State of North Carolina". */
-export const TERMS_GOVERNING_STATE = '[STATE]';
+export const TERMS_GOVERNING_STATE = 'the State of North Carolina';
 
 export type TermsSection = { title: string; body: string[] };
 
@@ -45,6 +40,12 @@ export const TERMS_SECTIONS: TermsSection[] = [
     ],
   },
   {
+    title: 'Your climb log',
+    body: [
+      'The climbs you log are for you. We do not show your log to other climbers. You are responsible for its accuracy: a grade or color read from a route tag by AI is only a suggestion until you save it.',
+    ],
+  },
+  {
     title: 'Gym, shop, and other information',
     body: [
       'Gym and shop listings, hours, and details come from OpenStreetMap contributors and other sources and may be out of date or wrong. Check with the business before you go. Belay Buddy is not affiliated with, and is not endorsed by, any gym, shop, or brand it lists.',
@@ -54,7 +55,7 @@ export const TERMS_SECTIONS: TermsSection[] = [
   {
     title: 'Using Belay Buddy fairly',
     body: [
-      'Do not misuse the service: no scraping, no attempts to break or overload it, no use to harass anyone, and no uploading photos that are unlawful or not suitable for all ages. We may limit use, for example the number of Route AI scans a day.',
+      'Do not misuse the service: no scraping, no attempts to break or overload it, no use to harass anyone, and no uploading photos that are unlawful or not suitable for all ages. We may limit use, for example the number of AI tag scans a day.',
       'The Belay Buddy name, logo, and app are ours or our licensors’. Do not copy them.',
     ],
   },
@@ -67,7 +68,7 @@ export const TERMS_SECTIONS: TermsSection[] = [
   {
     title: 'Limit on our responsibility',
     body: [
-      'To the fullest extent the law allows, Belay Buddy and the people behind it are not liable for any injury, death, loss, or damage arising from climbing, from meeting other users, or from relying on the app, its tips, its measurements, or its listings. Where the law does not allow a limit to apply, our total responsibility is limited to the greater of what you paid us in the past 12 months or $50.',
+      'To the fullest extent the law allows, Belay Buddy and the people behind it are not liable for any injury, death, loss, or damage arising from climbing, from meeting other users, or from relying on the app, its tag readings, or its listings. Where the law does not allow a limit to apply, our total responsibility is limited to the greater of what you paid us in the past 12 months or $50.',
       'Some places do not allow these limits, so they may not apply to you in full.',
     ],
   },

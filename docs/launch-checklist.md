@@ -19,7 +19,7 @@ dev copy (orange DEV banner, "Belay Buddy Dev" on the home screen).
 4. Open https://belaybuddy.app, sign in, and try Find, Shops, a session, Record a route.
 
 ## Before submitting to the App Store
-- Lawyer review of /terms and /privacy; set TERMS_GOVERNING_STATE and turn off TERMS_IS_DRAFT in src/content/terms.ts.
+- /terms and /privacy were written without a lawyer's review (governing law: North Carolina, set in src/content/terms.ts). Have a lawyer look when there is budget, and keep them in step with the app: update them before a feature sends data somewhere new.
 - support@belaybuddy.app mailbox works.
 - App Store Connect: privacy policy URL (https://belaybuddy.app/privacy), support URL,
   App Privacy answers (email, user content, coarse location, identifiers for push),
