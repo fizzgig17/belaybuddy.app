@@ -115,8 +115,9 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     overflow: 'hidden',
   },
-  grabZone: { height: 22, alignItems: 'center', justifyContent: 'center' },
-  grabber: { width: 40, height: 5, borderRadius: 3, opacity: 0.5 },
+  // Same size and spot as the native grabber on the profile sheet.
+  grabZone: { height: 28, alignItems: 'center', justifyContent: 'flex-start' },
+  grabber: { width: 58, height: 5, borderRadius: 3, marginTop: 5, opacity: 0.55 },
   closeRow: { position: 'absolute', right: Spacing.three, top: Spacing.two },
   scroll: { flex: 1 },
   footer: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.two, paddingTop: Spacing.one },
