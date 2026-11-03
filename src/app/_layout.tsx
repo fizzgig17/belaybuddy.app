@@ -45,7 +45,7 @@ export default function TabLayout() {
                 options={
                   Platform.OS === 'ios'
                     ? { presentation: 'formSheet', sheetGrabberVisible: true, sheetAllowedDetents: [0.95], sheetCornerRadius: 24 }
-                    : { presentation: 'modal', animation: 'slide_from_bottom' }
+                    : { presentation: 'transparentModal', animation: 'slide_from_bottom' }
                 }
               />
               <Stack.Screen name="about" />

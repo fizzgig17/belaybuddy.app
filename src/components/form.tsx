@@ -403,14 +403,14 @@ export function Segmented<T extends string | number>({
               return [
                 segStyles.segment,
                 compact && { paddingVertical: 3 },
-                on && { backgroundColor: theme.surface, boxShadow: Depth[scheme].card },
+                on && { backgroundColor: theme.accent, boxShadow: Depth[scheme].card },
                 !on && hovered && { backgroundColor: theme.backgroundSelected },
                 Platform.OS === 'web' && ({ transitionProperty: 'background-color', transitionDuration: '120ms', cursor: 'pointer' } as object),
               ];
             }}>
             <ThemedText
               type={on ? 'smallBold' : 'small'}
-              style={{ color: on ? theme.accent : theme.textSecondary, textAlign: 'center' }}>
+              style={{ color: on ? theme.onAccent : theme.textSecondary, textAlign: 'center' }}>
               {option.label}
             </ThemedText>
           </Pressable>
