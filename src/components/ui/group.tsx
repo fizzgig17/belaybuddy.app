@@ -3,6 +3,7 @@ import { Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'reac
 
 import { useCompact } from '@/components/compact';
 import { ThemedText } from '@/components/themed-text';
+import { Grain } from '@/components/ui/grain';
 import { Depth, gradientStyle, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
@@ -27,6 +28,7 @@ export function Card({ children, style, raised }: { children: ReactNode; style?:
         raised && { transform: [{ translateY: -2 }] },
         style,
       ]}>
+      <Grain radius={20} />
       {children}
     </View>
   );

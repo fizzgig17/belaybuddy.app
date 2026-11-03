@@ -9,6 +9,7 @@ import { useBanner } from '@/lib/banner';
 
 import { PageTitle } from '@/components/page-title';
 import { KeyboardDoneBar } from '@/components/form';
+import { Grain } from '@/components/ui/grain';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { IconButton } from '@/components/ui/icon-button';
@@ -80,6 +81,7 @@ export function Screen({ title, subtitle, description, children, showTitle = tru
     : undefined;
   return (
     <ThemedView style={styles.container}>
+      <Grain strength={0.7} />
       {!embedded && <PageTitle title={title} description={description ?? subtitle} />}
       <SafeAreaView style={styles.safeArea} edges={showTitle && !IS_DEV_BUILD && !bannerShowing ? ['top'] : []}>
         <ScrollView contentContainerStyle={[styles.content, compact && styles.compact, readable && { maxWidth: ReadableWidth }]} keyboardShouldPersistTaps="handled"
