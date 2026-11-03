@@ -3,7 +3,7 @@ import { Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'reac
 
 import { useCompact } from '@/components/compact';
 import { ThemedText } from '@/components/themed-text';
-import { Depth, Spacing } from '@/constants/theme';
+import { Depth, gradientStyle, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -22,6 +22,7 @@ export function Card({ children, style, raised }: { children: ReactNode; style?:
         styles.card,
         compact && styles.cCard,
         { backgroundColor: theme.surface, borderColor: scheme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(14,42,46,0.05)', boxShadow: raised ? Depth[scheme].raised : Depth[scheme].card },
+        gradientStyle(Depth[scheme].cardGradient),
         Platform.OS === 'web' && ({ transitionProperty: 'transform, box-shadow', transitionDuration: '160ms' } as object),
         raised && { transform: [{ translateY: -2 }] },
         style,

@@ -90,22 +90,24 @@ export const Spacing = {
  */
 export const Depth = {
   light: {
-    card: '0 1px 2px rgba(14,42,46,0.04), 0 12px 32px -14px rgba(14,42,46,0.18)',
-    raised: '0 2px 4px rgba(14,42,46,0.06), 0 16px 36px -14px rgba(14,42,46,0.26)',
+    card: 'inset 0 1px 0 rgba(255,255,255,0.95), inset 0 -1px 0 rgba(14,42,46,0.06), 0 1px 2px rgba(14,42,46,0.08), 0 14px 30px -12px rgba(14,42,46,0.28)',
+    raised: 'inset 0 1px 0 rgba(255,255,255,0.95), inset 0 -1px 0 rgba(14,42,46,0.07), 0 2px 5px rgba(14,42,46,0.1), 0 20px 38px -12px rgba(14,42,46,0.36)',
+    cardGradient: 'linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0) 45%, rgba(14,42,46,0.045))',
     button: 'inset 0 1px 0 rgba(255,255,255,0.28), inset 0 -2px 0 rgba(0,0,0,0.14), 0 6px 14px -4px rgba(14,122,128,0.55)',
     buttonRaised: 'inset 0 1px 0 rgba(255,255,255,0.32), inset 0 -2px 0 rgba(0,0,0,0.14), 0 10px 20px -4px rgba(14,122,128,0.6)',
     buttonPressed: 'inset 0 2px 4px rgba(0,0,0,0.22)',
     page: ['#F8FAF9', '#E8F0EE'],
-    gradient: 'linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0) 60%)',
+    gradient: 'linear-gradient(180deg, rgba(255,255,255,0.3), rgba(255,255,255,0.04) 50%, rgba(0,0,0,0.1))',
   },
   dark: {
-    card: '0 1px 2px rgba(0,0,0,0.3), 0 14px 32px -14px rgba(0,0,0,0.55)',
+    card: 'inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -1px 0 rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.4), 0 16px 32px -12px rgba(0,0,0,0.7)',
+    cardGradient: 'linear-gradient(180deg, rgba(255,255,255,0.07), rgba(255,255,255,0) 50%, rgba(0,0,0,0.18))',
     raised: 'inset 0 1px 0 rgba(255,255,255,0.07), 0 2px 4px rgba(0,0,0,0.45), 0 16px 30px -10px rgba(0,0,0,0.7)',
     button: 'inset 0 1px 0 rgba(255,255,255,0.3), inset 0 -2px 0 rgba(0,0,0,0.25), 0 6px 16px -4px rgba(70,184,189,0.35)',
     buttonRaised: 'inset 0 1px 0 rgba(255,255,255,0.34), inset 0 -2px 0 rgba(0,0,0,0.25), 0 10px 22px -4px rgba(70,184,189,0.45)',
     buttonPressed: 'inset 0 2px 5px rgba(0,0,0,0.4)',
     page: ['#16222A', '#0F181C'],
-    gradient: 'linear-gradient(180deg, rgba(255,255,255,0.2), rgba(255,255,255,0) 60%)',
+    gradient: 'linear-gradient(180deg, rgba(255,255,255,0.28), rgba(255,255,255,0.03) 50%, rgba(0,0,0,0.16))',
   },
 } as const;
 

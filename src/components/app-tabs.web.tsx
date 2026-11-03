@@ -8,6 +8,7 @@ import {
 } from 'expo-router/ui';
 import { router } from 'expo-router';
 import { ClimbStrip } from '@/components/record/climb-strip';
+import { EndSessionDialog } from '@/components/record/end-session-dialog';
 import { RecordSheet } from '@/components/record/record-sheet';
 import { toggleRecordSheet } from '@/lib/record-sheet';
 import { Image, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
@@ -45,6 +46,7 @@ export default function AppTabs() {
         <TabSlot style={styles.slot} />
         <ClimbStrip />
         <RecordSheet />
+        <EndSessionDialog />
       </View>
     </Tabs>
   );

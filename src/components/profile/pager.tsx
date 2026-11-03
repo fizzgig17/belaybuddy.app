@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
 import { useState, type ReactNode } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
@@ -6,8 +7,11 @@ import { CompactContext } from '@/components/compact';
 import { KeyboardDoneBar } from '@/components/form';
 import { ThemedText } from '@/components/themed-text';
 import { IconButton } from '@/components/ui/icon-button';
+import { Icons, type IconName } from '@/constants/icons';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+
+const TAB_ICONS: Record<string, IconName> = { profile: 'person', settings: 'settings', admin: 'shield' };
 
 export function closeProfile() {
   if (router.canGoBack()) router.back();
@@ -36,6 +40,7 @@ export function ProfileTabs({ pages }: { pages: { key: string; label: string; co
                 accessibilityRole="tab"
                 accessibilityState={{ selected: on }}
                 style={[styles.tab, on && { backgroundColor: theme.surface }]}>
+                <SymbolView name={Icons[TAB_ICONS[p.key] ?? 'person']} size={15} tintColor={on ? theme.accent : theme.textSecondary} />
                 <ThemedText type="smallBold" style={{ color: on ? theme.accent : theme.textSecondary }}>
                   {p.label}
                 </ThemedText>
@@ -69,5 +74,5 @@ const styles = StyleSheet.create({
   },
   close: { position: 'absolute', right: Spacing.three, top: Spacing.two },
   tabs: { flexDirection: 'row', borderRadius: 999, padding: 3, flexShrink: 1 },
-  tab: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: 999 },
+  tab: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: 999 },
 });

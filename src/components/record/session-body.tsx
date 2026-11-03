@@ -1,8 +1,10 @@
 import { router } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
+import { Icons, type IconName } from '@/constants/icons';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
-import { Button, Segmented, SingleChoice, ToggleRow } from '@/components/form';
+import { Button, ButtonIcon, Segmented, SingleChoice, ToggleRow } from '@/components/form';
 import { ButtonSkin, shade } from '@/components/record/materials';
 import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/group';
@@ -29,8 +31,8 @@ import {
 import { success, tap } from '@/lib/haptics';
 import { useFavorites } from '@/lib/favorites';
 import { checkIn } from '@/lib/friends';
-import { setActiveSession, useSessionLogs } from '@/lib/active-session';
-import { closeRecordSheet, setRecordTab, useRecordSheet } from '@/lib/record-sheet';
+import { setActiveSession, useSessionActive, useSessionLogs } from '@/lib/active-session';
+import { closeRecordSheet, useRecordSheet } from '@/lib/record-sheet';
 import { useHomeGyms } from '@/lib/home-gyms';
 import { useAiConsent } from '@/lib/ai-consent';
 import { scanRouteTag } from '@/lib/route-tag';
@@ -68,6 +70,12 @@ export function SessionBody() {
     setActiveSession(s);
   };
 
+  // Ending the session (from the pop-up) drops back to the start screen.
+  const active = useSessionActive();
+  useEffect(() => {
+    if (!active) setSession((s) => (s ? null : s));
+  }, [active]);
+
   // The sheet is built fresh each time it opens, so this reads the running session each time.
   useEffect(() => {
     if (!user) return;
@@ -98,11 +106,6 @@ export function SessionBody() {
           {hardest(s) && <ThemedText>Hardest send: {hardest(s)}</ThemedText>}
         </Card>
         <Button title="Done" onPress={closeRecordSheet} />
-        <Button
-          title="Past sessions"
-          variant="secondary"
-          onPress={() => setRecordTab('history')}
-        />
       </>
     );
   }
@@ -182,12 +185,7 @@ function StartCard({
       {picked !== OTHER && (
         <ToggleRow label="Let my friends know I’m here" value={tellFriends} onValueChange={setTellFriends} />
       )}
-      <Button title="Start session" onPress={start} loading={busy} />
-      <Button
-        title="Past sessions"
-        variant="secondary"
-        onPress={() => setRecordTab('history')}
-      />
+      <Button title="Start session" icon={<ButtonIcon name="climber" />} onPress={start} loading={busy} />
     </>
   );
 }
@@ -319,6 +317,7 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
               disabled={scanning}
               accessibilityRole="button"
               style={({ pressed }) => [styles.scan, { backgroundColor: theme.accent, opacity: scanning ? 0.5 : pressed ? 0.8 : 1 }]}>
+              <SymbolView name={Icons.camera} size={16} tintColor="#FFFFFF" />
               <ThemedText type="smallBold" style={styles.scanText}>{scanning ? 'Reading…' : 'Scan tag'}</ThemedText>
             </Pressable>
           </View>
@@ -388,9 +387,9 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
       />
 
       <View style={styles.big}>
-        <BigButton label="Sent" sub={shownGrade} color={HoldColors.green} onPress={() => log('send')} disabled={busy} />
-        <BigButton label="Flash" sub={shownGrade} color={HoldColors.yellow} dark onPress={() => log('flash')} disabled={busy} />
-        <BigButton label="Attempt" sub={shownGrade} color={theme.backgroundSelected} dark onPress={() => log('attempt')} disabled={busy} />
+        <BigButton icon="sent" label="Sent" sub={shownGrade} color={HoldColors.green} onPress={() => log('send')} disabled={busy} />
+        <BigButton icon="flash" label="Flash" sub={shownGrade} color={HoldColors.yellow} dark onPress={() => log('flash')} disabled={busy} />
+        <BigButton icon="attempt" label="Attempt" sub={shownGrade} color={theme.backgroundSelected} dark onPress={() => log('attempt')} disabled={busy} />
       </View>
       {error && <ThemedText type="small" style={styles.error}>{error}</ThemedText>}
 
@@ -399,6 +398,7 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
 }
 
 function BigButton({
+  icon,
   label,
   sub,
   color,
@@ -406,6 +406,7 @@ function BigButton({
   onPress,
   disabled,
 }: {
+  icon: IconName;
   label: string;
   sub: string;
   color: string;
@@ -426,9 +427,12 @@ function BigButton({
         { opacity: disabled ? 0.5 : pressed ? 0.85 : 1, borderColor: shade(color, -0.25), borderWidth: 1 },
       ]}>
       <ButtonSkin color={color} radius={Spacing.three} clean />
-      <ThemedText type="smallBold" style={{ color: text === '#1F2D35' && color === theme.backgroundSelected ? theme.text : text }}>
-        {label}
-      </ThemedText>
+      <View style={styles.bigLabel}>
+        <SymbolView name={Icons[icon]} size={14} tintColor={color === theme.backgroundSelected ? theme.text : text} />
+        <ThemedText type="smallBold" style={{ color: text === '#1F2D35' && color === theme.backgroundSelected ? theme.text : text }}>
+          {label}
+        </ThemedText>
+      </View>
       <ThemedText type="subtitle" style={{ color: color === theme.backgroundSelected ? theme.text : text, fontSize: 28, lineHeight: 32 }}>
         {sub}
       </ThemedText>
@@ -444,8 +448,9 @@ const styles = StyleSheet.create({
   grades: { gap: Spacing.two, paddingVertical: 2, alignItems: 'center' },
   grade: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: 999, borderWidth: 1, minWidth: 52, alignItems: 'center' },
   big: { flexDirection: 'row', gap: Spacing.two },
-  scan: { minHeight: 38, borderRadius: Spacing.two + 2, alignItems: 'center', justifyContent: 'center' },
+  scan: { flexDirection: 'row', gap: 6, minHeight: 38, borderRadius: Spacing.two + 2, alignItems: 'center', justifyContent: 'center' },
   scanText: { color: '#FFFFFF' },
+  bigLabel: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   bigShadow: { shadowOffset: { width: 0, height: 3 }, shadowRadius: 4, elevation: 4 },
   bigButton: { flex: 1, minHeight: 72, borderRadius: Spacing.three, alignItems: 'center', justifyContent: 'center', gap: Spacing.one },
   logRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.one + 2 },

@@ -9,6 +9,7 @@ import { Icons, type IconName } from '@/constants/icons';
 import { HoldColors, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { ClimbStrip } from '@/components/record/climb-strip';
+import { EndSessionDialog } from '@/components/record/end-session-dialog';
 import { RecordSheet } from '@/components/record/record-sheet';
 import { useSessionActive } from '@/lib/active-session';
 import { useAuth } from '@/lib/auth';
@@ -43,6 +44,7 @@ export default function AppTabs() {
           </TabTrigger>
         </BottomBar>
       </TabList>
+      <EndSessionDialog />
     </Tabs>
   );
 }

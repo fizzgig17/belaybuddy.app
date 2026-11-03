@@ -6,8 +6,9 @@ import { endSession, fetchActiveSession, type ClimbSession } from '@/lib/climb-l
 import { checkOut } from '@/lib/friends';
 
 // The record-session sheet: whether it is up, and the summary shown after a session ends.
-type State = { open: boolean; finished: ClimbSession | null; tab: 'record' | 'history' };
-let state: State = { open: false, finished: null, tab: 'record' };
+type State = { open: boolean; finished: ClimbSession | null; tab: 'record' | 'history'; confirmEnd: boolean };
+let state: State = { open: false, finished: null, tab: 'record', confirmEnd: false };
+let endUserId: string | undefined;
 const listeners = new Set<() => void>();
 const set = (patch: Partial<State>) => {
   state = { ...state, ...patch };
@@ -19,7 +20,7 @@ export const openRecordSheet = () => set({ open: true });
 export const openHistory = () => set({ open: true, tab: 'history' });
 export const setRecordTab = (tab: 'record' | 'history') => set({ tab });
 /** Closing also drops the "Nice session" summary. */
-export const closeRecordSheet = () => set({ open: false, finished: null, tab: 'record' });
+export const closeRecordSheet = () => set({ open: false, finished: null, tab: 'record', confirmEnd: false });
 export const toggleRecordSheet = () => (state.open ? closeRecordSheet() : openRecordSheet());
 
 export function useRecordSheet(): State {
@@ -38,23 +39,25 @@ async function endNow(userId?: string) {
     const s = await fetchActiveSession();
     if (!s) {
       setSessionActive(false);
+      set({ confirmEnd: false });
       return;
     }
     await endSession(s.id);
     // Ending the session also ends a check-in made for it.
     if (userId) await checkOut(userId).catch(() => {});
     setSessionActive(false);
-    set({ open: true, tab: 'record', finished: { ...s, endedAt: new Date().toISOString() } });
+    // Back to the start screen, ready for the next session.
+    set({ open: true, tab: 'record', finished: null, confirmEnd: false });
   } catch (e) {
+    set({ confirmEnd: false });
     if (Platform.OS !== 'web') Alert.alert('Could not end the session', (e as Error).message);
   }
 }
 
-/** Asks "End this session?" and ends it. The round button calls this. */
+/** Asks "End this session?" with an in-app pop-up (End session / Keep climbing). The round button calls this. */
 export function confirmEndSession(userId?: string) {
-  if (Platform.OS === 'web') return void endNow(userId);
-  Alert.alert('End this session?', undefined, [
-    { text: 'Keep climbing', style: 'cancel' },
-    { text: 'End session', style: 'destructive', onPress: () => void endNow(userId) },
-  ]);
+  endUserId = userId;
+  set({ confirmEnd: true });
 }
+export const cancelEndSession = () => set({ confirmEnd: false });
+export const endSessionNow = () => endNow(endUserId);

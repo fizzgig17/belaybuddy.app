@@ -55,6 +55,12 @@ export const Icons = {
   partnersTab: icon('person.2', 'group'),
   learnTab: icon('book', 'menu_book'),
   record: icon('plus', 'add'),
+  stop: icon('stop.circle', 'stop_circle'),
+  history: icon('clock.arrow.circlepath', 'history'),
+  sent: icon('checkmark.circle.fill', 'check_circle'),
+  flash: icon('bolt.fill', 'bolt'),
+  attempt: icon('arrow.counterclockwise', 'replay'),
+  shield: icon('lock.shield', 'admin_panel_settings'),
   trash: icon('trash', 'delete'),
   climber: icon('figure.climbing', 'hiking'),
 } as const;
