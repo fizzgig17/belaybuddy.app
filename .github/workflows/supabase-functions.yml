@@ -83,23 +83,23 @@ jobs:
       - name: Deploy the notify function
         run: |
           set -o pipefail
-          if ! supabase functions deploy notify --project-ref "$PROJECT_ID" --no-verify-jwt --use-api 2>&1 | tee "$RUNNER_TEMP/deploy.log"; then
+          if ! supabase functions deploy notify --project-ref "$PROJECT_ID" --no-verify-jwt --use-api --yes 2>&1 | tee "$RUNNER_TEMP/deploy.log"; then
             echo "::error::Deploy failed: $(tail -n 5 "$RUNNER_TEMP/deploy.log" | tr '\n' ' ' | head -c 600)"
             exit 1
           fi
           echo "::notice::Deploy output: $(tail -n 8 "$RUNNER_TEMP/deploy.log" | tr '\n' ' ' | head -c 700)"
           # The gym catalog function (public; see supabase/functions/gyms).
-          if ! supabase functions deploy gyms --project-ref "$PROJECT_ID" --no-verify-jwt --use-api 2>&1 | tee "$RUNNER_TEMP/deploy-gyms.log"; then
+          if ! supabase functions deploy gyms --project-ref "$PROJECT_ID" --no-verify-jwt --use-api --yes 2>&1 | tee "$RUNNER_TEMP/deploy-gyms.log"; then
             echo "::error::Deploying gyms failed: $(tail -n 5 "$RUNNER_TEMP/deploy-gyms.log" | tr '\n' ' ' | head -c 600)"
             exit 1
           fi
           # The crag catalog function (public; see supabase/functions/crags).
-          if ! supabase functions deploy crags --project-ref "$PROJECT_ID" --no-verify-jwt --use-api 2>&1 | tee "$RUNNER_TEMP/deploy-crags.log"; then
+          if ! supabase functions deploy crags --project-ref "$PROJECT_ID" --no-verify-jwt --use-api --yes 2>&1 | tee "$RUNNER_TEMP/deploy-crags.log"; then
             echo "::error::Deploying crags failed: $(tail -n 5 "$RUNNER_TEMP/deploy-crags.log" | tr '\n' ' ' | head -c 600)"
             exit 1
           fi
           # Route tag reading (needs a signed-in user; see supabase/functions/route-tips).
-          if ! supabase functions deploy route-tips --project-ref "$PROJECT_ID" --use-api 2>&1 | tee "$RUNNER_TEMP/deploy-tips.log"; then
+          if ! supabase functions deploy route-tips --project-ref "$PROJECT_ID" --use-api --yes 2>&1 | tee "$RUNNER_TEMP/deploy-tips.log"; then
             echo "::error::Deploying route-tips failed: $(tail -n 5 "$RUNNER_TEMP/deploy-tips.log" | tr '\n' ' ' | head -c 600)"
             exit 1
           fi
@@ -154,7 +154,7 @@ jobs:
           else
             echo "::warning::Route tag reading is off: add the ANTHROPIC_API_KEY secret."
           fi
-          if ! supabase secrets set --env-file "$f" --project-ref "$PROJECT_ID" 2>&1 | tee "$RUNNER_TEMP/secrets.log"; then
+          if ! supabase secrets set --env-file "$f" --project-ref "$PROJECT_ID" --yes 2>&1 | tee "$RUNNER_TEMP/secrets.log"; then
             rm -f "$f"
             echo "::error::Setting function secrets failed: $(tail -n 5 "$RUNNER_TEMP/secrets.log" | tr '\n' ' ' | head -c 600)"
             exit 1
