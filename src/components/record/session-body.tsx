@@ -200,8 +200,8 @@ function StartCard({
 
 function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: ClimbSession | null) => void }) {
   const theme = useTheme();
-  const [discipline, setDiscipline] = useState<Discipline>('boulder');
-  const [grade, setGrade] = useState(lastGrade('boulder'));
+  const [discipline, setDiscipline] = useState<Discipline>('route');
+  const [grade, setGrade] = useState(lastGrade('route'));
   const [mod, setMod] = useState<GradeMod>('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -320,7 +320,13 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
         </View>
         {Platform.OS !== 'web' && (
           <View style={styles.flex}>
-            <Button title={scanning ? 'Reading…' : 'Scan tag'} onPress={askScan} disabled={scanning} />
+            <Pressable
+              onPress={askScan}
+              disabled={scanning}
+              accessibilityRole="button"
+              style={({ pressed }) => [styles.scan, { backgroundColor: theme.accent, opacity: scanning ? 0.5 : pressed ? 0.8 : 1 }]}>
+              <ThemedText type="smallBold" style={styles.scanText}>{scanning ? 'Reading…' : 'Scan tag'}</ThemedText>
+            </Pressable>
           </View>
         )}
       </View>
@@ -423,10 +429,9 @@ function BigButton({
       disabled={disabled}
       style={({ pressed }) => [
         styles.bigButton,
-        styles.bigShadow,
-        { opacity: disabled ? 0.5 : 1, transform: [{ translateY: pressed ? 2 : 0 }, { scale: pressed ? 0.97 : 1 }], shadowOpacity: pressed ? 0.12 : 0.3, shadowColor: shade(color, -0.6) },
+        { opacity: disabled ? 0.5 : pressed ? 0.85 : 1, borderColor: shade(color, -0.25), borderWidth: 1 },
       ]}>
-      <ButtonSkin color={color} radius={Spacing.three} />
+      <ButtonSkin color={color} radius={Spacing.three} clean />
       <ThemedText type="smallBold" style={{ color: text === '#1F2D35' && color === theme.backgroundSelected ? theme.text : text }}>
         {label}
       </ThemedText>
@@ -445,6 +450,8 @@ const styles = StyleSheet.create({
   grades: { gap: Spacing.two, paddingVertical: 2, alignItems: 'center' },
   grade: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: 999, borderWidth: 1, minWidth: 52, alignItems: 'center' },
   big: { flexDirection: 'row', gap: Spacing.two },
+  scan: { minHeight: 38, borderRadius: Spacing.two + 2, alignItems: 'center', justifyContent: 'center' },
+  scanText: { color: '#FFFFFF' },
   bigShadow: { shadowOffset: { width: 0, height: 3 }, shadowRadius: 4, elevation: 4 },
   bigButton: { flex: 1, minHeight: 72, borderRadius: Spacing.three, alignItems: 'center', justifyContent: 'center', gap: Spacing.one },
   logRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.one + 2 },

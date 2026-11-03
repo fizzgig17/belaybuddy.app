@@ -1,4 +1,3 @@
-import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, PanResponder, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
@@ -23,9 +22,9 @@ export function RecordSheet() {
   const theme = useTheme();
   const [mounted, setMounted] = useState(false);
   const [height, setHeight] = useState(0);
-  // Stop where the profile sheet stops: its 0.95 detent leaves 5% of the screen above it.
+  // Same place and look as the profile sheet: it tops out about 13% down the screen, inset a few points from the sides.
   const win = useWindowDimensions();
-  const panelH = Math.max(0, height - Math.round(win.height * 0.05));
+  const panelH = Math.max(0, height - Math.round(win.height * 0.134));
   const y = useRef(new Animated.Value(2000)).current;
   const dim = useRef(new Animated.Value(0)).current;
 
@@ -61,12 +60,7 @@ export function RecordSheet() {
     [y],
   );
 
-  const glass = Platform.OS === 'ios' && isLiquidGlassAvailable();
-  const panelStyle = [
-    styles.panel,
-    { height: panelH, transform: [{ translateY: y }], borderColor: theme.border },
-    !glass && { backgroundColor: theme.background + 'F2' },
-  ];
+  const panelStyle = [styles.panel, { height: panelH, transform: [{ translateY: y }], backgroundColor: theme.background }];
   const content = (
     <>
       <View style={styles.grabZone} {...pan.panHandlers} accessibilityLabel="Pull down to close" accessibilityRole="adjustable">
@@ -104,15 +98,7 @@ export function RecordSheet() {
           <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: '#00000040', opacity: dim }]}>
             <Pressable style={StyleSheet.absoluteFill} onPress={closeRecordSheet} accessibilityLabel="Close" accessibilityRole="button" />
           </Animated.View>
-          {glass ? (
-            <Animated.View style={panelStyle}>
-              <GlassView style={StyleSheet.absoluteFill} glassEffectStyle="regular" />
-              <View style={[StyleSheet.absoluteFill, { backgroundColor: theme.background + '66' }]} pointerEvents="none" />
-              {content}
-            </Animated.View>
-          ) : (
-            <Animated.View style={panelStyle}>{content}</Animated.View>
-          )}
+          <Animated.View style={panelStyle}>{content}</Animated.View>
         </>
       )}
     </View>
@@ -122,13 +108,11 @@ export function RecordSheet() {
 const styles = StyleSheet.create({
   panel: {
     position: 'absolute',
-    left: 0,
-    right: 0,
+    left: 7,
+    right: 7,
     bottom: 0,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderBottomWidth: 0,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     overflow: 'hidden',
   },
   grabZone: { height: 22, alignItems: 'center', justifyContent: 'center' },

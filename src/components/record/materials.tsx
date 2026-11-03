@@ -26,15 +26,15 @@ const GRAIN = Array.from({ length: 70 }, (_, i) => {
 });
 
 /** Raised, slightly rubbery button face: vertical gradient, top sheen, dark lower lip and fine grain. */
-export function ButtonSkin({ color, radius }: { color: string; radius: number }) {
+export function ButtonSkin({ color, radius, clean = false }: { color: string; radius: number; clean?: boolean }) {
   const id = useId().replace(/:/g, '');
   return (
     <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
       <Defs>
         <LinearGradient id={`b${id}`} x1="0" y1="0" x2="0" y2="1">
-          <Stop offset="0" stopColor={shade(color, 0.28)} />
+          <Stop offset="0" stopColor={shade(color, clean ? 0.08 : 0.28)} />
           <Stop offset="0.5" stopColor={color} />
-          <Stop offset="1" stopColor={shade(color, -0.22)} />
+          <Stop offset="1" stopColor={shade(color, clean ? -0.06 : -0.22)} />
         </LinearGradient>
         <LinearGradient id={`s${id}`} x1="0" y1="0" x2="0" y2="1">
           <Stop offset="0" stopColor="#FFFFFF" stopOpacity="0.45" />
@@ -42,14 +42,14 @@ export function ButtonSkin({ color, radius }: { color: string; radius: number })
         </LinearGradient>
       </Defs>
       <Rect x="0" y="0" width="100%" height="100%" rx={radius} fill={`url(#b${id})`} />
-      {GRAIN.map((g, i) => (
+      {!clean && GRAIN.map((g, i) => (
         <Circle key={i} cx={`${g.x}%`} cy={`${g.y}%`} r={g.r} fill={g.light ? '#FFFFFF' : '#000000'} opacity={g.light ? 0.16 : 0.1} />
       ))}
       {/* top sheen */}
-      <Rect x="3" y="2" width="99%" height="42%" rx={radius - 2} fill={`url(#s${id})`} transform="translate(-1.5 0)" />
+      {!clean && <Rect x="3" y="2" width="99%" height="42%" rx={radius - 2} fill={`url(#s${id})`} transform="translate(-1.5 0)" />}
       {/* bevel edges */}
-      <Rect x="0.5" y="0.5" width="99.5%" height="99%" rx={radius} fill="none" stroke={shade(color, 0.45)} strokeOpacity="0.55" strokeWidth="1" />
-      <Rect x="0" y="0" width="100%" height="100%" rx={radius} fill="none" stroke={shade(color, -0.45)} strokeOpacity="0.35" strokeWidth="1" />
+      {!clean && <Rect x="0.5" y="0.5" width="99.5%" height="99%" rx={radius} fill="none" stroke={shade(color, 0.45)} strokeOpacity="0.55" strokeWidth="1" />}
+      {!clean && <Rect x="0" y="0" width="100%" height="100%" rx={radius} fill="none" stroke={shade(color, -0.45)} strokeOpacity="0.35" strokeWidth="1" />}
     </Svg>
   );
 }

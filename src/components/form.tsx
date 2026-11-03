@@ -386,7 +386,7 @@ export function Segmented<T extends string | number>({
     <View
       accessibilityRole="radiogroup"
       accessibilityLabel={label}
-      style={[segStyles.group, { backgroundColor: theme.backgroundElement }]}>
+      style={[segStyles.group, { backgroundColor: theme.backgroundElement, borderColor: theme.border, borderWidth: 1 }]}>
       {options.map((option) => {
         const on = option.value === value;
         return (
