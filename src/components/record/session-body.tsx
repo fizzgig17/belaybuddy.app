@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { Button, Segmented, SingleChoice, ToggleRow } from '@/components/form';
+import { ButtonSkin, shade } from '@/components/record/materials';
 import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/group';
 import { HoldColors, Spacing } from '@/constants/theme';
@@ -420,7 +421,12 @@ function BigButton({
       accessibilityLabel={`${label} ${sub}`}
       onPress={onPress}
       disabled={disabled}
-      style={({ pressed }) => [styles.bigButton, { backgroundColor: color, opacity: disabled ? 0.5 : pressed ? 0.8 : 1 }]}>
+      style={({ pressed }) => [
+        styles.bigButton,
+        styles.bigShadow,
+        { opacity: disabled ? 0.5 : 1, transform: [{ translateY: pressed ? 2 : 0 }, { scale: pressed ? 0.97 : 1 }], shadowOpacity: pressed ? 0.12 : 0.3, shadowColor: shade(color, -0.6) },
+      ]}>
+      <ButtonSkin color={color} radius={Spacing.three} />
       <ThemedText type="smallBold" style={{ color: text === '#1F2D35' && color === theme.backgroundSelected ? theme.text : text }}>
         {label}
       </ThemedText>
@@ -439,6 +445,7 @@ const styles = StyleSheet.create({
   grades: { gap: Spacing.two, paddingVertical: 2, alignItems: 'center' },
   grade: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: 999, borderWidth: 1, minWidth: 52, alignItems: 'center' },
   big: { flexDirection: 'row', gap: Spacing.two },
+  bigShadow: { shadowOffset: { width: 0, height: 3 }, shadowRadius: 4, elevation: 4 },
   bigButton: { flex: 1, minHeight: 72, borderRadius: Spacing.three, alignItems: 'center', justifyContent: 'center', gap: Spacing.one },
   logRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.one + 2 },
   logGrade: { width: 52 },

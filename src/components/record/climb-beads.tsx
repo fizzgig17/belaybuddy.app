@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { BeadSkin, shade } from '@/components/record/materials';
 import { ThemedText } from '@/components/themed-text';
 import { IconButton } from '@/components/ui/icon-button';
 import { HoldColors, Spacing } from '@/constants/theme';
@@ -30,13 +31,14 @@ function Bead({ log, selected, onPress }: { log: ClimbLog; selected: boolean; on
       style={[
         styles.bead,
         {
-          backgroundColor: hex ?? theme.backgroundSelected,
-          borderColor: selected ? theme.accent : flash ? HoldColors.yellow : attempt ? theme.textSecondary : (hex ?? theme.border),
-          borderWidth: selected || flash ? 3 : attempt ? 1.5 : 1,
+          shadowColor: shade(hex ?? '#888888', -0.6),
+          borderColor: selected ? theme.accent : flash ? HoldColors.yellow : attempt ? theme.textSecondary : 'transparent',
+          borderWidth: selected || flash ? 3 : attempt ? 1.5 : 0,
           borderStyle: attempt && !selected ? 'dashed' : 'solid',
           opacity: attempt && !selected ? 0.6 : 1,
         },
       ]}>
+      <BeadSkin color={hex ?? '#B8C2C8'} size={42} />
       <ThemedText
         type="smallBold"
         numberOfLines={1}
@@ -120,7 +122,7 @@ const styles = StyleSheet.create({
   wrap: { gap: Spacing.two, alignItems: 'stretch' },
   rail: { borderRadius: 999, paddingVertical: Spacing.one, paddingHorizontal: Spacing.two },
   beads: { gap: Spacing.two, alignItems: 'center', paddingHorizontal: Spacing.one },
-  bead: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 },
+  bead: { shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.35, shadowRadius: 3, elevation: 3, width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 },
   grade: { fontSize: 13, lineHeight: 16, textAlign: 'center' },
   card: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, borderRadius: Spacing.three, borderWidth: StyleSheet.hairlineWidth, padding: Spacing.three },
   cardText: { flex: 1, gap: 2 },
