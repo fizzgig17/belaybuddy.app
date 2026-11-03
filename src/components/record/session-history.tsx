@@ -9,6 +9,7 @@ import { ClimbBead } from '@/components/record/climb-beads';
 import { Card } from '@/components/ui/group';
 import { IconButton } from '@/components/ui/icon-button';
 import { Spacing } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/lib/auth';
 import { select, success, tap } from '@/lib/haptics';
@@ -28,6 +29,10 @@ import {
 /** The climbing history: past sessions with their climbs, shown on the History tab of the record sheet. */
 export function SessionHistory() {
   const theme = useTheme();
+  // The swipe container clips anything outside its edges, which turns a card's drop shadow into a square band under
+  // the rounded corners. Rows therefore keep only the inner highlight and rely on the outline.
+  const dark = useColorScheme() === 'dark';
+  const flatShadow = { boxShadow: dark ? 'inset 0 1px 0 rgba(255,255,255,0.08)' : 'inset 0 1px 0 rgba(255,255,255,0.95)' };
   const { user } = useAuth();
   const [sessions, setSessions] = useState<ClimbSession[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -201,7 +206,7 @@ export function SessionHistory() {
             accessibilityRole={selecting ? 'checkbox' : 'button'}
             accessibilityState={selecting ? { checked } : undefined}
             accessibilityHint={selecting ? undefined : 'Press and hold to select sessions to delete'}>
-            <Card style={[styles.card, checked && { borderColor: theme.accent }]}>
+            <Card style={[styles.card, flatShadow, checked && { borderColor: theme.accent }]}>
               <View style={styles.row}>
                 {selecting && (
                   <View
