@@ -54,6 +54,7 @@ export default function AboutScreen() {
       </View>
       <View style={styles.links}>
         {[
+          ['/support', 'Support'],
           ['/privacy', 'Privacy policy'],
           ['/terms', 'Terms of use'],
           ['/delete-account', 'Delete your account'],

@@ -26,7 +26,7 @@ export default function DeleteAccountScreen() {
       <View style={styles.section}>
         <ThemedText type="smallBold" accessibilityRole="header">What is deleted</ThemedText>
         <ThemedText type="small" themeColor="textSecondary">
-          Your profile, favorites, home gyms, partner posts and chats, climbing session logs, friends and check-ins, and your notification settings. This is permanent and cannot be undone. We do not keep copies of your Route AI photos.
+          Your profile, favorites, home gyms, partner posts and chats, climbing session logs, friends and check-ins, and your notification settings. This is permanent and cannot be undone. We do not keep copies of route tag photos.
         </ThemedText>
       </View>
       <View style={styles.section}>
