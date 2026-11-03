@@ -102,7 +102,6 @@ export function Screen({ title, subtitle, description, children, showTitle = tru
                       <ThemedText type="smallBold" style={{ color: theme.background }}>Sign in</ThemedText>
                     </Pressable>
                   )}
-                  {accountInHeader && user && <IconButton icon="session" label="Start a session" onPress={() => router.push('/partners/session')} />}
                   {accountInHeader && user && <IconButton icon="person" label="Profile" onPress={() => router.push('/profile')} />}
                 </View>
               )}

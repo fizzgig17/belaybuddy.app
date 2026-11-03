@@ -51,7 +51,6 @@ export const Icons = {
   moon: icon('moon', 'dark_mode'),
   info: icon('info.circle', 'info'),
   about: icon('questionmark.circle', 'help'),
-  session: icon('play.circle', 'play_circle'),
   mapTab: icon('map', 'map'),
   partnersTab: icon('person.2', 'group'),
   learnTab: icon('book', 'menu_book'),

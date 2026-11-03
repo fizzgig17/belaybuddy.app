@@ -5,9 +5,7 @@ import { ActivityIndicator, Platform, Pressable, StyleSheet, View } from 'react-
 import { Button, Field } from '@/components/form';
 import { CodeScanner } from '@/components/friends/code-scanner';
 import { BannerText } from '@/components/info-banner';
-import { closeProfile } from '@/components/profile/pager';
 import { Screen } from '@/components/screen';
-import { IconButton } from '@/components/ui/icon-button';
 import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/group';
 import { Icons } from '@/constants/icons';
@@ -136,7 +134,7 @@ export function AdminPage() {
   }
 
   return (
-    <Screen title="Admin" embedded action={<IconButton icon="close" label="Close" onPress={closeProfile} />}>
+    <Screen title="Admin" embedded showTitle={false}>
       {isAdmin === null ? (
         <ActivityIndicator />
       ) : !isAdmin ? (

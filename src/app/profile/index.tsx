@@ -7,7 +7,7 @@ import { ProfileEditor } from '@/components/profile/profile-editor';
 import { Button } from '@/components/form';
 import { IconButton } from '@/components/ui/icon-button';
 import { Screen } from '@/components/screen';
-import { closeProfile, ProfilePager, SheetActions } from '@/components/profile/pager';
+import { closeProfile, ProfileTabs } from '@/components/profile/pager';
 import { SettingsPage } from '@/components/profile/settings-page';
 import { ThemedText } from '@/components/themed-text';
 import { AdminPage } from '@/components/profile/admin-page';
@@ -67,13 +67,13 @@ export default function ProfileSheet() {
   }
 
   return (
-    <ProfilePager
+    <ProfileTabs
       pages={[
         {
           key: 'profile',
           label: 'Profile',
           content: (
-            <Screen title="Profile" embedded action={<SheetActions to="settings" />}>
+            <Screen title="Profile" embedded showTitle={false}>
               <ThemedText type="small" themeColor="textSecondary">
                 Signed in as {user.email}
               </ThemedText>

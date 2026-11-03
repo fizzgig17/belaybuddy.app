@@ -1,6 +1,6 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import { AppLock } from '@/components/auth/app-lock';
@@ -40,8 +40,16 @@ export default function TabLayout() {
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="(tabs)" />
               <Stack.Screen name="profile" options={{ presentation: 'modal' }} />
-              {/* The round middle button slides this sheet up from the bottom. */}
-              <Stack.Screen name="record" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+              {/* The round middle button slides this sheet up over the current tab. On iPhone it is a sheet with a grabber
+                  line you can pull down; on Android it has an X. It never opens as a page of its own. */}
+              <Stack.Screen
+                name="record"
+                options={
+                  Platform.OS === 'ios'
+                    ? { presentation: 'formSheet', sheetGrabberVisible: true, sheetAllowedDetents: [0.9], sheetCornerRadius: 24 }
+                    : { presentation: 'modal', animation: 'slide_from_bottom' }
+                }
+              />
               <Stack.Screen name="about" />
               <Stack.Screen name="privacy" />
               <Stack.Screen name="terms" />

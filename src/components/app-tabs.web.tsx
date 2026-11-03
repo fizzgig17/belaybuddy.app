@@ -102,7 +102,7 @@ function NavAction({
   );
 }
 
-/** Right end of the nav bar: Sign in for visitors; Start a session and Profile once signed in. */
+/** Right end of the nav bar: Sign in for visitors; Record session and Profile once signed in. */
 function AccountButton() {
   const { user, loading } = useAuth();
   // Phones: no room in the bar, so the page header carries these (see Screen).
@@ -112,7 +112,7 @@ function AccountButton() {
   if (user) {
     return (
       <>
-        <NavAction label="Start a session" icon="session" filled onPress={() => router.push('/partners/session')} />
+        <NavAction label="Record session" icon="record" filled onPress={() => router.push('/record')} />
         <NavAction label="Profile" icon="person" onPress={() => router.push('/profile')} />
       </>
     );

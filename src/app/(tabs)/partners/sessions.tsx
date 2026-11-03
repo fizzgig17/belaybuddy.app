@@ -252,7 +252,7 @@ export default function SessionsScreen() {
           onPress={() => confirmDelete([...selected])}
         />
       )}
-      {!selecting && <Button title="Start a session" onPress={() => router.replace('/partners/session')} />}
+      {!selecting && <Button title="Start a session" onPress={() => router.replace('/record')} />}
     </Screen>
   );
 }

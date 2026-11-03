@@ -1,9 +1,8 @@
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { Button, Segmented, SingleChoice, ToggleRow } from '@/components/form';
-import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/group';
 import { HoldColors, Spacing } from '@/constants/theme';
@@ -32,6 +31,7 @@ import {
 import { success, tap } from '@/lib/haptics';
 import { useFavorites } from '@/lib/favorites';
 import { checkIn, checkOut } from '@/lib/friends';
+import { setSessionActive } from '@/lib/active-session';
 import { useHomeGyms } from '@/lib/home-gyms';
 import { useAiConsent } from '@/lib/ai-consent';
 import { scanRouteTag } from '@/lib/route-tag';
@@ -57,15 +57,22 @@ function rememberGrade(d: Discipline, g: string) {
 /** The session page's content: sign-in prompt, the start card, or the climb logger. Used by the page and the record sheet. */
 export function SessionBody() {
   const { user, loading: authLoading } = useAuth();
-  const params = useLocalSearchParams<{ areaId?: string; name?: string }>();
   const [session, setSession] = useState<ClimbSession | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
+  // Keeps the round button's caption (Record session / End session) in step.
+  const update = (s: ClimbSession | null) => {
+    setSession(s);
+    setSessionActive(!!s);
+  };
 
   useFocusEffect(
     useCallback(() => {
       if (!user) return;
       fetchActiveSession()
-        .then(setSession)
+        .then((s) => {
+          setSession(s);
+          setSessionActive(!!s);
+        })
         .catch((e: Error) => {
           setSession(null);
           setError(e.message);
@@ -87,40 +94,25 @@ export function SessionBody() {
     <>
       {error && <ThemedText type="small" style={styles.error}>{error}</ThemedText>}
       {session ? (
-        <Logger session={session} onChange={setSession} />
+        <Logger session={session} onChange={update} />
       ) : (
-        <StartCard
-          presetArea={params.areaId ? { areaId: params.areaId, areaName: params.name ?? 'This gym' } : null}
-          onStarted={setSession}
-          onError={setError}
-        />
+        <StartCard onStarted={update} onError={setError} />
       )}
     </>
   );
 }
 
-export default function SessionScreen() {
-  return (
-    <Screen title="Session" showTitle={false}>
-      <SessionBody />
-    </Screen>
-  );
-}
-
 function StartCard({
-  presetArea,
   onStarted,
   onError,
 }: {
-  presetArea: { areaId: string; areaName: string } | null;
   onStarted: (s: ClimbSession) => void;
   onError: (m: string | null) => void;
 }) {
   const { homeGyms } = useHomeGyms();
   const { favorites } = useFavorites();
-  // Where you can start: the place you came from, home gyms, then saved gyms and crags.
+  // Where you can start: home gyms, then saved gyms and crags.
   const places = new Map<string, string>();
-  if (presetArea) places.set(presetArea.areaId, presetArea.areaName);
   for (const g of homeGyms) if (!places.has(g.areaId)) places.set(g.areaId, g.name);
   for (const f of favorites) if (!places.has(f.areaId)) places.set(f.areaId, f.name);
   const options = [
@@ -157,7 +149,7 @@ function StartCard({
       </ThemedText>
       <SingleChoice label="Where are you climbing?" showLabel options={options} value={picked} onChange={setPicked} />
       <ThemedText type="small" themeColor="textSecondary">
-        Not listed? Open the gym or crag from the Find tab and tap “Start a climbing session here”, or save it to see it here.
+        Not listed? Save the gym or crag from the Find tab and it will show up here.
       </ThemedText>
       {picked !== OTHER && (
         <ToggleRow label="Let my friends know I’m here" value={tellFriends} onValueChange={setTellFriends} />
@@ -274,6 +266,7 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
       await endSession(session.id);
       // Ending the session also ends a check-in made for it.
       if (user) await checkOut(user.id).catch(() => {});
+      setSessionActive(false);
       setFinished({ ...session, endedAt: new Date().toISOString() });
     } catch (e) {
       setError((e as Error).message);
@@ -304,7 +297,7 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
           {hardest(s) && <ThemedText>Hardest send: {hardest(s)}</ThemedText>}
         </Card>
         <Button title="Done" onPress={() => { onChange(null); router.back(); }} />
-        <Button title="Past sessions" variant="secondary" onPress={() => { onChange(null); router.replace('/partners/sessions'); }} />
+        <Button title="Past sessions" variant="secondary" onPress={() => { onChange(null); router.back(); router.push('/partners/sessions'); }} />
       </>
     );
   }

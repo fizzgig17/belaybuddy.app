@@ -9,6 +9,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Icons, type IconName } from '@/constants/icons';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useSessionActive } from '@/lib/active-session';
 import { tap } from '@/lib/haptics';
 
 /**
@@ -55,6 +56,7 @@ function NavItem({ children, icon, isFocused, ...props }: TabTriggerSlotProps & 
 /** The round button, drawn like the Take reading button in hCRI Companion: a see-through ring around a softer filled disc. */
 function RecordButton() {
   const theme = useTheme();
+  const inSession = useSessionActive();
   return (
     <Pressable
       onPress={() => {
@@ -62,14 +64,14 @@ function RecordButton() {
         router.push('/record');
       }}
       accessibilityRole="button"
-      accessibilityLabel="Record a route"
+      accessibilityLabel={inSession ? 'End session' : 'Record session'}
       style={({ pressed }) => [styles.recordWrap, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]}>
       <View style={[styles.ring, { borderColor: theme.accent + '88', backgroundColor: theme.surface }]}>
         <View style={[styles.disc, { backgroundColor: theme.accent + 'D9' }]}>
           <SymbolView name={Icons.record} size={30} weight="bold" tintColor={theme.onAccent} />
         </View>
       </View>
-      <Text style={[styles.recordCaption, { color: theme.accent }]}>Record</Text>
+      <Text style={[styles.recordCaption, { color: theme.accent }]}>{inSession ? 'End session' : 'Record session'}</Text>
     </Pressable>
   );
 }
@@ -102,7 +104,7 @@ const styles = StyleSheet.create({
   item: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 2, paddingBottom: 2, minHeight: 48 },
   itemLabel: { fontSize: 11, lineHeight: 14 },
   // The button stands a little above the bar, so it reads as the main action.
-  recordWrap: { width: 96, alignItems: 'center', marginTop: -26 },
+  recordWrap: { width: 110, alignItems: 'center', marginTop: -26 },
   ring: { width: 64, height: 64, borderRadius: 32, borderWidth: 1.5, padding: 4 },
   disc: { flex: 1, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
   recordCaption: { fontSize: 11.5, fontWeight: '700', marginTop: 2 },

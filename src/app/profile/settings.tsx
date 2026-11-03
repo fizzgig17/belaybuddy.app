@@ -1,6 +1,6 @@
 import { Redirect } from 'expo-router';
 
-/** Settings now lives next to Profile (swipe left from Profile). Old links land on Profile. */
+/** Settings is a tab on the Profile sheet. Old links land on Profile. */
 export default function SettingsRedirect() {
   return <Redirect href="/profile" />;
 }

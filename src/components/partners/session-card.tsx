@@ -32,7 +32,7 @@ export function SessionCard() {
       </View>
       <View style={styles.buttons}>
         <View style={styles.flex}>
-          <Button title={active ? 'Continue' : 'Start session'} onPress={() => router.push('/partners/session')} />
+          <Button title={active ? 'Continue' : 'Start session'} onPress={() => router.push('/record')} />
         </View>
         <View style={styles.flex}>
           <Button title="Past sessions" variant="secondary" onPress={() => router.push('/partners/sessions')} />

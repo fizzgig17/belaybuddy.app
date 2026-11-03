@@ -9,7 +9,6 @@ import { AppIconPicker } from '@/components/profile/app-icon-picker';
 import { useAiConsent } from '@/lib/ai-consent';
 import { PrivacySettings } from '@/components/profile/privacy-settings';
 import { Screen } from '@/components/screen';
-import { SheetActions } from '@/components/profile/pager';
 import { ThemedText } from '@/components/themed-text';
 import { Card, Group, Row, Section } from '@/components/ui/group';
 import { Spacing } from '@/constants/theme';
@@ -68,7 +67,7 @@ export function SettingsPage() {
 
   if (!user) {
     return (
-      <Screen title="Settings" embedded action={<SheetActions to="profile" />}>
+      <Screen title="Settings" embedded showTitle={false}>
         <ThemedText>Sign in to change your settings.</ThemedText>
         <Button title="Sign in" onPress={() => router.navigate('/profile')} />
       </Screen>
@@ -152,7 +151,7 @@ export function SettingsPage() {
   const showPush = push !== 'unsupported';
 
   return (
-    <Screen title="Settings" embedded action={<SheetActions to="profile" />}>
+    <Screen title="Settings" embedded showTitle={false}>
       <Section title="Notifications">
         {showPush && push !== 'on' && (
           <Card>
