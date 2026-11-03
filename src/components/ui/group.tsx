@@ -27,7 +27,7 @@ export function Card({ children, style, raised }: { children: ReactNode; style?:
         raised && { transform: [{ translateY: -2 }] },
         style,
       ]}>
-      <Grain radius={20} shade />
+      <Grain radius={20} />
       {children}
     </View>
   );
