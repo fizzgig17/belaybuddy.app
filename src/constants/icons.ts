@@ -55,6 +55,7 @@ export const Icons = {
   partnersTab: icon('person.2', 'group'),
   learnTab: icon('book', 'menu_book'),
   record: icon('plus', 'add'),
+  trash: icon('trash', 'delete'),
   climber: icon('figure.climbing', 'hiking'),
 } as const;
 

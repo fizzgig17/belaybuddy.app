@@ -8,18 +8,23 @@ import ReanimatedSwipeable, { type SwipeableMethods } from 'react-native-gesture
 import { Button } from '@/components/form';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
+import { ClimbBead } from '@/components/record/climb-beads';
 import { Card } from '@/components/ui/group';
+import { IconButton } from '@/components/ui/icon-button';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/lib/auth';
 import { select, success, tap } from '@/lib/haptics';
 import { openRecordSheet } from '@/lib/record-sheet';
 import {
+  deleteClimb,
   deleteSession,
   describeSummary,
   fetchSessions,
   formatDuration,
   hardest,
+  RESULT_LABELS,
+  ROUTE_COLORS,
   summarize,
   type ClimbSession,
 } from '@/lib/climb-log';
@@ -29,6 +34,27 @@ export default function SessionsScreen() {
   const { user } = useAuth();
   const [sessions, setSessions] = useState<ClimbSession[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
+
+  function confirmDeleteClimb(sessionId: string, climbId: string, grade: string) {
+    const run = async () => {
+      try {
+        await deleteClimb(climbId);
+        success();
+        setSessions((all) => all?.map((x) => (x.id === sessionId ? { ...x, logs: x.logs.filter((l) => l.id !== climbId) } : x)) ?? null);
+      } catch (e) {
+        setError((e as Error).message);
+      }
+    };
+    if (Platform.OS === 'web') {
+      if (globalThis.confirm?.(`Delete ${grade}?`) ?? true) void run();
+      return;
+    }
+    Alert.alert(`Delete ${grade}?`, 'This climb is removed from the session.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => void run() },
+    ]);
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -176,7 +202,7 @@ export default function SessionsScreen() {
         const checked = selected.has(s.id);
         const card = (
           <Pressable
-            onPress={selecting ? () => toggle(s.id) : undefined}
+            onPress={selecting ? () => toggle(s.id) : () => { select(); setOpenId(openId === s.id ? null : s.id); }}
             onLongPress={selecting ? undefined : () => startSelecting(s.id)}
             delayLongPress={350}
             accessibilityRole={selecting ? 'checkbox' : 'button'}
@@ -205,6 +231,23 @@ export default function SessionsScreen() {
                 {hardest(sum) ? ` · hardest ${hardest(sum)}` : ''}
               </ThemedText>
               <ThemedText type="small">{describeSummary(sum)}</ThemedText>
+              {!selecting && openId === s.id && (
+                <View style={styles.climbs}>
+                  {s.logs.length === 0 && <ThemedText type="small" themeColor="textSecondary">No climbs in this session.</ThemedText>}
+                  {s.logs.map((l) => (
+                    <View key={l.id} style={styles.climbRow}>
+                      <ClimbBead log={l} size={40} />
+                      <View style={styles.flex}>
+                        <ThemedText type="smallBold">{l.grade} · {RESULT_LABELS[l.result]}</ThemedText>
+                        <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
+                          {[ROUTE_COLORS.find((c) => c.key === l.color)?.label, l.routeName, new Date(l.loggedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })].filter(Boolean).join(' · ')}
+                        </ThemedText>
+                      </View>
+                      <IconButton icon="trash" label={`Delete ${l.grade}`} onPress={() => confirmDeleteClimb(s.id, l.id, l.grade)} />
+                    </View>
+                  ))}
+                </View>
+              )}
               {!selecting && Platform.OS === 'web' && (
                 <Pressable onPress={() => deleteWithUndo([s.id])} hitSlop={8} accessibilityRole="button" style={styles.delete}>
                   <ThemedText type="small" style={{ color: theme.accent }}>Delete</ThemedText>
@@ -321,6 +364,8 @@ const styles = StyleSheet.create({
   stat: { flex: 1, gap: 0, alignItems: 'center', paddingVertical: Spacing.three },
   card: { gap: Spacing.one },
   row: { flexDirection: 'row', gap: Spacing.two, alignItems: 'baseline' },
+  climbs: { gap: Spacing.two, marginTop: Spacing.two },
+  climbRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   delete: { alignSelf: 'flex-end', marginTop: Spacing.one },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   toolbar: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
