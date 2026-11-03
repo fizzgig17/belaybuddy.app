@@ -120,17 +120,31 @@ function RecordButton() {
   );
 }
 
+/** Two tab icons that fade away while the record sheet is open, leaving only the big button. */
+function Side({ hidden, children }: { hidden: boolean; children: ReactNode }) {
+  const fade = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    Animated.timing(fade, { toValue: hidden ? 0 : 1, duration: 200, useNativeDriver: true }).start();
+  }, [hidden, fade]);
+  return (
+    <Animated.View style={[styles.side, { opacity: fade }]} pointerEvents={hidden ? 'none' : 'auto'}>
+      {children}
+    </Animated.View>
+  );
+}
+
 function BottomBar(props: TabListProps) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const items: ReactNode[] = Children.toArray(props.children);
+  const { open } = useRecordSheet();
   return (
     <View
       {...props}
       style={[styles.bar, { backgroundColor: theme.surface, borderTopColor: theme.border, paddingBottom: Math.max(insets.bottom, Spacing.two) }]}>
-      {items.slice(0, 2)}
+      <Side hidden={open}>{items.slice(0, 2)}</Side>
       <RecordButton />
-      {items.slice(2)}
+      <Side hidden={open}>{items.slice(2)}</Side>
     </View>
   );
 }
@@ -145,6 +159,7 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.two,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
+  side: { flex: 1, flexDirection: 'row', alignItems: 'flex-end' },
   item: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 2, paddingBottom: 2, minHeight: 48 },
   itemLabel: { fontSize: 11, lineHeight: 14 },
   // The button stands a little above the bar, so it reads as the main action.

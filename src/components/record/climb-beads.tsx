@@ -84,13 +84,20 @@ export function ClimbBeads({ logs, pill }: { logs: ClimbLog[]; pill?: boolean })
     if (!openId) return;
     fade.stopAnimation();
     fade.setValue(1);
-    const t = setTimeout(() => {
-      Animated.timing(fade, { toValue: 0, duration: 450, useNativeDriver: true }).start(({ finished }) => {
-        if (finished) setOpenId(null);
-      });
-    }, 5000);
+    const t = setTimeout(dismiss, 5000);
     return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openId, fade]);
+
+  /** Fade the details out, then clear them. */
+  function dismiss() {
+    Animated.timing(fade, { toValue: 0, duration: 450, useNativeDriver: true }).start(({ finished }) => {
+      if (finished) {
+        setOpenId(null);
+        setError(null);
+      }
+    });
+  }
 
   useEffect(() => {
     // Keep the newest bead in view as climbs are added.
@@ -101,7 +108,7 @@ export function ClimbBeads({ logs, pill }: { logs: ClimbLog[]; pill?: boolean })
   async function remove(l: ClimbLog) {
     try {
       await removeClimb(l.id);
-      setOpenId(null);
+      dismiss();
     } catch (e) {
       setError((e as Error).message);
     }
@@ -141,13 +148,13 @@ export function ClimbBeads({ logs, pill }: { logs: ClimbLog[]; pill?: boolean })
             {error && <ThemedText type="small" style={{ color: '#C0392B' }}>{error}</ThemedText>}
           </View>
           <IconButton icon="trash" label={`Delete ${picked.grade}`} onPress={() => confirmRemove(picked)} />
-          <IconButton icon="close" label="Close details" onPress={() => { setOpenId(null); setError(null); }} />
+          <IconButton icon="close" label="Close details" onPress={dismiss} />
         </Animated.View>
       )}
       <View style={[styles.rail, pill && { backgroundColor: theme.surface + 'EE', borderColor: theme.border, borderWidth: StyleSheet.hairlineWidth }]}>
         <ScrollView ref={scroller} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.beads} keyboardShouldPersistTaps="handled">
           {logs.map((l) => (
-            <ClimbBead key={l.id} log={l} selected={l.id === openId} onPress={() => { setError(null); setOpenId(l.id === openId ? null : l.id); }} />
+            <ClimbBead key={l.id} log={l} selected={l.id === openId} onPress={() => { setError(null); if (l.id === openId) dismiss(); else setOpenId(l.id); }} />
           ))}
         </ScrollView>
       </View>
@@ -158,7 +165,7 @@ export function ClimbBeads({ logs, pill }: { logs: ClimbLog[]; pill?: boolean })
 const styles = StyleSheet.create({
   wrap: { gap: Spacing.two, alignItems: 'stretch' },
   rail: { borderRadius: 999, paddingVertical: Spacing.one, paddingHorizontal: Spacing.two },
-  beads: { gap: Spacing.two, alignItems: 'center', paddingHorizontal: Spacing.one },
+  beads: { gap: Spacing.two, alignItems: 'center', paddingHorizontal: Spacing.two, paddingVertical: 10 },
   dark: { color: '#1F2D35' },
   darkSoft: { color: '#3E4F58' },
   star: { position: 'absolute', top: -5, right: -3, fontSize: 15, lineHeight: 17, color: '#F2B705', textShadowColor: '#7A5A00', textShadowRadius: 2 },

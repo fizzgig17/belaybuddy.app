@@ -1,6 +1,6 @@
 import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, PanResponder, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Animated, Easing, PanResponder, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { ClimbBeads } from '@/components/record/climb-beads';
 import { SessionBody } from '@/components/record/session-body';
@@ -10,7 +10,6 @@ import { useTheme } from '@/hooks/use-theme';
 import { useSessionActive, useSessionLogs } from '@/lib/active-session';
 import { closeRecordSheet, useRecordSheet } from '@/lib/record-sheet';
 
-const TOP_GAP = 44;
 
 /**
  * The record-session sheet. It slides up over the current tab but stops above the tab bar, so the round button stays
@@ -24,7 +23,9 @@ export function RecordSheet() {
   const theme = useTheme();
   const [mounted, setMounted] = useState(false);
   const [height, setHeight] = useState(0);
-  const panelH = Math.max(0, height - TOP_GAP);
+  // Stop where the profile sheet stops: its 0.95 detent leaves 5% of the screen above it.
+  const win = useWindowDimensions();
+  const panelH = Math.max(0, height - Math.round(win.height * 0.05));
   const y = useRef(new Animated.Value(2000)).current;
   const dim = useRef(new Animated.Value(0)).current;
 
@@ -130,7 +131,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
     overflow: 'hidden',
   },
-  grabZone: { height: 28, alignItems: 'center', justifyContent: 'center' },
+  grabZone: { height: 22, alignItems: 'center', justifyContent: 'center' },
   grabber: { width: 40, height: 5, borderRadius: 3, opacity: 0.5 },
   closeRow: { position: 'absolute', right: Spacing.three, top: Spacing.two },
   scroll: { flex: 1 },
