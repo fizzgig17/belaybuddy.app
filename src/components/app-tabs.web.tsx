@@ -7,6 +7,7 @@ import {
   TabListProps,
 } from 'expo-router/ui';
 import { router } from 'expo-router';
+import { ClimbStrip } from '@/components/record/climb-strip';
 import { RecordSheet } from '@/components/record/record-sheet';
 import { toggleRecordSheet } from '@/lib/record-sheet';
 import { Image, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
@@ -42,6 +43,7 @@ export default function AppTabs() {
       </TabList>
       <View style={styles.slot}>
         <TabSlot style={styles.slot} />
+        <ClimbStrip />
         <RecordSheet />
       </View>
     </Tabs>

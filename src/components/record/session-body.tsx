@@ -9,7 +9,6 @@ import { HoldColors, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/lib/auth';
 import {
-  deleteClimb,
   describeSummary,
   fetchActiveSession,
   colorHex,
@@ -21,7 +20,6 @@ import {
   ROUTE_COLORS,
   startSession,
   summarize,
-  type ClimbLog,
   type GradeMod,
   type ClimbSession,
   type Discipline,
@@ -30,7 +28,7 @@ import {
 import { success, tap } from '@/lib/haptics';
 import { useFavorites } from '@/lib/favorites';
 import { checkIn } from '@/lib/friends';
-import { setSessionActive } from '@/lib/active-session';
+import { setActiveSession, useSessionLogs } from '@/lib/active-session';
 import { closeRecordSheet, useRecordSheet } from '@/lib/record-sheet';
 import { useHomeGyms } from '@/lib/home-gyms';
 import { useAiConsent } from '@/lib/ai-consent';
@@ -66,7 +64,7 @@ export function SessionBody() {
   // Keeps the round button in step (Record session / Recording / End session).
   const update = (s: ClimbSession | null) => {
     setSession(s);
-    setSessionActive(!!s);
+    setActiveSession(s);
   };
 
   // The sheet is built fresh each time it opens, so this reads the running session each time.
@@ -75,7 +73,7 @@ export function SessionBody() {
     fetchActiveSession()
       .then((s) => {
         setSession(s);
-        setSessionActive(!!s);
+        setActiveSession(s);
       })
       .catch((e: Error) => {
         setSession(null);
@@ -275,7 +273,7 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
     setError(null);
     try {
       const entry = await logClimb(session.id, discipline, shownGrade, result, { color, routeName });
-      onChange({ ...session, logs: [...session.logs, entry] });
+      onChange({ ...session, logs: [...logs, entry] });
       // The next climb is a different route: clear what belonged to this one. The grade stays, since it's usually close.
       setColor(null);
       setRouteName('');
@@ -289,17 +287,10 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
     }
   }
 
-  async function undo(entry: ClimbLog) {
-    try {
-      await deleteClimb(entry.id);
-      onChange({ ...session, logs: session.logs.filter((l) => l.id !== entry.id) });
-    } catch (e) {
-      setError((e as Error).message);
-    }
-  }
+  // The climbs live in a shared store so the beads (here and above the tab bar) stay in step.
+  const logs = useSessionLogs();
 
-  const s = summarize(session.logs);
-  const recent = [...session.logs].reverse().slice(0, 3);
+  const s = summarize(logs);
   const grades = gradesFor(discipline);
 
   return (
@@ -402,22 +393,6 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
       </View>
       {error && <ThemedText type="small" style={styles.error}>{error}</ThemedText>}
 
-      {recent.length > 0 && (
-        <View>
-          {recent.map((l, i) => (
-            <View key={l.id} style={[styles.logRow, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
-              <ThemedText type="smallBold" style={styles.logGrade}>{l.grade}</ThemedText>
-              {colorHex(l.color) && <View style={[styles.dot, { backgroundColor: colorHex(l.color)!, borderColor: theme.border }]} />}
-              <ThemedText type="small" themeColor="textSecondary" style={styles.flex} numberOfLines={1}>
-                {l.routeName ? `${l.routeName} · ` : ''}{RESULT_LABELS[l.result]}
-              </ThemedText>
-              <Pressable onPress={() => undo(l)} hitSlop={10} accessibilityRole="button" accessibilityLabel={`Remove ${l.grade} ${RESULT_LABELS[l.result]}`}>
-                <ThemedText type="small" style={{ color: theme.accent }}>Remove</ThemedText>
-              </Pressable>
-            </View>
-          ))}
-        </View>
-      )}
     </>
   );
 }

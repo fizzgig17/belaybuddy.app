@@ -8,6 +8,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Icons, type IconName } from '@/constants/icons';
 import { HoldColors, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { ClimbStrip } from '@/components/record/climb-strip';
 import { RecordSheet } from '@/components/record/record-sheet';
 import { useSessionActive } from '@/lib/active-session';
 import { useAuth } from '@/lib/auth';
@@ -23,6 +24,7 @@ export default function AppTabs() {
     <Tabs style={styles.root}>
       <View style={styles.slot}>
         <TabSlot style={styles.slot} />
+        <ClimbStrip />
         <RecordSheet />
       </View>
       <TabList asChild>

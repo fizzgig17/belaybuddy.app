@@ -2,10 +2,12 @@ import { GlassView, isLiquidGlassAvailable } from 'expo-glass-effect';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, PanResponder, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { ClimbBeads } from '@/components/record/climb-beads';
 import { SessionBody } from '@/components/record/session-body';
 import { IconButton } from '@/components/ui/icon-button';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useSessionActive, useSessionLogs } from '@/lib/active-session';
 import { closeRecordSheet, useRecordSheet } from '@/lib/record-sheet';
 
 const TOP_GAP = 44;
@@ -16,7 +18,9 @@ const TOP_GAP = 44;
  * Android and the website: an X. Rendered next to the tab content by the tab bar layout.
  */
 export function RecordSheet() {
-  const { open } = useRecordSheet();
+  const { open, finished } = useRecordSheet();
+  const active = useSessionActive();
+  const logs = useSessionLogs();
   const theme = useTheme();
   const [mounted, setMounted] = useState(false);
   const [height, setHeight] = useState(0);
@@ -74,12 +78,18 @@ export function RecordSheet() {
         )}
       </View>
       <ScrollView
+        style={styles.scroll}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         automaticallyAdjustKeyboardInsets>
         <SessionBody />
       </ScrollView>
+      {active && !finished && logs.length > 0 && (
+        <View style={styles.footer}>
+          <ClimbBeads logs={logs} />
+        </View>
+      )}
     </>
   );
 
@@ -123,5 +133,7 @@ const styles = StyleSheet.create({
   grabZone: { height: 28, alignItems: 'center', justifyContent: 'center' },
   grabber: { width: 40, height: 5, borderRadius: 3, opacity: 0.5 },
   closeRow: { position: 'absolute', right: Spacing.three, top: Spacing.two },
+  scroll: { flex: 1 },
+  footer: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.two, paddingTop: Spacing.one },
   content: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.three, gap: Spacing.two },
 });
