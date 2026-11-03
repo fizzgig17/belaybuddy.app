@@ -32,7 +32,7 @@ import { success, tap } from '@/lib/haptics';
 import { useFavorites } from '@/lib/favorites';
 import { checkIn } from '@/lib/friends';
 import { setActiveSession, useSessionActive, useSessionLogs } from '@/lib/active-session';
-import { closeRecordSheet, useRecordSheet } from '@/lib/record-sheet';
+import { closeRecordSheet, confirmEndSession, useRecordSheet } from '@/lib/record-sheet';
 import { useHomeGyms } from '@/lib/home-gyms';
 import { useAiConsent } from '@/lib/ai-consent';
 import { scanRouteTag } from '@/lib/route-tag';
@@ -192,6 +192,7 @@ function StartCard({
 
 function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: ClimbSession | null) => void }) {
   const theme = useTheme();
+  const { user } = useAuth();
   const [discipline, setDiscipline] = useState<Discipline>('route');
   const [grade, setGrade] = useState(lastGrade('route'));
   const [mod, setMod] = useState<GradeMod>('');
@@ -392,7 +393,14 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
         <BigButton icon="attempt" label="Attempt" sub={shownGrade} color={theme.backgroundSelected} dark onPress={() => log('attempt')} disabled={busy} />
       </View>
       {error && <ThemedText type="small" style={styles.error}>{error}</ThemedText>}
-
+      <Pressable
+        onPress={() => confirmEndSession(user?.id)}
+        accessibilityRole="button"
+        accessibilityLabel="End session"
+        style={({ pressed }) => [styles.endBtn, { borderColor: HoldColors.coral, opacity: pressed ? 0.7 : 1 }]}>
+        <SymbolView name={Icons.stop} size={18} tintColor={HoldColors.coral} />
+        <ThemedText type="smallBold" style={{ color: HoldColors.coral }}>End session</ThemedText>
+      </Pressable>
     </>
   );
 }
@@ -450,6 +458,7 @@ const styles = StyleSheet.create({
   big: { flexDirection: 'row', gap: Spacing.two },
   scan: { flexDirection: 'row', gap: 6, minHeight: 38, borderRadius: Spacing.two + 2, alignItems: 'center', justifyContent: 'center' },
   scanText: { color: '#FFFFFF' },
+  endBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, minHeight: 44, borderRadius: Spacing.two + 2, borderWidth: 1.5, marginTop: Spacing.two },
   bigLabel: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   bigShadow: { shadowOffset: { width: 0, height: 3 }, shadowRadius: 4, elevation: 4 },
   bigButton: { flex: 1, minHeight: 72, borderRadius: Spacing.three, alignItems: 'center', justifyContent: 'center', gap: Spacing.one },
