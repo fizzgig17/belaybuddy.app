@@ -1,11 +1,12 @@
 import { router, Stack } from 'expo-router';
-import { Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
+import { useSheetTop } from '@/hooks/use-sheet-top';
 import { useTheme } from '@/hooks/use-theme';
 
 export default function ProfileLayout() {
   const theme = useTheme();
-  const win = useWindowDimensions();
+  const sheet = useSheetTop();
   const stack = (
     <Stack screenOptions={{ headerBackTitle: 'Profile' }}>
       <Stack.Screen name="index" options={{ headerShown: false }} />
@@ -16,9 +17,9 @@ export default function ProfileLayout() {
   // points from the sides, topping out at the same spot as the record sheet.
   if (Platform.OS === 'ios') return stack;
   return (
-    <View style={styles.dim}>
+    <View ref={sheet.ref} onLayout={sheet.onLayout} style={styles.dim}>
       <Pressable style={StyleSheet.absoluteFill} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Close" />
-      <View style={[styles.panel, { marginTop: Math.round(win.height * 0.134), backgroundColor: theme.background }]}>{stack}</View>
+      <View style={[styles.panel, { marginTop: sheet.top, backgroundColor: theme.background }]}>{stack}</View>
     </View>
   );
 }

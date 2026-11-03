@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, Easing, PanResponder, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { Animated, Easing, PanResponder, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { ClimbBeads } from '@/components/record/climb-beads';
 import { SessionHistory } from '@/components/record/session-history';
@@ -7,6 +7,7 @@ import { SessionBody } from '@/components/record/session-body';
 import { Segmented } from '@/components/form';
 import { IconButton } from '@/components/ui/icon-button';
 import { Spacing } from '@/constants/theme';
+import { useSheetTop } from '@/hooks/use-sheet-top';
 import { useTheme } from '@/hooks/use-theme';
 import { useSessionActive, useSessionLogs } from '@/lib/active-session';
 import { closeRecordSheet, setRecordTab, useRecordSheet } from '@/lib/record-sheet';
@@ -25,8 +26,8 @@ export function RecordSheet() {
   const [mounted, setMounted] = useState(false);
   const [height, setHeight] = useState(0);
   // Same place and look as the profile sheet: it tops out about 13% down the screen, inset a few points from the sides.
-  const win = useWindowDimensions();
-  const panelH = Math.max(0, height - Math.round(win.height * 0.134));
+  const sheet = useSheetTop();
+  const panelH = Math.max(0, height - sheet.top);
   const y = useRef(new Animated.Value(2000)).current;
   const dim = useRef(new Animated.Value(0)).current;
 
@@ -103,9 +104,13 @@ export function RecordSheet() {
 
   return (
     <View
+      ref={sheet.ref}
       style={StyleSheet.absoluteFill}
       pointerEvents={mounted ? 'box-none' : 'none'}
-      onLayout={(e) => setHeight(e.nativeEvent.layout.height)}>
+      onLayout={(e) => {
+        setHeight(e.nativeEvent.layout.height);
+        sheet.onLayout();
+      }}>
       {mounted && (
         <>
           <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: '#00000040', opacity: dim }]}>
