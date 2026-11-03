@@ -1,5 +1,5 @@
 import { StyleSheet, View } from 'react-native';
-import Svg, { Circle, Defs, Pattern, Rect } from 'react-native-svg';
+import Svg, { Circle, Defs, LinearGradient, Pattern, Rect, Stop } from 'react-native-svg';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
@@ -19,7 +19,7 @@ const FLECKS = Array.from({ length: 110 }, (_, i) => {
  * Granite speckle: tiny cool-gray flecks at a few percent strength. Lay it first inside a surface; it never takes
  * touches. `radius` rounds its corners to match a card.
  */
-export function Grain({ radius = 0, strength = 1 }: { radius?: number; strength?: number }) {
+export function Grain({ radius = 0, strength = 1, shade = false }: { radius?: number; strength?: number; shade?: boolean }) {
   const dark = useColorScheme() === 'dark';
   const light = dark ? '#C9DDE0' : '#FFFFFF';
   const shadow = dark ? '#000000' : '#2C4A4F';
@@ -27,6 +27,11 @@ export function Grain({ radius = 0, strength = 1 }: { radius?: number; strength?
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: radius, overflow: 'hidden' }]}>
       <Svg width="100%" height="100%">
         <Defs>
+          <LinearGradient id="shade" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor={dark ? '#FFFFFF' : '#FFFFFF'} stopOpacity={dark ? 0.07 : 0.7} />
+            <Stop offset="0.5" stopColor="#FFFFFF" stopOpacity="0" />
+            <Stop offset="1" stopColor={dark ? '#000000' : '#0E2A2E'} stopOpacity={dark ? 0.18 : 0.05} />
+          </LinearGradient>
           <Pattern id="granite" x="0" y="0" width={TILE} height={TILE} patternUnits="userSpaceOnUse">
             {FLECKS.map((f, i) => (
               <Circle
@@ -40,6 +45,7 @@ export function Grain({ radius = 0, strength = 1 }: { radius?: number; strength?
             ))}
           </Pattern>
         </Defs>
+        {shade && <Rect x="0" y="0" width="100%" height="100%" fill="url(#shade)" />}
         <Rect x="0" y="0" width="100%" height="100%" fill="url(#granite)" />
       </Svg>
     </View>

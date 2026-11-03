@@ -4,7 +4,7 @@ import { Platform, StyleSheet, View, type StyleProp, type ViewStyle } from 'reac
 import { useCompact } from '@/components/compact';
 import { ThemedText } from '@/components/themed-text';
 import { Grain } from '@/components/ui/grain';
-import { Depth, gradientStyle, Spacing } from '@/constants/theme';
+import { Depth, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -22,13 +22,12 @@ export function Card({ children, style, raised }: { children: ReactNode; style?:
       style={[
         styles.card,
         compact && styles.cCard,
-        { backgroundColor: theme.surface, borderColor: scheme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(14,42,46,0.05)', boxShadow: raised ? Depth[scheme].raised : Depth[scheme].card },
-        gradientStyle(Depth[scheme].cardGradient),
+        { backgroundColor: theme.surface, borderColor: scheme === 'dark' ? 'rgba(255,255,255,0.16)' : 'rgba(14,42,46,0.16)', boxShadow: raised ? Depth[scheme].raised : Depth[scheme].card },
         Platform.OS === 'web' && ({ transitionProperty: 'transform, box-shadow', transitionDuration: '160ms' } as object),
         raised && { transform: [{ translateY: -2 }] },
         style,
       ]}>
-      <Grain radius={20} />
+      <Grain radius={20} shade />
       {children}
     </View>
   );
@@ -79,7 +78,7 @@ export function Section({ title, footer, children }: { title?: string; footer?: 
 const styles = StyleSheet.create({
   card: {
     borderRadius: 20,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderWidth: 1,
     padding: Spacing.three,
     gap: Spacing.three,
   },

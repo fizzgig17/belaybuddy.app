@@ -90,7 +90,7 @@ export const Spacing = {
  */
 export const Depth = {
   light: {
-    card: 'inset 0 1px 0 rgba(255,255,255,0.95), inset 0 -1px 0 rgba(14,42,46,0.06), 0 1px 2px rgba(14,42,46,0.08), 0 14px 30px -12px rgba(14,42,46,0.28)',
+    card: 'inset 0 1px 0 rgba(255,255,255,0.95), inset 0 -1px 0 rgba(14,42,46,0.06), 0 1px 2px rgba(14,42,46,0.12), 0 14px 30px -10px rgba(14,42,46,0.36)',
     raised: 'inset 0 1px 0 rgba(255,255,255,0.95), inset 0 -1px 0 rgba(14,42,46,0.07), 0 2px 5px rgba(14,42,46,0.1), 0 20px 38px -12px rgba(14,42,46,0.36)',
     cardGradient: 'linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0) 45%, rgba(14,42,46,0.045))',
     button: 'inset 0 1px 0 rgba(255,255,255,0.28), inset 0 -2px 0 rgba(0,0,0,0.14), 0 6px 14px -4px rgba(14,122,128,0.55)',
