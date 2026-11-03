@@ -13,6 +13,7 @@ import {
   type TextInputProps,
 } from 'react-native';
 
+import { useCompact } from '@/components/compact';
 import { ThemedText } from '@/components/themed-text';
 import { Icons } from '@/constants/icons';
 import { Depth, gradientStyle, Spacing } from '@/constants/theme';
@@ -49,6 +50,7 @@ export function Field({
   ...inputProps
 }: TextInputProps & { label: string; hint?: string; /** A control drawn inside the right end of the box (a scan button, say). */ trailing?: ReactNode }) {
   const theme = useTheme();
+  const compact = useCompact();
   // On a phone, a swipe that starts on a multiline box (such as one inside the Profile/Settings
   // pager) must not open the keyboard. The box only takes focus from a real tap.
   const tapToEdit = !!inputProps.multiline && Platform.OS !== 'web' && inputProps.editable !== false;
@@ -61,7 +63,9 @@ export function Field({
         style={[
           styles.input,
           { color: theme.text, backgroundColor: theme.backgroundElement },
+          compact && styles.cInput,
           inputProps.multiline && styles.multiline,
+          inputProps.multiline && compact && styles.cMultiline,
           trailing ? styles.withTrailing : null,
           style,
         ]}
@@ -129,6 +133,7 @@ export function Button({ title, onPress, variant = 'primary', disabled, loading,
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const depth = Depth[scheme];
   const primary = variant === 'primary';
+  const compact = useCompact();
   const inactive = disabled || loading;
   const [focused, setFocused] = useState(false);
   return (
@@ -147,6 +152,7 @@ export function Button({ title, onPress, variant = 'primary', disabled, loading,
         const hovered = (state as { hovered?: boolean }).hovered === true;
         return [
           styles.button,
+          compact && styles.cButton,
           primary
             ? [
                 { backgroundColor: theme.accent, boxShadow: pressed ? depth.buttonPressed : hovered ? depth.buttonRaised : depth.button },
@@ -199,6 +205,7 @@ export function ChipGroup<T extends string>({
   onChange: (next: T[]) => void;
 }) {
   const theme = useTheme();
+  const compact = useCompact();
   return (
     <View style={styles.field}>
       <ThemedText type="smallBold">{label}</ThemedText>
@@ -218,6 +225,7 @@ export function ChipGroup<T extends string>({
               }
               style={[
                 styles.chip,
+                compact && styles.cChip,
                 { backgroundColor: on ? theme.accentSoft : theme.backgroundElement },
                 on && { borderColor: theme.accent },
               ]}>
@@ -247,6 +255,7 @@ export function SingleChoice<T extends string | number>({
   showLabel?: boolean;
 }) {
   const theme = useTheme();
+  const compact = useCompact();
   return (
     <View style={styles.field}>
       {showLabel && <ThemedText type="smallBold">{label}</ThemedText>}
@@ -264,6 +273,7 @@ export function SingleChoice<T extends string | number>({
               }}
               style={[
                 styles.chip,
+                compact && styles.cChip,
                 { backgroundColor: on ? theme.accentSoft : theme.backgroundElement },
                 on && { borderColor: theme.accent },
               ]}>
@@ -288,8 +298,9 @@ export function ToggleRow({
   onValueChange: (value: boolean) => void;
 }) {
   const theme = useTheme();
+  const compact = useCompact();
   return (
-    <View style={styles.toggleRow}>
+    <View style={[styles.toggleRow, compact && styles.cToggle]}>
       <ThemedText type="small" style={styles.toggleLabel}>
         {label}
       </ThemedText>
@@ -341,6 +352,11 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   toggleLabel: { flex: 1 },
+  cInput: { paddingVertical: 6, fontSize: 15 },
+  cMultiline: { minHeight: 56 },
+  cButton: { minHeight: 38 },
+  cChip: { paddingVertical: 4 },
+  cToggle: { minHeight: 28 },
   toggleRow: {
     gap: Spacing.three,
     flexDirection: 'row',
@@ -364,6 +380,7 @@ export function Segmented<T extends string | number>({
   label: string;
 }) {
   const theme = useTheme();
+  const compact = useCompact();
   const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   return (
     <View
@@ -385,6 +402,7 @@ export function Segmented<T extends string | number>({
               const hovered = (state as { hovered?: boolean }).hovered === true;
               return [
                 segStyles.segment,
+                compact && { paddingVertical: 3 },
                 on && { backgroundColor: theme.surface, boxShadow: Depth[scheme].card },
                 !on && hovered && { backgroundColor: theme.backgroundSelected },
                 Platform.OS === 'web' && ({ transitionProperty: 'background-color', transitionDuration: '120ms', cursor: 'pointer' } as object),

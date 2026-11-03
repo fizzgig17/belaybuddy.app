@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useState, type ReactNode } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
+import { CompactContext } from '@/components/compact';
 import { KeyboardDoneBar } from '@/components/form';
 import { ThemedText } from '@/components/themed-text';
 import { IconButton } from '@/components/ui/icon-button';
@@ -22,6 +23,7 @@ export function ProfileTabs({ pages }: { pages: { key: string; label: string; co
   const [active, setActive] = useState(pages[0].key);
   const current = pages.find((p) => p.key === active) ?? pages[0];
   return (
+    <CompactContext.Provider value>
     <View style={styles.fill}>
       <View style={styles.header}>
         <View style={[styles.tabs, { backgroundColor: theme.backgroundElement }]} accessibilityRole="tablist">
@@ -41,11 +43,16 @@ export function ProfileTabs({ pages }: { pages: { key: string; label: string; co
             );
           })}
         </View>
-        {Platform.OS !== 'ios' && <IconButton icon="close" label="Close" onPress={closeProfile} />}
+        {Platform.OS !== 'ios' && (
+          <View style={styles.close}>
+            <IconButton icon="close" label="Close" onPress={closeProfile} />
+          </View>
+        )}
       </View>
       <View style={styles.fill}>{current.content}</View>
       <KeyboardDoneBar />
     </View>
+    </CompactContext.Provider>
   );
 }
 
@@ -54,12 +61,13 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.three,
+    justifyContent: 'center',
     paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.one,
+    // On iPhone the sheet's grabber line sits at the very top; keep the tabs clear of it.
+    paddingTop: Platform.OS === 'ios' ? Spacing.four : Spacing.two,
     paddingBottom: Spacing.one,
   },
+  close: { position: 'absolute', right: Spacing.three, top: Spacing.two },
   tabs: { flexDirection: 'row', borderRadius: 999, padding: 3, flexShrink: 1 },
   tab: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: 999 },
 });

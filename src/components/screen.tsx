@@ -121,7 +121,7 @@ export function Screen({ title, subtitle, description, children, showTitle = tru
 }
 
 const styles = StyleSheet.create({
-  compact: { padding: Spacing.three, paddingTop: Spacing.two, paddingBottom: Spacing.four, gap: Spacing.two },
+  compact: { padding: Spacing.three, paddingTop: Spacing.two, paddingBottom: Spacing.three, gap: 6 },
   container: { flex: 1, backgroundColor: 'transparent' },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   title: { flex: 1 },

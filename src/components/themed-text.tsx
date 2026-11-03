@@ -1,5 +1,6 @@
 import { Platform, StyleSheet, Text, type TextProps } from 'react-native';
 
+import { useCompact } from '@/components/compact';
 import { Fonts, ThemeColor } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
@@ -10,6 +11,7 @@ export type ThemedTextProps = TextProps & {
 
 export function ThemedText({ style, type = 'default', themeColor, ...rest }: ThemedTextProps) {
   const theme = useTheme();
+  const compact = useCompact();
 
   return (
     <Text
@@ -23,6 +25,7 @@ export function ThemedText({ style, type = 'default', themeColor, ...rest }: The
         type === 'link' && styles.link,
         type === 'linkPrimary' && styles.linkPrimary,
         type === 'code' && styles.code,
+        compact && (type === 'default' ? styles.cDefault : type === 'small' || type === 'smallBold' ? styles.cSmall : null),
         style,
       ]}
       {...rest}
@@ -31,6 +34,8 @@ export function ThemedText({ style, type = 'default', themeColor, ...rest }: The
 }
 
 const styles = StyleSheet.create({
+  cDefault: { fontSize: 14, lineHeight: 19 },
+  cSmall: { fontSize: 13, lineHeight: 17 },
   small: {
     fontSize: 14,
     lineHeight: 20,
