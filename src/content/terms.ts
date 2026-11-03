@@ -23,11 +23,10 @@ export const TERMS_SECTIONS: TermsSection[] = [
     ],
   },
   {
-    title: 'Route AI and AI-generated content',
+    title: 'AI-read route tags',
     body: [
-      'Route AI uses artificial intelligence to describe a wall photo and write technique tips. Tips are AI-generated suggestions about grip and body position, shown as one possible way to climb a route, not the only way.',
-      'AI can be wrong. It can misread a hold, miss a hazard, or suggest something that does not suit you. A wall angle or distance measured with LiDAR is approximate. Tips are not safety advice, do not rate difficulty, and are not a promise that any move is possible or safe. You decide whether to try anything, and you are responsible for your own safety.',
-      'Route AI is optional. You choose whether to allow it, and you can turn it off in Settings. See our Privacy Policy for what is sent and who handles it.',
+      'When you record a route you can photograph its tag, and artificial intelligence reads the grade, hold color and name from the photo to fill in your log. AI can be wrong, so check what it filled in before you save it.',
+      'Reading a tag is optional. You choose whether to allow it, and you can turn it off in Settings. See our Privacy Policy for what is sent and who handles it.',
     ],
   },
   {

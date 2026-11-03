@@ -24,13 +24,12 @@ export const PRIVACY_SECTIONS: PolicySection[] = [
     ],
   },
   {
-    title: 'Route AI and artificial intelligence',
+    title: 'Artificial intelligence (route tags)',
     body: [
-      'Route AI can use an AI service, Anthropic’s Claude, to describe a wall photo and write technique tips. It only does this if you are signed in and have said yes. We ask the first time you use it, save your answer on your account, and check it on our server before every request. You can change your mind any time in Settings under AI features.',
-      'What is sent when you use it: the wall photo (resized, with its location data removed), the positions of the holds you confirmed, and, if you used a LiDAR scan, the wall angle and rough distances between holds. We also send a smaller copy of the photo for a quick check of what it shows and whether it is suitable for all ages. Photos that are not suitable are not displayed or used.',
-      'What we keep: we do not store your photos or the tips, except when you tap Report this tip: then we keep the text of that tip, your reason and any note you add, so we can review it. We keep a simple daily count of how many scans you ran, to limit use. Anthropic handles what it receives under its own terms and privacy policy (anthropic.com/legal/privacy), which can include keeping it for a limited time for safety and abuse prevention.',
-      'Finding holds on a photo, and measuring a wall with LiDAR, happen on your phone and do not use the AI service. If you say no, those still work.',
-      'Tips are AI-generated. They are one possible way to climb a route, not the only way, and they are not safety instruction or a substitute for a qualified climbing instructor. AI can be wrong.',
+      'When you record a route, you can photograph its tag and an AI service, Anthropic’s Claude, reads the grade, hold color and name from the photo. It only does this if you are signed in and have said yes. We ask the first time you use it, save your answer on your account, and check it on our server before every request. You can change your mind any time in Settings under AI features.',
+      'What is sent when you use it: the photo of the tag (resized, with its location data removed). Photos that are not suitable for all ages are not used.',
+      'What we keep: we do not store the photo. We keep the grade, color and name only if you save them in your climb log. We keep a simple daily count of how many scans you ran, to limit use. Anthropic handles what it receives under its own terms and privacy policy (anthropic.com/legal/privacy), which can include keeping it for a limited time for safety and abuse prevention.',
+      'If you say no, you can still log every climb by picking the grade and color yourself.',
     ],
   },
   {
@@ -41,7 +40,7 @@ export const PRIVACY_SECTIONS: PolicySection[] = [
       'Our email provider sends sign-in codes and the email notifications you choose.',
       'Apple and Google, if you choose to sign in with them, confirm who you are under their own privacy policies.',
       'OpenStreetMap, through the Overpass service, and the Overture Maps Foundation’s open data supply gym and shop listings, and OpenBeta supplies outdoor crags. We send them a coarse area, never your identity.',
-      'Anthropic handles Route AI requests, as described above.',
+      'Anthropic reads route tag photos if you turn on AI features, as described above.',
       'We do not sell your data and we do not show ads.',
     ],
   },

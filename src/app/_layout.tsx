@@ -40,6 +40,8 @@ export default function TabLayout() {
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="(tabs)" />
               <Stack.Screen name="profile" options={{ presentation: 'modal' }} />
+              {/* The round middle button slides this sheet up from the bottom. */}
+              <Stack.Screen name="record" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
               <Stack.Screen name="about" />
               <Stack.Screen name="privacy" />
               <Stack.Screen name="terms" />

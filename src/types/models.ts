@@ -127,18 +127,3 @@ export type ChatMessage = {
   body: string;
   createdAt: string;
 };
-
-/** Output of the Route AI hold detector for one wall photo. */
-export type HoldShape = 'jug' | 'crimp' | 'sloper' | 'pinch' | 'pocket' | 'edge' | 'volume' | 'foot' | 'unknown';
-
-export type DetectedHold = {
-  id: string;
-  /** Polygon in normalized image coordinates (0–1). */
-  outline: { x: number; y: number }[];
-  color: string;
-  shape: HoldShape;
-  /** Model confidence 0–1; low-confidence holds are shown for the user to confirm. */
-  confidence: number;
-  isStart?: boolean;
-  isFinish?: boolean;
-};

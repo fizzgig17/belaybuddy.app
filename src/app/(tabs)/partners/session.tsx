@@ -1,6 +1,6 @@
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { Button, Segmented, SingleChoice, ToggleRow } from '@/components/form';
 import { Screen } from '@/components/screen';
@@ -14,11 +14,13 @@ import {
   describeSummary,
   endSession,
   fetchActiveSession,
+  colorHex,
   formatDuration,
   gradesFor,
   hardest,
   logClimb,
   RESULT_LABELS,
+  ROUTE_COLORS,
   startSession,
   summarize,
   type ClimbLog,
@@ -52,7 +54,8 @@ function rememberGrade(d: Discipline, g: string) {
   }
 }
 
-export default function SessionScreen() {
+/** The session page's content: sign-in prompt, the start card, or the climb logger. Used by the page and the record sheet. */
+export function SessionBody() {
   const { user, loading: authLoading } = useAuth();
   const params = useLocalSearchParams<{ areaId?: string; name?: string }>();
   const [session, setSession] = useState<ClimbSession | null | undefined>(undefined);
@@ -70,24 +73,18 @@ export default function SessionScreen() {
     }, [user]),
   );
 
-  if (authLoading || (user && session === undefined)) {
-    return (
-      <Screen title="Session" showTitle={false}>
-        <ActivityIndicator />
-      </Screen>
-    );
-  }
+  if (authLoading || (user && session === undefined)) return <ActivityIndicator />;
   if (!user) {
     return (
-      <Screen title="Session" showTitle={false}>
+      <>
         <ThemedText>Sign in to log your climbs.</ThemedText>
         <Button title="Sign in" onPress={() => router.push('/profile')} />
-      </Screen>
+      </>
     );
   }
 
   return (
-    <Screen title="Session" showTitle={false}>
+    <>
       {error && <ThemedText type="small" style={styles.error}>{error}</ThemedText>}
       {session ? (
         <Logger session={session} onChange={setSession} />
@@ -98,6 +95,14 @@ export default function SessionScreen() {
           onError={setError}
         />
       )}
+    </>
+  );
+}
+
+export default function SessionScreen() {
+  return (
+    <Screen title="Session" showTitle={false}>
+      <SessionBody />
     </Screen>
   );
 }
@@ -173,6 +178,8 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now());
   const [finished, setFinished] = useState<ClimbSession | null>(null);
+  const [color, setColor] = useState<string | null>(null);
+  const [routeName, setRouteName] = useState('');
   const [scanning, setScanning] = useState(false);
   const [tagNote, setTagNote] = useState<string | null>(null);
   const { consent, set: setConsent } = useAiConsent();
@@ -190,10 +197,13 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
       setDiscipline(t.discipline);
       setGrade(t.grade);
       setMod(t.mod);
+      setColor(t.color || null);
+      if (t.name) setRouteName(t.name);
       rememberGrade(t.discipline, t.grade);
       success();
-      const bits = [t.color, t.name, t.setter ? `set by ${t.setter}` : ''].filter(Boolean);
-      setTagNote(`Read ${t.grade}${t.mod}${bits.length ? ` · ${bits.join(' · ')}` : ''}. Check it, then tap Sent, Flash or Attempt.`);
+      const label = ROUTE_COLORS.find((c) => c.key === t.color)?.label;
+      const bits = [label ? `${label} hold` : '', t.name, t.setter ? `set by ${t.setter}` : ''].filter(Boolean);
+      setTagNote(`Read ${t.grade}${t.mod}${bits.length ? ` · ${bits.join(' · ')}` : ''}. Check it below, then tap Sent, Flash or Attempt.`);
     } finally {
       setScanning(false);
     }
@@ -235,8 +245,12 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
     setBusy(true);
     setError(null);
     try {
-      const entry = await logClimb(session.id, discipline, shownGrade, result);
+      const entry = await logClimb(session.id, discipline, shownGrade, result, { color, routeName });
       onChange({ ...session, logs: [...session.logs, entry] });
+      // The next climb is a different route: clear what belonged to this one. The grade stays, since it's usually close.
+      setColor(null);
+      setRouteName('');
+      setTagNote(null);
       if (result === 'attempt') tap();
       else success();
     } catch (e) {
@@ -322,7 +336,7 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
       />
 
       {Platform.OS !== 'web' && (
-        <Button title={scanning ? 'Reading the tag…' : 'Scan route tag'} variant="secondary" onPress={askScan} disabled={scanning} />
+        <Button title={scanning ? 'Reading the tag…' : 'Photograph the route tag'} onPress={askScan} disabled={scanning} />
       )}
       {tagNote && <ThemedText type="small" themeColor="textSecondary">{tagNote}</ThemedText>}
 
@@ -358,6 +372,36 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
         ]}
       />
 
+      <ThemedText type="smallBold">Route color</ThemedText>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.grades} keyboardShouldPersistTaps="handled">
+        {ROUTE_COLORS.map((c) => {
+          const on = c.key === color;
+          return (
+            <Pressable
+              key={c.key}
+              accessibilityRole="button"
+              accessibilityLabel={`${c.label} route`}
+              accessibilityState={{ selected: on }}
+              onPress={() => {
+                tap();
+                setColor(on ? null : c.key);
+              }}
+              style={[styles.swatchRing, { borderColor: on ? theme.accent : 'transparent' }]}>
+              <View style={[styles.swatch, { backgroundColor: c.hex, borderColor: theme.border }]} />
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+      <TextInput
+        value={routeName}
+        onChangeText={setRouteName}
+        placeholder="Route name (optional)"
+        placeholderTextColor={theme.textSecondary}
+        maxLength={60}
+        returnKeyType="done"
+        style={[styles.nameInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surface }]}
+      />
+
       <View style={styles.big}>
         <BigButton label="Sent" sub={shownGrade} color={HoldColors.green} onPress={() => log('send')} disabled={busy} />
         <BigButton label="Flash" sub={shownGrade} color={HoldColors.yellow} dark onPress={() => log('flash')} disabled={busy} />
@@ -374,8 +418,9 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
           {recent.map((l, i) => (
             <View key={l.id} style={[styles.logRow, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
               <ThemedText type="smallBold" style={styles.logGrade}>{l.grade}</ThemedText>
+              {colorHex(l.color) && <View style={[styles.dot, { backgroundColor: colorHex(l.color)!, borderColor: theme.border }]} />}
               <ThemedText type="small" themeColor="textSecondary" style={styles.flex}>
-                {RESULT_LABELS[l.result]} · {l.discipline === 'boulder' ? 'Boulder' : 'Route'} ·{' '}
+                {l.routeName ? `${l.routeName} · ` : ''}{RESULT_LABELS[l.result]} · {l.discipline === 'boulder' ? 'Boulder' : 'Route'} ·{' '}
                 {new Date(l.loggedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
               </ThemedText>
               <Pressable onPress={() => undo(l)} hitSlop={10} accessibilityRole="button" accessibilityLabel={`Remove ${l.grade} ${RESULT_LABELS[l.result]}`}>
@@ -435,4 +480,8 @@ const styles = StyleSheet.create({
   list: { gap: 0, paddingVertical: Spacing.two },
   logRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.two + 2 },
   logGrade: { width: 52 },
+  swatchRing: { padding: 3, borderRadius: 999, borderWidth: 2 },
+  swatch: { width: 30, height: 30, borderRadius: 15, borderWidth: StyleSheet.hairlineWidth },
+  dot: { width: 12, height: 12, borderRadius: 6, borderWidth: StyleSheet.hairlineWidth },
+  nameInput: { borderWidth: 1, borderRadius: Spacing.three, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two + 2, fontSize: 16 },
 });

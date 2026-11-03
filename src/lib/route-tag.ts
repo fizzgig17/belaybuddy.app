@@ -4,6 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { BOULDER_GRADES, ROUTE_GRADES, type Discipline } from '@/lib/climb-log';
 import { supabase } from '@/lib/supabase';
 
+/** What a tag scan read. `color` is the hold color (one of ROUTE_COLORS keys) or ''. */
 export type TagRead = { discipline: Discipline; grade: string; mod: '' | '-' | '+'; color: string; name: string; setter: string };
 export type TagResult = { tag: TagRead } | { error: string } | null;
 
@@ -33,7 +34,7 @@ export function parseGrade(raw: string): { discipline: Discipline; grade: string
   return ROUTE_GRADES.includes(g) ? { discipline: 'route', grade: g, mod: letter ? sign : '' } : null;
 }
 
-/** Opens the camera on a route tag and asks the AI to read it. Never throws. */
+/** Opens the camera on a route tag and asks the AI to read it and the hold it is on. Never throws. */
 export async function scanRouteTag(): Promise<TagResult> {
   try {
     const perm = await ImagePicker.requestCameraPermissionsAsync();

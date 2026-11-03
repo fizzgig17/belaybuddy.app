@@ -17,8 +17,7 @@
         "applinks:dev.belaybuddy.app"
       ],
       "infoPlist": {
-        "NSCameraUsageDescription": "Belay Buddy uses the camera to photograph gym walls so Route AI can highlight the holds on a route, and to scan a friend’s QR code.",
-        "NSPhotoLibraryUsageDescription": "Belay Buddy lets you pick wall photos from your library for Route AI.",
+        "NSCameraUsageDescription": "Belay Buddy uses the camera to scan a route tag when you record a climb, and to scan a friend’s QR code.",
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -67,7 +66,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Belay Buddy uses the camera to photograph gym walls so Route AI can highlight the holds on a route, and to scan a friend’s QR code.",
+          "cameraPermission": "Belay Buddy uses the camera to scan a route tag when you record a climb, and to scan a friend’s QR code.",
           "microphonePermission": false,
           "recordAudioAndroid": false
         }

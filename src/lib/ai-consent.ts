@@ -4,7 +4,7 @@ import { useAuth } from '@/lib/auth';
 import { supabase } from '@/lib/supabase';
 
 /**
- * Permission to send a Route AI photo to the AI service (Anthropic's Claude). It is saved on the
+ * Permission to send a route-tag photo to the AI service (Anthropic's Claude). It is saved on the
  * person's profile (profiles.ai_consent), so it follows them across devices, and the route-tips
  * function checks it before every request. "unset" means they haven't been asked yet; "loading"
  * means we haven't heard back from the server yet.

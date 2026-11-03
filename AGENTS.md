@@ -48,4 +48,4 @@ Belay Buddy — iOS-first climbing app. See README.md for features and roadmap.
 - Data model shapes live in `src/types/models.ts`; keep them backend-agnostic.
 - Partner-finder location must always be coarse (area name + rounded point), never a user's exact position.
 - Learn content (safety, gear, knots) is safety-critical: mark it as draft until reviewed by a qualified instructor, and keep the "not a substitute for instruction" disclaimer on every article.
-- Route AI technique output is framed as "one possible way to climb it", never as authoritative instruction.
+- Route tag scans are AI-read and can be wrong: the app fills the log form in and the person confirms before saving.

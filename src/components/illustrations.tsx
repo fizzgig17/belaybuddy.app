@@ -158,7 +158,7 @@ export function GymWallBanner({ style }: { style?: ViewStyle }) {
       {others.map(([x, y, r, c], i) => (
         <Path key={`o${i}`} d={holdPath(x, y, r, i * 1.7 + 0.4)} fill={c} opacity={dark ? 0.8 : 0.9} />
       ))}
-      {/* The route traced the way Route AI maps it. */}
+      {/* A route traced across the wall. */}
       <Path
         d={'M' + route.map(([x, y]) => `${x},${y}`).join(' L')}
         stroke={routeLine}

@@ -8,7 +8,7 @@ dev copy (orange DEV banner, "Belay Buddy Dev" on the home screen).
 ## Repository secrets production needs
 - PROD_PROJECT_ID, PROD_DB_PASSWORD, SUPABASE_ACCESS_TOKEN
 - SPACESHIP_PROD_PATH (document root of belaybuddy.app) plus the existing SPACESHIP_* secrets
-- ANTHROPIC_API_KEY (Route AI), APNS_* (push), SMTP_* (email), DEMO_PASSWORD
+- ANTHROPIC_API_KEY (route tag reading), APNS_* (push), SMTP_* (email), DEMO_PASSWORD
 - GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET (optional: shows "Continue with Google";
   register https://<prod ref>.supabase.co/auth/v1/callback with Google)
 
@@ -16,7 +16,7 @@ dev copy (orange DEV banner, "Belay Buddy Dev" on the home screen).
 1. Run "Seed shops" and "Seed gyms" with target = prod.
 2. Run "Demo account" with target = prod (App Review login).
 3. Check the Supabase functions run's notices (gyms, crags, notify answered).
-4. Open https://belaybuddy.app, sign in, and try Find, Shops, a session, Route AI.
+4. Open https://belaybuddy.app, sign in, and try Find, Shops, a session, Record a route.
 
 ## Before submitting to the App Store
 - Lawyer review of /terms and /privacy; set TERMS_GOVERNING_STATE and turn off TERMS_IS_DRAFT in src/content/terms.ts.

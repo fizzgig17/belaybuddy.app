@@ -1,6 +1,6 @@
 # Belay Buddy
 
-An iOS app for climbers: find indoor gyms and outdoor crags, find climbing partners at home or while traveling, learn safety, gear and knots, and use Route AI to map the holds of a gym route from a photo.
+An iOS app for climbers: find indoor gyms and outdoor crags, find climbing partners at home or while traveling, learn safety, gear and knots, and record the routes you climb, with the grade and hold color read from the route tag.
 
 Built with Expo (SDK 57), Expo Router and TypeScript.
 
@@ -12,7 +12,7 @@ Working: email sign-in, climbing profile, and the Find tab (nearby gyms and crag
 | --- | --- |
 | Find | Indoor gyms (OpenStreetMap), outdoor crags (OpenBeta), place search, favorites; map view next |
 | Partners | Gym-first belay board, safety profiles with peer endorsements, session goals and weight-compatibility hints, block/report (see docs/product-principles.md) |
-| Route AI | Wall photo → pick hold color → highlighted hold map → per-hold technique tips |
+| Record (round middle button) | Slide-up sheet to log a climb; photograph the route tag to fill in grade and hold color |
 | Learn | Climbing safety, gear, knots (content must be reviewed by a qualified instructor) |
 | Profile | Sign in with Apple, Google, Facebook or email; climbing profile; settings |
 
@@ -22,8 +22,7 @@ Working: email sign-in, climbing profile, and the Find tab (nearby gyms and crag
 2. Gym and crag map with favorites
 3. Learn content
 4. Partners, gym first: home gyms, safety profile, per-gym belay board, session chat, endorsements; blocking, reporting and moderation before launch
-5. Route AI hold map
-6. Route AI technique suggestions
+5. Record a route: tag scan, color, session log
 
 ## Development
 
@@ -43,7 +42,7 @@ Native code (location, camera, auth SDKs) needs a development build rather than 
 src/app/            routes (Expo Router); every file is a screen
   index.tsx         Find tab
   partners.tsx      Partners tab
-  route-ai.tsx      Route AI tab
+  record.tsx        Record a route (slide-up sheet from the middle button)
   learn/            Learn tab (stack: topic list → topic)
   profile.tsx       Profile tab
 src/components/     shared UI (Screen, FeatureCard, themed primitives, tab bar)

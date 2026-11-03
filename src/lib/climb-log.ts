@@ -15,6 +15,23 @@ export const ROUTE_GRADES = [
 ];
 export const gradesFor = (d: Discipline) => (d === 'boulder' ? BOULDER_GRADES : ROUTE_GRADES);
 
+/** Hold colors a route can be taped with, in the order shown. Hex values are for the swatches only. */
+export const ROUTE_COLORS: { key: string; label: string; hex: string }[] = [
+  { key: 'red', label: 'Red', hex: '#D64545' },
+  { key: 'orange', label: 'Orange', hex: '#EE8A2B' },
+  { key: 'yellow', label: 'Yellow', hex: '#F2C230' },
+  { key: 'green', label: 'Green', hex: '#3F9A5B' },
+  { key: 'teal', label: 'Teal', hex: '#20A6A6' },
+  { key: 'blue', label: 'Blue', hex: '#2F7FD1' },
+  { key: 'purple', label: 'Purple', hex: '#7A5BC4' },
+  { key: 'pink', label: 'Pink', hex: '#E87AAE' },
+  { key: 'white', label: 'White', hex: '#F4F4F0' },
+  { key: 'black', label: 'Black', hex: '#25282B' },
+  { key: 'gray', label: 'Gray', hex: '#8A9094' },
+  { key: 'brown', label: 'Brown', hex: '#8B5E3C' },
+];
+export const colorHex = (key: string | null | undefined) => ROUTE_COLORS.find((c) => c.key === key)?.hex ?? null;
+
 export const RESULT_LABELS: Record<Result, string> = { send: 'Sent', flash: 'Flash', attempt: 'Attempt' };
 
 export type ClimbLog = {
@@ -24,6 +41,9 @@ export type ClimbLog = {
   grade: string;
   result: Result;
   loggedAt: string;
+  /** Hold color of the route (one of ROUTE_COLORS), if recorded. */
+  color: string | null;
+  routeName: string | null;
 };
 
 export type ClimbSession = {
@@ -42,6 +62,8 @@ type LogRow = {
   grade: string;
   result: Result;
   logged_at: string;
+  color: string | null;
+  route_name: string | null;
 };
 type SessionRow = {
   id: string;
@@ -52,7 +74,7 @@ type SessionRow = {
   climb_logs?: LogRow[];
 };
 
-const SELECT = 'id, area_id, area_name, started_at, ended_at, climb_logs(id, session_id, discipline, grade, result, logged_at)';
+const SELECT = 'id, area_id, area_name, started_at, ended_at, climb_logs(id, session_id, discipline, grade, result, logged_at, color, route_name)';
 
 const logFromRow = (r: LogRow): ClimbLog => ({
   id: r.id,
@@ -61,6 +83,8 @@ const logFromRow = (r: LogRow): ClimbLog => ({
   grade: r.grade,
   result: r.result,
   loggedAt: r.logged_at,
+  color: r.color ?? null,
+  routeName: r.route_name ?? null,
 });
 
 const sessionFromRow = (r: SessionRow): ClimbSession => ({
@@ -104,11 +128,17 @@ export async function endSession(id: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-export async function logClimb(sessionId: string, discipline: Discipline, grade: string, result: Result): Promise<ClimbLog> {
+export async function logClimb(
+  sessionId: string,
+  discipline: Discipline,
+  grade: string,
+  result: Result,
+  extra: { color?: string | null; routeName?: string | null } = {},
+): Promise<ClimbLog> {
   const { data, error } = await supabase
     .from('climb_logs')
-    .insert({ session_id: sessionId, discipline, grade, result })
-    .select('id, session_id, discipline, grade, result, logged_at')
+    .insert({ session_id: sessionId, discipline, grade, result, color: extra.color || null, route_name: extra.routeName?.trim() || null })
+    .select('id, session_id, discipline, grade, result, logged_at, color, route_name')
     .single();
   if (error) throw new Error(error.message);
   return logFromRow(data as LogRow);

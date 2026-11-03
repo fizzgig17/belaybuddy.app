@@ -30,9 +30,6 @@ export default function AppTabs() {
           <TabTrigger name="partners" href="/partners" asChild>
             <TabButton>Partners</TabButton>
           </TabTrigger>
-          <TabTrigger name="route-ai" href="/route-ai" asChild>
-            <TabButton>Route AI</TabButton>
-          </TabTrigger>
           <TabTrigger name="learn" href="/learn" asChild>
             <TabButton>Learn</TabButton>
           </TabTrigger>

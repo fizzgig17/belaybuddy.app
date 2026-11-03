@@ -282,7 +282,7 @@ function AppearanceSettings() {
   );
 }
 
-/** The AI choice (Route AI photo check and technique tips) and a link to the privacy policy. */
+/** The AI choice (reading route tags) and a link to the privacy policy. */
 function AiSettings() {
   const theme = useTheme();
   const { consent, set, signedIn } = useAiConsent();
@@ -290,14 +290,14 @@ function AiSettings() {
     <Section title="AI features">
       <Card style={{ padding: Spacing.three, gap: Spacing.two, borderRadius: Spacing.three }}>
         <ToggleRow
-          label="Use AI for Route AI photos and tips"
+          label="Use AI to read route tags"
           value={consent === 'allowed'}
           onValueChange={(on) => set(on ? 'allowed' : 'denied')}
         />
         <ThemedText type="small" themeColor="textSecondary">
           {signedIn
-            ? 'When on, Route AI sends your wall photo to an AI service (Anthropic’s Claude) to describe it and write technique tips. Photos and tips are not stored by us. Finding holds and LiDAR measuring stay on your phone either way.'
-            : 'Sign in to use AI features. Finding holds and LiDAR measuring work without them.'}
+            ? 'When on, a photo of a route tag is sent to an AI service (Anthropic’s Claude) to read the grade and hold color. Photos are not stored by us. You can always pick the grade and color yourself.'
+            : 'Sign in to use AI features. Logging climbs works without them.'}
         </ThemedText>
         <Link href="/about" asChild>
           <Pressable accessibilityRole="link">

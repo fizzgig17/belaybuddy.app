@@ -8,7 +8,7 @@ const FEATURES = [
   { key: 'logs', label: 'Climbs logged' },
   { key: 'posts', label: 'Belay-board posts' },
   { key: 'responses', label: 'Post responses' },
-  { key: 'scans', label: 'Route AI scans' },
+  { key: 'scans', label: 'AI tag scans' },
   { key: 'friendships', label: 'Friend requests' },
 ];
 const LABELS = FEATURES.map((f) => f.key);
@@ -105,7 +105,7 @@ export async function overviewView(view, env) {
       kpi('Sessions', o.sessions), kpi('Climbs logged', o.logs),
       kpi('Board posts', o.posts, { text: `${fmt(o.posts_open)} open now`, cls: 'flat' }), kpi('Post responses', o.responses),
       kpi('Messages', o.messages), kpi('Friendships', o.friends, { text: `${fmt(o.friend_requests_pending)} pending`, cls: 'flat' }),
-      kpi('Route AI scans', o.scans, { text: `${fmt(o.ai_allowed)} allowed · ${fmt(o.ai_denied)} declined`, cls: 'flat' }),
+      kpi('AI tag scans', o.scans, { text: `${fmt(o.ai_allowed)} allowed · ${fmt(o.ai_denied)} declined`, cls: 'flat' }),
       kpi('Checked in now', o.checkins_now),
       kpi('Push: iPhone', o.push_ios), kpi('Push: Android', o.push_android),
       kpi('Gyms in catalog', o.gyms), kpi('Crags in catalog', o.crags), kpi('Shops in catalog', o.shops),

@@ -26,8 +26,8 @@ export const ABOUT_FEATURES: { title: string; body: string }[] = [
     body: 'Knots, belay safety, pre-climb checklists and gear guides, all in one place.',
   },
   {
-    title: 'Route AI (still in testing)',
-    body: 'Take a photo of a wall to find holds and get technique tips. This feature is still in testing, so results can be wrong. The AI part is optional and only runs if you turn it on.',
+    title: 'Record a route',
+    body: 'Tap the round button, photograph the route tag, and the grade and hold color fill in for you. The tag reading is optional and only runs if you turn on AI features. It can be wrong, so check it before you log.',
   },
 ];
 
