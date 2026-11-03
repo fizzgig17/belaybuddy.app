@@ -2,12 +2,14 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing, PanResponder, Platform, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { ClimbBeads } from '@/components/record/climb-beads';
+import { SessionHistory } from '@/components/record/session-history';
 import { SessionBody } from '@/components/record/session-body';
+import { Segmented } from '@/components/form';
 import { IconButton } from '@/components/ui/icon-button';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useSessionActive, useSessionLogs } from '@/lib/active-session';
-import { closeRecordSheet, useRecordSheet } from '@/lib/record-sheet';
+import { closeRecordSheet, setRecordTab, useRecordSheet } from '@/lib/record-sheet';
 
 
 /**
@@ -16,7 +18,7 @@ import { closeRecordSheet, useRecordSheet } from '@/lib/record-sheet';
  * Android and the website: an X. Rendered next to the tab content by the tab bar layout.
  */
 export function RecordSheet() {
-  const { open, finished } = useRecordSheet();
+  const { open, finished, tab } = useRecordSheet();
   const active = useSessionActive();
   const logs = useSessionLogs();
   const theme = useTheme();
@@ -78,9 +80,20 @@ export function RecordSheet() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         automaticallyAdjustKeyboardInsets>
-        <SessionBody />
+        {!finished && (
+          <Segmented
+            label="Record or history"
+            value={tab}
+            onChange={setRecordTab}
+            options={[
+              { value: 'record', label: 'Record' },
+              { value: 'history', label: 'History' },
+            ]}
+          />
+        )}
+        {tab === 'history' && !finished ? <SessionHistory /> : <SessionBody />}
       </ScrollView>
-      {active && !finished && logs.length > 0 && (
+      {active && !finished && tab === 'record' && logs.length > 0 && (
         <View style={styles.footer}>
           <ClimbBeads logs={logs} />
         </View>

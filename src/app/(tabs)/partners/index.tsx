@@ -14,7 +14,6 @@ import { areaSlug, slugToId } from '@/lib/areas';
 import { useLiveRefresh } from '@/lib/live';
 import { useAuth } from '@/lib/auth';
 import { FriendsCard } from '@/components/partners/friends-card';
-import { SessionCard } from '@/components/partners/session-card';
 import { useHomeGyms } from '@/lib/home-gyms';
 import { fetchBoard, fetchCards, fetchJoinedPosts, fetchMyPosts, fetchResponders } from '@/lib/partners';
 import type { BelayPost, ClimberCard, ClimbingArea } from '@/types/models';
@@ -161,7 +160,6 @@ export default function PartnersScreen() {
 
   return (
     <Screen profileButton title="Partners" subtitle="Who's climbing at your gyms, and when." onRefresh={load}>
-      <SessionCard />
       {user && <FriendsCard />}
       {home.length === 0 && !otherGym ? (
         homeGyms.loading ? (

@@ -1,12 +1,9 @@
-import { router } from 'expo-router';
-import { useFocusEffect } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, StyleSheet, View } from 'react-native';
 import Animated, { runOnJS, useAnimatedReaction, useAnimatedStyle, type SharedValue } from 'react-native-reanimated';
 import ReanimatedSwipeable, { type SwipeableMethods } from 'react-native-gesture-handler/ReanimatedSwipeable';
 
 import { Button } from '@/components/form';
-import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
 import { ClimbBead } from '@/components/record/climb-beads';
 import { Card } from '@/components/ui/group';
@@ -15,7 +12,6 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/lib/auth';
 import { select, success, tap } from '@/lib/haptics';
-import { openRecordSheet } from '@/lib/record-sheet';
 import {
   deleteClimb,
   deleteSession,
@@ -29,7 +25,8 @@ import {
   type ClimbSession,
 } from '@/lib/climb-log';
 
-export default function SessionsScreen() {
+/** The climbing history: past sessions with their climbs, shown on the History tab of the record sheet. */
+export function SessionHistory() {
   const theme = useTheme();
   const { user } = useAuth();
   const [sessions, setSessions] = useState<ClimbSession[] | null>(null);
@@ -56,14 +53,12 @@ export default function SessionsScreen() {
     ]);
   }
 
-  useFocusEffect(
-    useCallback(() => {
-      if (!user) return;
-      fetchSessions()
-        .then(setSessions)
-        .catch((e: Error) => setError(e.message));
-    }, [user]),
-  );
+  useEffect(() => {
+    if (!user) return;
+    fetchSessions()
+      .then(setSessions)
+      .catch((e: Error) => setError(e.message));
+  }, [user]);
 
   // Selecting several: long-press a session (or tap "Select"), tap to add or remove.
   const [selecting, setSelecting] = useState(false);
@@ -146,24 +141,22 @@ export default function SessionsScreen() {
     setHidden((h) => new Set([...h].filter((id) => !p.ids.includes(id))));
   }
   // Leaving the screen makes the delete final.
-  useFocusEffect(useCallback(() => flushPending, [flushPending]));
+  useEffect(() => flushPending, [flushPending]);
 
   const all = (sessions ?? []).filter((x) => !hidden.has(x.id));
   const totals = summarize(all.flatMap((s) => s.logs));
   const allSelected = all.length > 0 && selected.size === all.length;
 
   return (
-    <Screen title="Past sessions" showTitle={false} overlay={undoFor ? <UndoBar count={undoFor.length} onUndo={undoDelete} /> : undefined} onRefresh={() => fetchSessions().then(setSessions).catch((e: Error) => setError(e.message))}>
-      <View style={styles.headerRow}>
-        <ThemedText type="subtitle" accessibilityRole="header" style={styles.flex}>
-          Your climbing
-        </ThemedText>
-        {!selecting && all.length > 0 && (
+    <View style={styles.wrap}>
+      {!selecting && all.length > 0 && (
+        <View style={styles.headerRow}>
+          <View style={styles.flex} />
           <Pressable onPress={() => startSelecting()} hitSlop={8} accessibilityRole="button">
             <ThemedText type="smallBold" style={{ color: theme.accent }}>Select</ThemedText>
           </Pressable>
-        )}
-      </View>
+        </View>
+      )}
       {selecting && (
         <View style={styles.toolbar}>
           <Pressable onPress={stopSelecting} hitSlop={8} accessibilityRole="button">
@@ -296,8 +289,8 @@ export default function SessionsScreen() {
           onPress={() => confirmDelete([...selected])}
         />
       )}
-      {!selecting && <Button title="Start a session" onPress={() => openRecordSheet()} />}
-    </Screen>
+      {undoFor && <UndoBar count={undoFor.length} onUndo={undoDelete} />}
+    </View>
   );
 }
 
@@ -359,6 +352,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
+  wrap: { gap: Spacing.two },
   flex: { flex: 1 },
   totals: { flexDirection: 'row', gap: Spacing.two },
   stat: { flex: 1, gap: 0, alignItems: 'center', paddingVertical: Spacing.three },

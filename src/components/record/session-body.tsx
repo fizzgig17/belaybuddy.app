@@ -30,7 +30,7 @@ import { success, tap } from '@/lib/haptics';
 import { useFavorites } from '@/lib/favorites';
 import { checkIn } from '@/lib/friends';
 import { setActiveSession, useSessionLogs } from '@/lib/active-session';
-import { closeRecordSheet, useRecordSheet } from '@/lib/record-sheet';
+import { closeRecordSheet, setRecordTab, useRecordSheet } from '@/lib/record-sheet';
 import { useHomeGyms } from '@/lib/home-gyms';
 import { useAiConsent } from '@/lib/ai-consent';
 import { scanRouteTag } from '@/lib/route-tag';
@@ -101,10 +101,7 @@ export function SessionBody() {
         <Button
           title="Past sessions"
           variant="secondary"
-          onPress={() => {
-            closeRecordSheet();
-            router.push('/partners/sessions');
-          }}
+          onPress={() => setRecordTab('history')}
         />
       </>
     );
@@ -189,10 +186,7 @@ function StartCard({
       <Button
         title="Past sessions"
         variant="secondary"
-        onPress={() => {
-          closeRecordSheet();
-          router.push('/partners/sessions');
-        }}
+        onPress={() => setRecordTab('history')}
       />
     </>
   );
