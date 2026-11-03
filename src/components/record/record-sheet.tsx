@@ -6,11 +6,15 @@ import { SessionHistory } from '@/components/record/session-history';
 import { SessionBody } from '@/components/record/session-body';
 import { Segmented } from '@/components/form';
 import { IconButton } from '@/components/ui/icon-button';
-import { Spacing } from '@/constants/theme';
+import { SymbolView } from 'expo-symbols';
+import { ThemedText } from '@/components/themed-text';
+import { Icons } from '@/constants/icons';
+import { HoldColors, Spacing } from '@/constants/theme';
+import { useAuth } from '@/lib/auth';
 import { useSheetTop } from '@/hooks/use-sheet-top';
 import { useTheme } from '@/hooks/use-theme';
 import { useSessionActive, useSessionLogs } from '@/lib/active-session';
-import { closeRecordSheet, setRecordTab, useRecordSheet } from '@/lib/record-sheet';
+import { closeRecordSheet, confirmEndSession, setRecordTab, useRecordSheet } from '@/lib/record-sheet';
 
 
 /**
@@ -21,6 +25,7 @@ import { closeRecordSheet, setRecordTab, useRecordSheet } from '@/lib/record-she
 export function RecordSheet() {
   const { open, finished, tab } = useRecordSheet();
   const active = useSessionActive();
+  const { user } = useAuth();
   const logs = useSessionLogs();
   const theme = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -66,6 +71,17 @@ export function RecordSheet() {
   const panelStyle = [styles.panel, { height: panelH, transform: [{ translateY: y }], backgroundColor: theme.background }];
   const content = (
     <>
+      {active && !finished && tab === 'record' && (
+        <Pressable
+          onPress={() => confirmEndSession(user?.id)}
+          hitSlop={10}
+          accessibilityRole="button"
+          accessibilityLabel="End session"
+          style={styles.endBtn}>
+          <SymbolView name={Icons.stop} size={15} tintColor={HoldColors.coral} />
+          <ThemedText type="smallBold" style={{ color: HoldColors.coral }}>End session</ThemedText>
+        </Pressable>
+      )}
       <View style={styles.grabZone} {...pan.panHandlers} accessibilityLabel="Pull down to close" accessibilityRole="adjustable">
         {Platform.OS === 'ios' ? (
           <View style={[styles.grabber, { backgroundColor: theme.textSecondary }]} />
@@ -136,6 +152,7 @@ const styles = StyleSheet.create({
   // Same size and spot as the native grabber on the profile sheet.
   grabZone: { height: 28, alignItems: 'center', justifyContent: 'flex-start' },
   grabber: { width: 58, height: 5, borderRadius: 3, marginTop: 5, opacity: 0.55 },
+  endBtn: { position: 'absolute', left: Spacing.three, top: 9, zIndex: 2, flexDirection: 'row', alignItems: 'center', gap: 4 },
   closeRow: { position: 'absolute', right: Spacing.three, top: Spacing.two },
   scroll: { flex: 1 },
   footer: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.two, paddingTop: Spacing.one },

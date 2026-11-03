@@ -13,7 +13,7 @@ import { EndSessionDialog } from '@/components/record/end-session-dialog';
 import { RecordSheet } from '@/components/record/record-sheet';
 import { useSessionActive } from '@/lib/active-session';
 import { useAuth } from '@/lib/auth';
-import { confirmEndSession, openRecordSheet, toggleRecordSheet, useRecordSheet } from '@/lib/record-sheet';
+import { closeRecordSheet, openRecordSheet, toggleRecordSheet, useRecordSheet } from '@/lib/record-sheet';
 import { tap } from '@/lib/haptics';
 
 /**
@@ -67,7 +67,7 @@ function NavItem({ children, icon, isFocused, ...props }: TabTriggerSlotProps & 
  * disc. While a session runs it turns coral and pulses, so it is obvious something is being recorded.
  *   no session:            "Record session"; opens the sheet where you pick the gym and start
  *   session, sheet closed: "Recording"; opens the sheet to log climbs
- *   session, sheet open:   "End session"; ends it (after asking)
+ *   session, sheet open:   "Close"; closes the sheet (ending the session is the red End session button in the sheet)
  */
 function RecordButton() {
   const theme = useTheme();
@@ -75,7 +75,7 @@ function RecordButton() {
   const inSession = useSessionActive();
   const { open } = useRecordSheet();
   const color = inSession ? HoldColors.coral : theme.accent;
-  const caption = !inSession ? 'Record session' : open ? 'End session' : 'Recording';
+  const caption = !inSession ? 'Record session' : open ? 'Close' : 'Log a climb';
   const pulse = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     if (!inSession) {
@@ -94,7 +94,7 @@ function RecordButton() {
 
   function onPress() {
     tap();
-    if (inSession && open) confirmEndSession(user?.id);
+    if (inSession && open) closeRecordSheet();
     else if (inSession) openRecordSheet();
     else toggleRecordSheet();
   }
@@ -114,6 +114,11 @@ function RecordButton() {
         <View style={[styles.disc, { backgroundColor: color + 'D9' }]}>
           <SymbolView name={Icons.climber} size={30} weight="bold" tintColor={theme.onAccent} />
         </View>
+        {inSession && !open && (
+          <View style={[styles.plus, { backgroundColor: theme.surface, borderColor: color }]}>
+            <SymbolView name={Icons.add} size={12} weight="heavy" tintColor={color} />
+          </View>
+        )}
       </Animated.View>
       <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.recordCaption, { color }]}>
         {caption}
@@ -167,6 +172,7 @@ const styles = StyleSheet.create({
   // The button stands a little above the bar, so it reads as the main action.
   recordWrap: { width: 124, alignItems: 'center', justifyContent: 'center', marginTop: -26 },
   ring: { width: 64, height: 64, borderRadius: 32, borderWidth: 1.5, padding: 4 },
+  plus: { position: 'absolute', top: -6, right: -6, width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   disc: { flex: 1, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
   recordCaption: { fontSize: 11.5, fontWeight: '700', marginTop: 2, textAlign: 'center', alignSelf: 'stretch' },
 });
