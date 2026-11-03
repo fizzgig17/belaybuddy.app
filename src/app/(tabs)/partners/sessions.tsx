@@ -13,6 +13,7 @@ import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/lib/auth';
 import { select, success, tap } from '@/lib/haptics';
+import { openRecordSheet } from '@/lib/record-sheet';
 import {
   deleteSession,
   describeSummary,
@@ -252,7 +253,7 @@ export default function SessionsScreen() {
           onPress={() => confirmDelete([...selected])}
         />
       )}
-      {!selecting && <Button title="Start a session" onPress={() => router.replace('/record')} />}
+      {!selecting && <Button title="Start a session" onPress={() => openRecordSheet()} />}
     </Screen>
   );
 }

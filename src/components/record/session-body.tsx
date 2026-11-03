@@ -1,5 +1,5 @@
-import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { Button, Segmented, SingleChoice, ToggleRow } from '@/components/form';
@@ -11,7 +11,6 @@ import { useAuth } from '@/lib/auth';
 import {
   deleteClimb,
   describeSummary,
-  endSession,
   fetchActiveSession,
   colorHex,
   formatDuration,
@@ -30,8 +29,9 @@ import {
 } from '@/lib/climb-log';
 import { success, tap } from '@/lib/haptics';
 import { useFavorites } from '@/lib/favorites';
-import { checkIn, checkOut } from '@/lib/friends';
+import { checkIn } from '@/lib/friends';
 import { setSessionActive } from '@/lib/active-session';
+import { closeRecordSheet, useRecordSheet } from '@/lib/record-sheet';
 import { useHomeGyms } from '@/lib/home-gyms';
 import { useAiConsent } from '@/lib/ai-consent';
 import { scanRouteTag } from '@/lib/route-tag';
@@ -54,38 +54,74 @@ function rememberGrade(d: Discipline, g: string) {
   }
 }
 
-/** The session page's content: sign-in prompt, the start card, or the climb logger. Used by the page and the record sheet. */
+/**
+ * What the record sheet shows: a sign-in prompt, the start card, the climb logger, or the summary after a session ends.
+ * Ending a session is done with the round button, so there is no End button in here.
+ */
 export function SessionBody() {
   const { user, loading: authLoading } = useAuth();
+  const { finished } = useRecordSheet();
   const [session, setSession] = useState<ClimbSession | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
-  // Keeps the round button's caption (Record session / End session) in step.
+  // Keeps the round button in step (Record session / Recording / End session).
   const update = (s: ClimbSession | null) => {
     setSession(s);
     setSessionActive(!!s);
   };
 
-  useFocusEffect(
-    useCallback(() => {
-      if (!user) return;
-      fetchActiveSession()
-        .then((s) => {
-          setSession(s);
-          setSessionActive(!!s);
-        })
-        .catch((e: Error) => {
-          setSession(null);
-          setError(e.message);
-        });
-    }, [user]),
-  );
+  // The sheet is built fresh each time it opens, so this reads the running session each time.
+  useEffect(() => {
+    if (!user) return;
+    fetchActiveSession()
+      .then((s) => {
+        setSession(s);
+        setSessionActive(!!s);
+      })
+      .catch((e: Error) => {
+        setSession(null);
+        setError(e.message);
+      });
+  }, [user]);
 
+  if (finished) {
+    const s = summarize(finished.logs);
+    return (
+      <>
+        <ThemedText type="subtitle" accessibilityRole="header">
+          Nice session
+        </ThemedText>
+        <Card>
+          <ThemedText type="smallBold">{finished.areaName ?? 'Outdoors'}</ThemedText>
+          <ThemedText themeColor="textSecondary">
+            {formatDuration(finished.startedAt, finished.endedAt)} · {s.climbs} {s.climbs === 1 ? 'climb' : 'climbs'}
+          </ThemedText>
+          <ThemedText>{describeSummary(s)}</ThemedText>
+          {hardest(s) && <ThemedText>Hardest send: {hardest(s)}</ThemedText>}
+        </Card>
+        <Button title="Done" onPress={closeRecordSheet} />
+        <Button
+          title="Past sessions"
+          variant="secondary"
+          onPress={() => {
+            closeRecordSheet();
+            router.push('/partners/sessions');
+          }}
+        />
+      </>
+    );
+  }
   if (authLoading || (user && session === undefined)) return <ActivityIndicator />;
   if (!user) {
     return (
       <>
         <ThemedText>Sign in to log your climbs.</ThemedText>
-        <Button title="Sign in" onPress={() => router.push('/profile')} />
+        <Button
+          title="Sign in"
+          onPress={() => {
+            closeRecordSheet();
+            router.push('/profile');
+          }}
+        />
       </>
     );
   }
@@ -93,11 +129,7 @@ export function SessionBody() {
   return (
     <>
       {error && <ThemedText type="small" style={styles.error}>{error}</ThemedText>}
-      {session ? (
-        <Logger session={session} onChange={update} />
-      ) : (
-        <StartCard onStarted={update} onError={setError} />
-      )}
+      {session ? <Logger session={session} onChange={update} /> : <StartCard onStarted={update} onError={setError} />}
     </>
   );
 }
@@ -141,10 +173,10 @@ function StartCard({
 
   return (
     <>
-      <ThemedText type="subtitle" accessibilityRole="header">
+      <ThemedText type="smallBold" accessibilityRole="header">
         Start a session
       </ThemedText>
-      <ThemedText themeColor="textSecondary">
+      <ThemedText type="small" themeColor="textSecondary">
         Log each climb with one tap while you climb. Only you can see your log.
       </ThemedText>
       <SingleChoice label="Where are you climbing?" showLabel options={options} value={picked} onChange={setPicked} />
@@ -155,21 +187,26 @@ function StartCard({
         <ToggleRow label="Let my friends know I’m here" value={tellFriends} onValueChange={setTellFriends} />
       )}
       <Button title="Start session" onPress={start} loading={busy} />
-      <Button title="Past sessions" variant="secondary" onPress={() => router.push('/partners/sessions')} />
+      <Button
+        title="Past sessions"
+        variant="secondary"
+        onPress={() => {
+          closeRecordSheet();
+          router.push('/partners/sessions');
+        }}
+      />
     </>
   );
 }
 
 function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: ClimbSession | null) => void }) {
   const theme = useTheme();
-  const { user } = useAuth();
   const [discipline, setDiscipline] = useState<Discipline>('boulder');
   const [grade, setGrade] = useState(lastGrade('boulder'));
   const [mod, setMod] = useState<GradeMod>('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now());
-  const [finished, setFinished] = useState<ClimbSession | null>(null);
   const [color, setColor] = useState<string | null>(null);
   const [routeName, setRouteName] = useState('');
   const [scanning, setScanning] = useState(false);
@@ -195,7 +232,7 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
       success();
       const label = ROUTE_COLORS.find((c) => c.key === t.color)?.label;
       const bits = [label ? `${label} hold` : '', t.name, t.setter ? `set by ${t.setter}` : ''].filter(Boolean);
-      setTagNote(`Read ${t.grade}${t.mod}${bits.length ? ` · ${bits.join(' · ')}` : ''}. Check it below, then tap Sent, Flash or Attempt.`);
+      setTagNote(`Read ${t.grade}${t.mod}${bits.length ? ` · ${bits.join(' · ')}` : ''}. Check it, then tap Sent, Flash or Attempt.`);
     } finally {
       setScanning(false);
     }
@@ -261,76 +298,40 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
     }
   }
 
-  async function finish() {
-    try {
-      await endSession(session.id);
-      // Ending the session also ends a check-in made for it.
-      if (user) await checkOut(user.id).catch(() => {});
-      setSessionActive(false);
-      setFinished({ ...session, endedAt: new Date().toISOString() });
-    } catch (e) {
-      setError((e as Error).message);
-    }
-  }
-
-  function confirmFinish() {
-    if (Platform.OS === 'web') return finish();
-    Alert.alert('End this session?', undefined, [
-      { text: 'Keep climbing', style: 'cancel' },
-      { text: 'End session', onPress: finish },
-    ]);
-  }
-
-  if (finished) {
-    const s = summarize(finished.logs);
-    return (
-      <>
-        <ThemedText type="subtitle" accessibilityRole="header">
-          Nice session
-        </ThemedText>
-        <Card>
-          <ThemedText type="smallBold">{finished.areaName ?? 'Outdoors'}</ThemedText>
-          <ThemedText themeColor="textSecondary">
-            {formatDuration(finished.startedAt, finished.endedAt)} · {s.climbs} {s.climbs === 1 ? 'climb' : 'climbs'}
-          </ThemedText>
-          <ThemedText>{describeSummary(s)}</ThemedText>
-          {hardest(s) && <ThemedText>Hardest send: {hardest(s)}</ThemedText>}
-        </Card>
-        <Button title="Done" onPress={() => { onChange(null); router.back(); }} />
-        <Button title="Past sessions" variant="secondary" onPress={() => { onChange(null); router.back(); router.push('/partners/sessions'); }} />
-      </>
-    );
-  }
-
   const s = summarize(session.logs);
-  const recent = [...session.logs].reverse().slice(0, 8);
+  const recent = [...session.logs].reverse().slice(0, 3);
   const grades = gradesFor(discipline);
 
   return (
     <>
       <View>
-        <ThemedText type="subtitle" accessibilityRole="header">
+        <ThemedText type="smallBold" numberOfLines={1}>
           {session.areaName ?? 'Outdoors'}
         </ThemedText>
-        <ThemedText themeColor="textSecondary">
+        <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
           {formatDuration(session.startedAt, null, now)} · {describeSummary(s)}
           {hardest(s) ? ` · hardest ${hardest(s)}` : ''}
         </ThemedText>
       </View>
 
-      <Segmented
-        label="Type of climbing"
-        value={discipline}
-        onChange={pickDiscipline}
-        options={[
-          { value: 'boulder', label: 'Bouldering' },
-          { value: 'route', label: 'Routes' },
-        ]}
-      />
-
-      {Platform.OS !== 'web' && (
-        <Button title={scanning ? 'Reading the tag…' : 'Photograph the route tag'} onPress={askScan} disabled={scanning} />
-      )}
+      <View style={styles.row}>
+        <View style={styles.flex2}>
+          <Segmented
+            label="Type of climbing"
+            value={discipline}
+            onChange={pickDiscipline}
+            options={[
+              { value: 'boulder', label: 'Boulder' },
+              { value: 'route', label: 'Routes' },
+            ]}
+          />
+        </View>
+        {Platform.OS !== 'web' && (
+          <View style={styles.flex}>
+            <Button title={scanning ? 'Reading…' : 'Scan tag'} onPress={askScan} disabled={scanning} />
+          </View>
+        )}
+      </View>
       {tagNote && <ThemedText type="small" themeColor="textSecondary">{tagNote}</ThemedText>}
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.grades} keyboardShouldPersistTaps="handled">
@@ -365,8 +366,7 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
         ]}
       />
 
-      <ThemedText type="smallBold">Route color</ThemedText>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.grades} keyboardShouldPersistTaps="handled">
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.grades} keyboardShouldPersistTaps="handled" accessibilityLabel="Route color">
         {ROUTE_COLORS.map((c) => {
           const on = c.key === color;
           return (
@@ -400,31 +400,24 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
         <BigButton label="Flash" sub={shownGrade} color={HoldColors.yellow} dark onPress={() => log('flash')} disabled={busy} />
         <BigButton label="Attempt" sub={shownGrade} color={theme.backgroundSelected} dark onPress={() => log('attempt')} disabled={busy} />
       </View>
-      <ThemedText type="small" themeColor="textSecondary">
-        Sent: you finished it. Flash: you finished it on your first try. Attempt: you tried but didn’t finish.
-      </ThemedText>
       {error && <ThemedText type="small" style={styles.error}>{error}</ThemedText>}
 
       {recent.length > 0 && (
-        <Card style={styles.list}>
-          <ThemedText type="smallBold">This session</ThemedText>
+        <View>
           {recent.map((l, i) => (
             <View key={l.id} style={[styles.logRow, i > 0 && { borderTopColor: theme.border, borderTopWidth: StyleSheet.hairlineWidth }]}>
               <ThemedText type="smallBold" style={styles.logGrade}>{l.grade}</ThemedText>
               {colorHex(l.color) && <View style={[styles.dot, { backgroundColor: colorHex(l.color)!, borderColor: theme.border }]} />}
-              <ThemedText type="small" themeColor="textSecondary" style={styles.flex}>
-                {l.routeName ? `${l.routeName} · ` : ''}{RESULT_LABELS[l.result]} · {l.discipline === 'boulder' ? 'Boulder' : 'Route'} ·{' '}
-                {new Date(l.loggedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+              <ThemedText type="small" themeColor="textSecondary" style={styles.flex} numberOfLines={1}>
+                {l.routeName ? `${l.routeName} · ` : ''}{RESULT_LABELS[l.result]}
               </ThemedText>
               <Pressable onPress={() => undo(l)} hitSlop={10} accessibilityRole="button" accessibilityLabel={`Remove ${l.grade} ${RESULT_LABELS[l.result]}`}>
                 <ThemedText type="small" style={{ color: theme.accent }}>Remove</ThemedText>
               </Pressable>
             </View>
           ))}
-        </Card>
+        </View>
       )}
-
-      <Button title="End session" variant="secondary" onPress={confirmFinish} />
     </>
   );
 }
@@ -456,7 +449,7 @@ function BigButton({
       <ThemedText type="smallBold" style={{ color: text === '#1F2D35' && color === theme.backgroundSelected ? theme.text : text }}>
         {label}
       </ThemedText>
-      <ThemedText type="subtitle" style={{ color: color === theme.backgroundSelected ? theme.text : text }}>
+      <ThemedText type="subtitle" style={{ color: color === theme.backgroundSelected ? theme.text : text, fontSize: 28, lineHeight: 32 }}>
         {sub}
       </ThemedText>
     </Pressable>
@@ -466,15 +459,16 @@ function BigButton({
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   error: { color: '#C0392B' },
-  grades: { gap: Spacing.two, paddingVertical: Spacing.one },
-  grade: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.two + 2, borderRadius: 999, borderWidth: 1, minWidth: 52, alignItems: 'center' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
+  flex2: { flex: 1.6 },
+  grades: { gap: Spacing.two, paddingVertical: 2, alignItems: 'center' },
+  grade: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: 999, borderWidth: 1, minWidth: 52, alignItems: 'center' },
   big: { flexDirection: 'row', gap: Spacing.two },
-  bigButton: { flex: 1, minHeight: 96, borderRadius: Spacing.three, alignItems: 'center', justifyContent: 'center', gap: Spacing.one },
-  list: { gap: 0, paddingVertical: Spacing.two },
-  logRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.two + 2 },
+  bigButton: { flex: 1, minHeight: 72, borderRadius: Spacing.three, alignItems: 'center', justifyContent: 'center', gap: Spacing.one },
+  logRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.one + 2 },
   logGrade: { width: 52 },
   swatchRing: { padding: 3, borderRadius: 999, borderWidth: 2 },
-  swatch: { width: 30, height: 30, borderRadius: 15, borderWidth: StyleSheet.hairlineWidth },
+  swatch: { width: 28, height: 28, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth },
   dot: { width: 12, height: 12, borderRadius: 6, borderWidth: StyleSheet.hairlineWidth },
-  nameInput: { borderWidth: 1, borderRadius: Spacing.three, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two + 2, fontSize: 16 },
+  nameInput: { borderWidth: 1, borderRadius: Spacing.three, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, fontSize: 16 },
 });

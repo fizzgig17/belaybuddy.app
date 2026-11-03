@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { KeyboardDoneBar } from '@/components/form';
 import { ThemedText } from '@/components/themed-text';
@@ -41,7 +41,7 @@ export function ProfileTabs({ pages }: { pages: { key: string; label: string; co
             );
           })}
         </View>
-        <IconButton icon="close" label="Close" onPress={closeProfile} />
+        {Platform.OS !== 'ios' && <IconButton icon="close" label="Close" onPress={closeProfile} />}
       </View>
       <View style={styles.fill}>{current.content}</View>
       <KeyboardDoneBar />
@@ -57,7 +57,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: Spacing.three,
     paddingHorizontal: Spacing.three,
-    paddingTop: Spacing.three,
+    paddingTop: Spacing.one,
+    paddingBottom: Spacing.one,
   },
   tabs: { flexDirection: 'row', borderRadius: 999, padding: 3, flexShrink: 1 },
   tab: { paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: 999 },

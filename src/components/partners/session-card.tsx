@@ -6,6 +6,7 @@ import { Button } from '@/components/form';
 import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/group';
 import { Spacing } from '@/constants/theme';
+import { openRecordSheet } from '@/lib/record-sheet';
 import { describeSummary, fetchActiveSession, summarize, type ClimbSession } from '@/lib/climb-log';
 
 /** Entry point to the climb log: continue the open session, or start one. */
@@ -32,7 +33,7 @@ export function SessionCard() {
       </View>
       <View style={styles.buttons}>
         <View style={styles.flex}>
-          <Button title={active ? 'Continue' : 'Start session'} onPress={() => router.push('/record')} />
+          <Button title={active ? 'Continue' : 'Start session'} onPress={() => openRecordSheet()} />
         </View>
         <View style={styles.flex}>
           <Button title="Past sessions" variant="secondary" onPress={() => router.push('/partners/sessions')} />

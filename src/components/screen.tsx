@@ -36,6 +36,8 @@ type ScreenProps = {
   embedded?: boolean;
   /** Text pages: a narrower column so lines stay short. */
   readable?: boolean;
+  /** A page inside a sheet: tighter spacing and no room kept for the tab bar, so less scrolling. */
+  compact?: boolean;
 };
 
 /** Website pages opened from another page: a way back, since there is no native header. */
@@ -55,7 +57,7 @@ function BackPill() {
 }
 
 /** Standard scrollable screen shell used by every tab. */
-export function Screen({ title, subtitle, description, children, showTitle = true, action, profileButton, onRefresh, overlay, embedded, readable }: ScreenProps) {
+export function Screen({ title, subtitle, description, children, showTitle = true, action, profileButton, onRefresh, overlay, embedded, readable, compact }: ScreenProps) {
 
   const [refreshing, setRefreshing] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -80,7 +82,7 @@ export function Screen({ title, subtitle, description, children, showTitle = tru
     <ThemedView style={styles.container}>
       {!embedded && <PageTitle title={title} description={description ?? subtitle} />}
       <SafeAreaView style={styles.safeArea} edges={showTitle && !IS_DEV_BUILD && !bannerShowing ? ['top'] : []}>
-        <ScrollView contentContainerStyle={[styles.content, readable && { maxWidth: ReadableWidth }]} keyboardShouldPersistTaps="handled"
+        <ScrollView contentContainerStyle={[styles.content, compact && styles.compact, readable && { maxWidth: ReadableWidth }]} keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           automaticallyAdjustKeyboardInsets
           refreshControl={pull ? <RefreshControl refreshing={refreshing} onRefresh={pull} /> : undefined}>
@@ -119,6 +121,7 @@ export function Screen({ title, subtitle, description, children, showTitle = tru
 }
 
 const styles = StyleSheet.create({
+  compact: { padding: Spacing.three, paddingTop: Spacing.two, paddingBottom: Spacing.four, gap: Spacing.two },
   container: { flex: 1, backgroundColor: 'transparent' },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   title: { flex: 1 },

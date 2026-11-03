@@ -39,14 +39,12 @@ export default function TabLayout() {
               <View style={{ flex: 1 }}>
             <Stack screenOptions={{ headerShown: false }}>
               <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="profile" options={{ presentation: 'modal' }} />
-              {/* The round middle button slides this sheet up over the current tab. On iPhone it is a sheet with a grabber
-                  line you can pull down; on Android it has an X. It never opens as a page of its own. */}
+              {/* Profile, Settings and Admin: a sheet like the record sheet. iPhone: grabber line to pull down; Android: an X. */}
               <Stack.Screen
-                name="record"
+                name="profile"
                 options={
                   Platform.OS === 'ios'
-                    ? { presentation: 'formSheet', sheetGrabberVisible: true, sheetAllowedDetents: [0.9], sheetCornerRadius: 24 }
+                    ? { presentation: 'formSheet', sheetGrabberVisible: true, sheetAllowedDetents: [0.95], sheetCornerRadius: 24 }
                     : { presentation: 'modal', animation: 'slide_from_bottom' }
                 }
               />

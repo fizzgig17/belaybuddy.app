@@ -73,7 +73,7 @@ export default function ProfileSheet() {
           key: 'profile',
           label: 'Profile',
           content: (
-            <Screen title="Profile" embedded showTitle={false}>
+            <Screen title="Profile" embedded showTitle={false} compact>
               <ThemedText type="small" themeColor="textSecondary">
                 Signed in as {user.email}
               </ThemedText>

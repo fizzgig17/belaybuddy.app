@@ -1,15 +1,17 @@
 import { Tabs, TabList, TabTrigger, TabSlot, type TabTriggerSlotProps, type TabListProps } from 'expo-router/ui';
-import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { Children, type ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Children, useEffect, useRef, type ReactNode } from 'react';
+import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
 import { Icons, type IconName } from '@/constants/icons';
-import { Spacing } from '@/constants/theme';
+import { HoldColors, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { RecordSheet } from '@/components/record/record-sheet';
 import { useSessionActive } from '@/lib/active-session';
+import { useAuth } from '@/lib/auth';
+import { confirmEndSession, openRecordSheet, toggleRecordSheet, useRecordSheet } from '@/lib/record-sheet';
 import { tap } from '@/lib/haptics';
 
 /**
@@ -19,7 +21,10 @@ import { tap } from '@/lib/haptics';
 export default function AppTabs() {
   return (
     <Tabs style={styles.root}>
-      <TabSlot style={styles.slot} />
+      <View style={styles.slot}>
+        <TabSlot style={styles.slot} />
+        <RecordSheet />
+      </View>
       <TabList asChild>
         <BottomBar>
           <TabTrigger name="(find)" href="/" asChild>
@@ -53,25 +58,62 @@ function NavItem({ children, icon, isFocused, ...props }: TabTriggerSlotProps & 
   );
 }
 
-/** The round button, drawn like the Take reading button in hCRI Companion: a see-through ring around a softer filled disc. */
+/**
+ * The round button, drawn like the Take reading button in hCRI Companion: a see-through ring around a softer filled
+ * disc. While a session runs it turns coral and pulses, so it is obvious something is being recorded.
+ *   no session:            "Record session"; opens the sheet where you pick the gym and start
+ *   session, sheet closed: "Recording"; opens the sheet to log climbs
+ *   session, sheet open:   "End session"; ends it (after asking)
+ */
 function RecordButton() {
   const theme = useTheme();
+  const { user } = useAuth();
   const inSession = useSessionActive();
+  const { open } = useRecordSheet();
+  const color = inSession ? HoldColors.coral : theme.accent;
+  const caption = !inSession ? 'Record session' : open ? 'End session' : 'Recording';
+  const pulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!inSession) {
+      pulse.setValue(0);
+      return;
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: 1100, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0, duration: 1100, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [inSession, pulse]);
+
+  function onPress() {
+    tap();
+    if (inSession && open) confirmEndSession(user?.id);
+    else if (inSession) openRecordSheet();
+    else toggleRecordSheet();
+  }
+
   return (
     <Pressable
-      onPress={() => {
-        tap();
-        router.push('/record');
-      }}
+      onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={inSession ? 'End session' : 'Record session'}
+      accessibilityLabel={caption}
       style={({ pressed }) => [styles.recordWrap, pressed && { opacity: 0.8, transform: [{ scale: 0.97 }] }]}>
-      <View style={[styles.ring, { borderColor: theme.accent + '88', backgroundColor: theme.surface }]}>
-        <View style={[styles.disc, { backgroundColor: theme.accent + 'D9' }]}>
-          <SymbolView name={Icons.record} size={30} weight="bold" tintColor={theme.onAccent} />
+      <Animated.View
+        style={[
+          styles.ring,
+          { borderColor: color + '88', backgroundColor: theme.surface },
+          { transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.07] }) }] },
+        ]}>
+        <View style={[styles.disc, { backgroundColor: color + 'D9' }]}>
+          <SymbolView name={Icons.climber} size={30} weight="bold" tintColor={theme.onAccent} />
         </View>
-      </View>
-      <Text style={[styles.recordCaption, { color: theme.accent }]}>{inSession ? 'End session' : 'Record session'}</Text>
+      </Animated.View>
+      <Text numberOfLines={1} adjustsFontSizeToFit style={[styles.recordCaption, { color }]}>
+        {caption}
+      </Text>
     </Pressable>
   );
 }
@@ -104,8 +146,8 @@ const styles = StyleSheet.create({
   item: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 2, paddingBottom: 2, minHeight: 48 },
   itemLabel: { fontSize: 11, lineHeight: 14 },
   // The button stands a little above the bar, so it reads as the main action.
-  recordWrap: { width: 110, alignItems: 'center', marginTop: -26 },
+  recordWrap: { width: 124, alignItems: 'center', justifyContent: 'center', marginTop: -26 },
   ring: { width: 64, height: 64, borderRadius: 32, borderWidth: 1.5, padding: 4 },
   disc: { flex: 1, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
-  recordCaption: { fontSize: 11.5, fontWeight: '700', marginTop: 2 },
+  recordCaption: { fontSize: 11.5, fontWeight: '700', marginTop: 2, textAlign: 'center', alignSelf: 'stretch' },
 });

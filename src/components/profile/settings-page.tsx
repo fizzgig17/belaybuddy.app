@@ -67,7 +67,7 @@ export function SettingsPage() {
 
   if (!user) {
     return (
-      <Screen title="Settings" embedded showTitle={false}>
+      <Screen title="Settings" embedded showTitle={false} compact>
         <ThemedText>Sign in to change your settings.</ThemedText>
         <Button title="Sign in" onPress={() => router.navigate('/profile')} />
       </Screen>
@@ -151,7 +151,7 @@ export function SettingsPage() {
   const showPush = push !== 'unsupported';
 
   return (
-    <Screen title="Settings" embedded showTitle={false}>
+    <Screen title="Settings" embedded showTitle={false} compact>
       <Section title="Notifications">
         {showPush && push !== 'on' && (
           <Card>

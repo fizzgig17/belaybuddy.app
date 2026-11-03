@@ -55,6 +55,7 @@ export const Icons = {
   partnersTab: icon('person.2', 'group'),
   learnTab: icon('book', 'menu_book'),
   record: icon('plus', 'add'),
+  climber: icon('figure.climbing', 'hiking'),
 } as const;
 
 export type IconName = keyof typeof Icons;

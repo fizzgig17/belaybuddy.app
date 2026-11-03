@@ -7,6 +7,8 @@ import {
   TabListProps,
 } from 'expo-router/ui';
 import { router } from 'expo-router';
+import { RecordSheet } from '@/components/record/record-sheet';
+import { toggleRecordSheet } from '@/lib/record-sheet';
 import { Image, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { ThemedText } from './themed-text';
@@ -38,7 +40,10 @@ export default function AppTabs() {
           </TabTrigger>
         </CustomTabList>
       </TabList>
-      <TabSlot style={styles.slot} />
+      <View style={styles.slot}>
+        <TabSlot style={styles.slot} />
+        <RecordSheet />
+      </View>
     </Tabs>
   );
 }
@@ -112,7 +117,7 @@ function AccountButton() {
   if (user) {
     return (
       <>
-        <NavAction label="Record session" icon="record" filled onPress={() => router.push('/record')} />
+        <NavAction label="Record session" icon="climber" filled onPress={toggleRecordSheet} />
         <NavAction label="Profile" icon="person" onPress={() => router.push('/profile')} />
       </>
     );

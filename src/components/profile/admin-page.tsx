@@ -134,7 +134,7 @@ export function AdminPage() {
   }
 
   return (
-    <Screen title="Admin" embedded showTitle={false}>
+    <Screen title="Admin" embedded showTitle={false} compact>
       {isAdmin === null ? (
         <ActivityIndicator />
       ) : !isAdmin ? (
