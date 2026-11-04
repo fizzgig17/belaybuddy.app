@@ -18,6 +18,7 @@ import { ThemedText } from '@/components/themed-text';
 import { Icons } from '@/constants/icons';
 import { Depth, gradientStyle, Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { announceFocus } from '@/lib/keyboard-reveal';
 import { useTheme } from '@/hooks/use-theme';
 import { select, tap } from '@/lib/haptics';
 
@@ -78,6 +79,10 @@ export function Field({
         }
         {...inputProps}
         editable={tapToEdit ? armed : inputProps.editable}
+        onFocus={(e) => {
+          announceFocus();
+          inputProps.onFocus?.(e);
+        }}
         onBlur={(e) => {
           setArmed(false);
           inputProps.onBlur?.(e);

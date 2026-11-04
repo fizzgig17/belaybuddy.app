@@ -10,6 +10,7 @@ import { Spacing } from '@/constants/theme';
 import { useSheetTop } from '@/hooks/use-sheet-top';
 import { useTheme } from '@/hooks/use-theme';
 import { useSessionActive, useSessionLogs } from '@/lib/active-session';
+import { useKeyboardReveal } from '@/lib/keyboard-reveal';
 import { closeRecordSheet, setRecordTab, useRecordSheet } from '@/lib/record-sheet';
 
 
@@ -64,6 +65,7 @@ export function RecordSheet() {
   );
 
   const panelStyle = [styles.panel, { height: panelH, transform: [{ translateY: y }], backgroundColor: theme.background }];
+  const kb = useKeyboardReveal();
   const tabs = finished ? null : (
     <Segmented
       label="Record or history"
@@ -88,7 +90,10 @@ export function RecordSheet() {
         </View>
       )}
       <ScrollView
-        style={styles.scroll}
+        ref={kb.ref}
+        onScroll={kb.onScroll}
+        scrollEventThrottle={32}
+        style={[styles.scroll, kb.overlap > 0 && { marginBottom: kb.overlap }]}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"

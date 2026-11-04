@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { Icons, type IconName } from '@/constants/icons';
 import { useEffect, useState } from 'react';
+import { announceFocus } from '@/lib/keyboard-reveal';
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { Button, ButtonIcon, Segmented, SingleChoice, ToggleRow } from '@/components/form';
@@ -384,6 +385,7 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
         placeholderTextColor={theme.textSecondary}
         maxLength={60}
         returnKeyType="done"
+        onFocus={announceFocus}
         style={[styles.nameInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surface }]}
       />
 

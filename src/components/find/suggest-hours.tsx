@@ -1,11 +1,12 @@
 import { Link, router } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Modal, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Button, Field, ToggleRow } from '@/components/form';
 import { IconButton } from '@/components/ui/icon-button';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
+import { useKeyboardReveal } from '@/lib/keyboard-reveal';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/lib/auth';
 import { DAY_NAMES, hoursToOsm, suggestHours, type DayHours } from '@/lib/place-edits';
@@ -17,6 +18,7 @@ const blank = (): DayHours[] => DAY_NAMES.map(() => ({ closed: false, open: '', 
  * it goes to a review queue and shows once approved.
  */
 export function SuggestHours({ place, compact = false }: { place: { id: string; name: string; kind: 'gym' | 'shop' }; compact?: boolean }) {
+  const kb = useKeyboardReveal();
   const theme = useTheme();
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
@@ -78,12 +80,12 @@ export function SuggestHours({ place, compact = false }: { place: { id: string; 
         <Button title="Add the hours" variant="secondary" onPress={() => setOpen(true)} />
       )}
       <Modal visible={open} animationType="slide" onRequestClose={() => setOpen(false)}>
-        {/* The keyboard must not cover the lower days: iPhone lets the scroll view make room, Android shrinks the sheet. */}
-        <KeyboardAvoidingView
-          enabled={Platform.OS === 'android'}
-          behavior="height"
-          style={[styles.sheet, { backgroundColor: theme.background }]}>
+        <View style={[styles.sheet, { backgroundColor: theme.background }]}>
           <ScrollView
+            ref={kb.ref}
+            onScroll={kb.onScroll}
+            scrollEventThrottle={32}
+            style={kb.overlap > 0 ? { marginBottom: kb.overlap } : undefined}
             contentContainerStyle={styles.content}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
@@ -133,7 +135,7 @@ export function SuggestHours({ place, compact = false }: { place: { id: string; 
               </View>
             </View>
           </ScrollView>
-        </KeyboardAvoidingView>
+        </View>
       </Modal>
     </>
   );

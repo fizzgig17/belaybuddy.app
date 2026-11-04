@@ -1,3 +1,4 @@
+import { useKeyboardReveal } from '@/lib/keyboard-reveal';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useHeaderHeight } from 'expo-router/react-navigation';
 import { SymbolView } from 'expo-symbols';
@@ -46,6 +47,7 @@ export default function ChatScreen() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const scroll = useRef<ScrollView>(null);
+  const kb = useKeyboardReveal<View>();
 
   useEffect(() => {
     if (!user || !postId || !responderId) return;
@@ -105,7 +107,8 @@ export default function ChatScreen() {
       <PageTitle title={`Chat with ${otherName}`} />
       <Stack.Screen options={{ title: otherName }} />
       <KeyboardAvoidingView
-        style={styles.container}
+        ref={kb.ref as never}
+        style={[styles.container, kb.overlap > 0 && { paddingBottom: kb.overlap }]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={headerHeight}>
         <ScrollView

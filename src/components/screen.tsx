@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AboutSheet } from '@/components/about-sheet';
 import { IS_DEV_BUILD } from '@/components/dev-banner';
 import { useBanner } from '@/lib/banner';
+import { useKeyboardReveal } from '@/lib/keyboard-reveal';
 
 import { PageTitle } from '@/components/page-title';
 import { KeyboardDoneBar } from '@/components/form';
@@ -60,6 +61,7 @@ function BackPill() {
 /** Standard scrollable screen shell used by every tab. */
 export function Screen({ title, subtitle, description, children, showTitle = true, action, profileButton, onRefresh, overlay, embedded, readable, compact }: ScreenProps) {
 
+  const kb = useKeyboardReveal();
   const [refreshing, setRefreshing] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const { user, loading: authLoading } = useAuth();
@@ -84,7 +86,7 @@ export function Screen({ title, subtitle, description, children, showTitle = tru
       <Grain strength={0.7} />
       {!embedded && <PageTitle title={title} description={description ?? subtitle} />}
       <SafeAreaView style={styles.safeArea} edges={showTitle && !IS_DEV_BUILD && !bannerShowing ? ['top'] : []}>
-        <ScrollView contentContainerStyle={[styles.content, compact && styles.compact, readable && { maxWidth: ReadableWidth }]} keyboardShouldPersistTaps="handled"
+        <ScrollView ref={kb.ref} onScroll={kb.onScroll} scrollEventThrottle={32} style={kb.overlap > 0 ? { marginBottom: kb.overlap } : undefined} contentContainerStyle={[styles.content, compact && styles.compact, readable && { maxWidth: ReadableWidth }]} keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           automaticallyAdjustKeyboardInsets
           refreshControl={pull ? <RefreshControl refreshing={refreshing} onRefresh={pull} /> : undefined}>
