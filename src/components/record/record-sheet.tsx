@@ -64,34 +64,36 @@ export function RecordSheet() {
   );
 
   const panelStyle = [styles.panel, { height: panelH, transform: [{ translateY: y }], backgroundColor: theme.background }];
+  const tabs = finished ? null : (
+    <Segmented
+      label="Record or history"
+      value={tab}
+      onChange={setRecordTab}
+      options={[
+        { value: 'record', label: 'Record' },
+        { value: 'history', label: 'History' },
+      ]}
+    />
+  );
   const content = (
     <>
-      <View style={styles.grabZone} {...pan.panHandlers} accessibilityLabel="Pull down to close" accessibilityRole="adjustable">
-        {Platform.OS === 'ios' ? (
-          <View style={[styles.grabber, { backgroundColor: theme.textSecondary }]} />
-        ) : (
-          <View style={styles.closeRow}>
-            <IconButton icon="close" label="Close" onPress={closeRecordSheet} />
-          </View>
-        )}
+      <View style={[styles.grabZone, Platform.OS !== 'ios' && { height: 8 }]} {...pan.panHandlers} accessibilityLabel="Pull down to close" accessibilityRole="adjustable">
+        {Platform.OS === 'ios' && <View style={[styles.grabber, { backgroundColor: theme.textSecondary }]} />}
       </View>
+      {Platform.OS !== 'ios' && (
+        // Android and web: the tabs sit beside the close button, not under it.
+        <View style={styles.androidHeader}>
+          <View style={styles.androidTabs}>{tabs}</View>
+          <IconButton icon="close" label="Close" onPress={closeRecordSheet} />
+        </View>
+      )}
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         automaticallyAdjustKeyboardInsets>
-        {!finished && (
-          <Segmented
-            label="Record or history"
-            value={tab}
-            onChange={setRecordTab}
-            options={[
-              { value: 'record', label: 'Record' },
-              { value: 'history', label: 'History' },
-            ]}
-          />
-        )}
+        {Platform.OS === 'ios' && tabs}
         {tab === 'history' && !finished ? <SessionHistory /> : <SessionBody />}
       </ScrollView>
       {active && !finished && tab === 'record' && logs.length > 0 && (
@@ -136,7 +138,8 @@ const styles = StyleSheet.create({
   // Same size and spot as the native grabber on the profile sheet.
   grabZone: { height: 28, alignItems: 'center', justifyContent: 'flex-start' },
   grabber: { width: 58, height: 5, borderRadius: 3, marginTop: 5, opacity: 0.55 },
-  closeRow: { position: 'absolute', right: Spacing.three, top: Spacing.two },
+  androidHeader: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, paddingHorizontal: Spacing.three, paddingBottom: Spacing.two },
+  androidTabs: { flex: 1 },
   scroll: { flex: 1 },
   footer: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.two, paddingTop: Spacing.one },
   content: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.three, gap: Spacing.two },

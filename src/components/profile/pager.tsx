@@ -68,11 +68,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: Spacing.three,
+    // Android and web: leave room on the right for the close button so the tabs never sit under it.
+    paddingRight: Platform.OS === 'ios' ? Spacing.three : Spacing.three + 48,
     // On iPhone the sheet's grabber line sits at the very top; keep the tabs clear of it.
     paddingTop: Platform.OS === 'ios' ? Spacing.four : Spacing.two,
     paddingBottom: Spacing.one,
   },
   close: { position: 'absolute', right: Spacing.three, top: Spacing.two },
   tabs: { flexDirection: 'row', borderRadius: 999, padding: 3, flexShrink: 1 },
-  tab: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, borderRadius: 999 },
+  tab: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: Platform.OS === 'ios' ? Spacing.three : Spacing.two + 4, paddingVertical: Spacing.two, borderRadius: 999 },
 });
