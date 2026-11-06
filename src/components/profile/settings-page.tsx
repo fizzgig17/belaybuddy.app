@@ -6,7 +6,9 @@ import { ActivityIndicator, Alert, AppState, Linking, Platform, Pressable, Style
 import { SignInOptions } from '@/components/auth/sign-in-options';
 import { Button, Segmented, ToggleRow } from '@/components/form';
 import { AppIconPicker } from '@/components/profile/app-icon-picker';
+import { PLUS_NAME } from '@/content/plus';
 import { useAiConsent } from '@/lib/ai-consent';
+import { manageSubscription, restorePlus, usePlus } from '@/lib/purchases';
 import { PrivacySettings } from '@/components/profile/privacy-settings';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
@@ -239,6 +241,7 @@ export function SettingsPage() {
         </Card>
       </Section>
 
+      <PlusSettings />
       <AiSettings />
 
       <PrivacySettings />
@@ -282,6 +285,24 @@ function AppearanceSettings() {
 }
 
 /** The AI choice (reading route tags) and a link to the privacy policy. */
+/** Belay Buddy Plus: status, upgrade and manage. Hidden entirely until purchases are switched on. */
+function PlusSettings() {
+  const { enabled, isPlus } = usePlus();
+  if (!enabled) return null;
+  return (
+    <Section title={PLUS_NAME} footer={isPlus ? 'Thank you for supporting Belay Buddy.' : 'Scan route tags, and support the app.'}>
+      <Card>
+        <Button
+          title={isPlus ? 'Manage subscription' : `Try ${PLUS_NAME}`}
+          variant={isPlus ? 'secondary' : 'primary'}
+          onPress={() => (isPlus ? manageSubscription() : router.push('/paywall'))}
+        />
+        {!isPlus && <Button title="Restore purchases" variant="secondary" onPress={() => void restorePlus()} />}
+      </Card>
+    </Section>
+  );
+}
+
 function AiSettings() {
   const theme = useTheme();
   const { consent, set, signedIn } = useAiConsent();

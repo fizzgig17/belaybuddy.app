@@ -36,6 +36,7 @@ import { setActiveSession, useSessionActive, useSessionLogs } from '@/lib/active
 import { closeRecordSheet, confirmEndSession, useRecordSheet } from '@/lib/record-sheet';
 import { useHomeGyms } from '@/lib/home-gyms';
 import { useAiConsent } from '@/lib/ai-consent';
+import { requirePlus, usePlus } from '@/lib/purchases';
 import { scanRouteTag } from '@/lib/route-tag';
 
 const OTHER = '__other__';
@@ -205,6 +206,7 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
   const [scanning, setScanning] = useState(false);
   const [tagNote, setTagNote] = useState<string | null>(null);
   const { consent, set: setConsent } = useAiConsent();
+  const plus = usePlus();
 
   async function scanTag() {
     if (scanning) return;
@@ -232,6 +234,7 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
   }
 
   function askScan() {
+    if (!requirePlus()) return;
     if (consent === 'allowed') return void scanTag();
     if (consent === 'loading') return;
     const msg = 'The photo of the tag is sent to an AI service to read it. Turn on AI features to use this?';
@@ -320,7 +323,7 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
               accessibilityRole="button"
               style={({ pressed }) => [styles.scan, { backgroundColor: theme.accent, opacity: scanning ? 0.5 : pressed ? 0.8 : 1 }]}>
               <SymbolView name={Icons.camera} size={16} tintColor="#FFFFFF" />
-              <ThemedText type="smallBold" style={styles.scanText}>{scanning ? 'Reading…' : 'Scan tag'}</ThemedText>
+              <ThemedText type="smallBold" style={styles.scanText}>{scanning ? 'Reading…' : plus.isPlus ? 'Scan tag' : 'Scan tag · Plus'}</ThemedText>
             </Pressable>
           </View>
         )}

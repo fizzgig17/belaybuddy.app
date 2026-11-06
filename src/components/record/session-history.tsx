@@ -6,6 +6,7 @@ import ReanimatedSwipeable, { type SwipeableMethods } from 'react-native-gesture
 import { Button } from '@/components/form';
 import { ThemedText } from '@/components/themed-text';
 import { ClimbBead } from '@/components/record/climb-beads';
+import { ProgressCard } from '@/components/record/progress-card';
 import { Card } from '@/components/ui/group';
 import { IconButton } from '@/components/ui/icon-button';
 import { Spacing } from '@/constants/theme';
@@ -188,6 +189,7 @@ export function SessionHistory() {
       {sessions && sessions.length === 0 && (
         <ThemedText themeColor="textSecondary">No finished sessions yet. Start one and log a climb.</ThemedText>
       )}
+      {sessions && sessions.length > 0 && <ProgressCard sessions={all} />}
       {sessions && sessions.length > 0 && (
         <View style={styles.totals}>
           <Stat label="Sessions" value={String(all.length)} />

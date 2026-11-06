@@ -7,6 +7,7 @@ import { AppLock } from '@/components/auth/app-lock';
 import { DevBanner } from '@/components/dev-banner';
 import { InfoBanner } from '@/components/info-banner';
 import { NotificationsBridge } from '@/components/notifications-bridge';
+import { PurchasesBridge } from '@/components/purchases-bridge';
 import { Colors, Depth, gradientStyle } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { AuthProvider } from '@/lib/auth';
@@ -55,11 +56,13 @@ export default function TabLayout() {
               <Stack.Screen name="terms" />
               <Stack.Screen name="delete-account" />
               <Stack.Screen name="suggest-place" />
+              <Stack.Screen name="paywall" options={{ presentation: 'modal' }} />
             </Stack>
               </View>
             </View>
             <AppLock />
             <NotificationsBridge />
+            <PurchasesBridge />
           </ThemeProvider>
         </HomeGymsProvider>
       </FavoritesProvider>
