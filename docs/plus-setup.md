@@ -25,13 +25,15 @@ route-tips function check RevenueCat (REST API or a webhook that writes a `plus`
    (`app.belaybuddy.android`), connect each store, import the products, create the entitlement **`plus`**, attach the
    products to it, and put both in the default **Offering** as Monthly and Annual packages.
 4. **Keys.** Copy the public SDK keys (they start `appl_` and `goog_`). They are meant to ship in the app.
-5. **Switch on.** Add to `config/prod.env` (and `config/dev.env` to test first):
+5. **Switch on.** Add the three lines below to wherever the build gets its settings: `config/prod.env` for production
+   builds from master (the iOS and Android workflows copy every `EXPO_PUBLIC_*` line from it), and for dev builds the
+   same place the dev Supabase values come from (the Xcode Cloud dev workflow's environment variables or `.env`).
+   Turn it on in dev first and test there:
    ```
    EXPO_PUBLIC_PLUS_ENABLED=1
    EXPO_PUBLIC_REVENUECAT_IOS_KEY=appl_...
    EXPO_PUBLIC_REVENUECAT_ANDROID_KEY=goog_...
    ```
-   The build workflows already copy every `EXPO_PUBLIC_*` line from those files.
 6. **Test.** Dev TestFlight build: purchases run in Apple's sandbox at no charge. Android: add your account as a
    license tester in Play Console and use a closed-testing build.
 7. **Store forms.** Add purchases to the Apple privacy label and the Play data safety form; give App Review a way to
