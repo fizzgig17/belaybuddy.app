@@ -15,6 +15,7 @@ import {
   PLAY_STORE_BADGE,
   PLAY_STORE_URL,
 } from '@/content/about';
+import { PLUS_AVAILABILITY, PLUS_FEATURES, PLUS_FREE_NOTE, PLUS_NAME, PLUS_PRICE_NOTE } from '@/content/plus';
 import { PRIVACY_CONTACT } from '@/content/privacy';
 import { useTheme } from '@/hooks/use-theme';
 import type { IconName } from '@/constants/icons';
@@ -62,6 +63,21 @@ export default function Landing() {
           <FeatureCard key={f.title} icon={ICONS[i % ICONS.length]} title={f.title} description={f.body} />
         ))}
       </View>
+      <View style={styles.plus}>
+        <ThemedText type="subtitle" accessibilityRole="header">
+          {PLUS_NAME}
+        </ThemedText>
+        <ThemedText themeColor="textSecondary">{PLUS_FREE_NOTE} Plus adds a few extras:</ThemedText>
+        {PLUS_FEATURES.map((f) => (
+          <FeatureCard key={f.title} icon={f.icon} title={f.title} description={f.body} />
+        ))}
+        <ThemedText type="small" themeColor="textSecondary">
+          {PLUS_PRICE_NOTE}
+        </ThemedText>
+        <ThemedText type="small" themeColor="textSecondary">
+          {PLUS_AVAILABILITY}
+        </ThemedText>
+      </View>
       <ThemedText type="small" themeColor="textSecondary">
         {ABOUT_PRIVACY_NOTE} Climbing is dangerous. Belay Buddy is a helper, not a substitute for proper instruction or your
         own judgment.
@@ -82,5 +98,6 @@ const styles = StyleSheet.create({
   // The Play badge image has built-in margin, so it is drawn larger to look the same size as Apple's.
   appStore: { width: 120, height: 40 },
   play: { width: 155, height: 60, marginLeft: -Spacing.two },
+  plus: { gap: Spacing.three },
   grid: { gap: Spacing.three },
 });
