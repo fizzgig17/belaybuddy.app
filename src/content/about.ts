@@ -33,3 +33,9 @@ export const ABOUT_FEATURES: { title: string; body: string }[] = [
 
 export const ABOUT_PRIVACY_NOTE =
   'Your privacy matters. We use your location only to show nearby places, we never sell your data, and you can delete your account at any time.';
+
+/** Where to get the app. The badge images are the stores' own, served from their sites as their guidelines ask. */
+export const APP_STORE_URL = 'https://apps.apple.com/app/id6822883251';
+export const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=app.belaybuddy.android';
+export const APP_STORE_BADGE = 'https://tools.applemediaservices.com/api/badges/download-on-the-app-store/black/en-us';
+export const PLAY_STORE_BADGE = 'https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png';
