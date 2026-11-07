@@ -14,7 +14,7 @@ export async function restorePlus() {
 }
 export function manageSubscription() {}
 export function usePlus() {
-  return { enabled: false, ready: true, isPlus: true, packages: [] as PurchasesPackage[] };
+  return { enabled: false, ready: true, isPlus: true, packages: [] as PurchasesPackage[], problem: null as string | null };
 }
 export function requirePlus() {
   return true;

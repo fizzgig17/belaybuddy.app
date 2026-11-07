@@ -15,8 +15,8 @@ export const ENTITLEMENT = 'plus';
 const apiKey = Platform.OS === 'ios' ? process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY : process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_KEY;
 export const plusEnabled = process.env.EXPO_PUBLIC_PLUS_ENABLED === '1' && !!apiKey;
 
-type State = { ready: boolean; active: boolean; packages: PurchasesPackage[]; managementURL: string | null };
-let state: State = { ready: false, active: false, packages: [], managementURL: null };
+type State = { ready: boolean; active: boolean; packages: PurchasesPackage[]; managementURL: string | null; problem: string | null };
+let state: State = { ready: false, active: false, packages: [], managementURL: null, problem: null };
 const listeners = new Set<() => void>();
 const set = (patch: Partial<State>) => {
   state = { ...state, ...patch };
@@ -54,14 +54,26 @@ export async function syncPurchasesUser(userId: string | null) {
   }
 }
 
-/** Fetch the prices to show on the paywall. */
+/** Fetch the prices to show on the paywall. If there are none, `problem` says why. */
 export async function loadPackages() {
-  if (!plusEnabled || !configured) return;
+  if (!plusEnabled) return;
+  if (!configured) {
+    set({ packages: [], problem: 'Purchases have not started yet.' });
+    return;
+  }
   try {
     const offerings = await Purchases.getOfferings();
-    set({ packages: offerings.current?.availablePackages ?? [] });
-  } catch {
-    set({ packages: [] });
+    const packages = offerings.current?.availablePackages ?? [];
+    set({
+      packages,
+      problem: packages.length
+        ? null
+        : offerings.current
+          ? 'The current offering has no packages for this store.'
+          : 'No offering is marked current in RevenueCat.',
+    });
+  } catch (e) {
+    set({ packages: [], problem: e instanceof Error ? e.message : 'Could not reach the store.' });
   }
 }
 
@@ -100,7 +112,7 @@ export function manageSubscription() {
 /** Plus status for the screen. `isPlus` is true when purchases are off, so nothing is locked. */
 export function usePlus() {
   const s = useSyncExternalStore(subscribe, () => state, () => state);
-  return { enabled: plusEnabled, ready: s.ready, isPlus: !plusEnabled || s.active, packages: s.packages };
+  return { enabled: plusEnabled, ready: s.ready, isPlus: !plusEnabled || s.active, packages: s.packages, problem: s.problem };
 }
 
 /** For a tap on a Plus feature: true if it may go ahead, otherwise opens the paywall and returns false. */

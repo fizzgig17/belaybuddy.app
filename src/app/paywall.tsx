@@ -28,7 +28,7 @@ function trialText(pkg: PurchasesPackage): string | null {
 /** The Plus paywall. Prices come from the store through RevenueCat; nothing here is hard-coded. */
 export default function Paywall() {
   const theme = useTheme();
-  const { enabled, isPlus, packages } = usePlus();
+  const { enabled, isPlus, packages, problem } = usePlus();
   const [picked, setPicked] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -57,10 +57,7 @@ export default function Paywall() {
   }
 
   return (
-    <Screen title={PLUS_NAME} showTitle={false} readable>
-      <ThemedText type="subtitle" accessibilityRole="header">
-        {PLUS_NAME}
-      </ThemedText>
+    <Screen title={PLUS_NAME} readable action={<View />}>
       {isPlus && enabled ? (
         <>
           <ThemedText>You have {PLUS_NAME}. Thank you for supporting Belay Buddy.</ThemedText>
@@ -83,9 +80,17 @@ export default function Paywall() {
             </Card>
           ))}
           {options.length === 0 ? (
-            <ThemedText type="small" themeColor="textSecondary">
-              {enabled ? 'Prices are not available right now. Please try again in a moment.' : 'Plus is not available yet.'}
-            </ThemedText>
+            <>
+              <ThemedText type="small" themeColor="textSecondary">
+                {enabled ? 'Prices are not available right now. Please try again in a moment.' : 'Plus is not available yet.'}
+              </ThemedText>
+              {enabled && problem && (
+                <ThemedText type="small" themeColor="textSecondary">
+                  ({problem})
+                </ThemedText>
+              )}
+              {enabled && <Button title="Try again" variant="secondary" onPress={() => void loadPackages()} />}
+            </>
           ) : (
             options.map((p) => {
               const on = p.identifier === chosen?.identifier;
@@ -117,6 +122,7 @@ export default function Paywall() {
             <Button title={trialText(chosen) ? 'Start free trial' : 'Subscribe'} onPress={subscribe} loading={busy} />
           )}
           <Button title="Restore purchases" variant="secondary" onPress={restore} disabled={busy || !enabled} />
+          <Button title="Not now" variant="secondary" onPress={() => router.back()} />
           <ThemedText type="small" themeColor="textSecondary">
             Payment is charged to your store account at confirmation. The subscription renews automatically unless it is
             cancelled at least 24 hours before the end of the current period, and you can manage or cancel it in your
