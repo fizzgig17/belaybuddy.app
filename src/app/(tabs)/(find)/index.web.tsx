@@ -28,7 +28,7 @@ export default function Landing() {
   return (
     <Screen title="Belay Buddy" showTitle={false} readable>
       <View style={styles.hero}>
-        <Image source={require('@/assets/images/belay-buddy-logo.png')} accessibilityLabel="" style={styles.logo} />
+        <Image source={require('@/assets/images/icon.png')} accessibilityLabel="" style={styles.logo} />
         <ThemedText type="subtitle" accessibilityRole="header">
           {ABOUT_TAGLINE}
         </ThemedText>
@@ -92,7 +92,8 @@ export default function Landing() {
 
 const styles = StyleSheet.create({
   hero: { gap: Spacing.three, alignItems: 'flex-start', paddingTop: Spacing.four },
-  logo: { width: 72, height: 72 },
+  // The app icon (teal tile): the plain logo has a white body that disappears on the light page.
+  logo: { width: 72, height: 72, borderRadius: 16 },
   cta: { paddingHorizontal: Spacing.four, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   badges: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.two },
   // The Play badge image has built-in margin, so it is drawn larger to look the same size as Apple's.
