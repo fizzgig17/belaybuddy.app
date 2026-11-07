@@ -13,6 +13,7 @@ import { Spacing } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/lib/auth';
+import { requirePlus, usePlus } from '@/lib/purchases';
 import { select, success, tap } from '@/lib/haptics';
 import {
   deleteClimb,
@@ -35,6 +36,7 @@ export function SessionHistory() {
   const dark = useColorScheme() === 'dark';
   const flatShadow = { boxShadow: dark ? 'inset 0 1px 0 rgba(255,255,255,0.08)' : 'inset 0 1px 0 rgba(255,255,255,0.95)' };
   const { user } = useAuth();
+  const { isPlus } = usePlus();
   const [sessions, setSessions] = useState<ClimbSession[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -149,7 +151,10 @@ export function SessionHistory() {
   // Leaving the screen makes the delete final.
   useEffect(() => flushPending, [flushPending]);
 
-  const all = (sessions ?? []).filter((x) => !hidden.has(x.id));
+  const everything = (sessions ?? []).filter((x) => !hidden.has(x.id));
+  // Free accounts see their latest sessions; the rest stay saved and come back with Plus.
+  const all = isPlus ? everything : everything.slice(0, FREE_HISTORY_SESSIONS);
+  const locked = everything.length - all.length;
   const totals = summarize(all.flatMap((s) => s.logs));
   const allSelected = all.length > 0 && selected.size === all.length;
 
@@ -289,6 +294,17 @@ export function SessionHistory() {
           </ReanimatedSwipeable>
         );
       })}
+      {locked > 0 && (
+        <Card style={styles.card}>
+          <ThemedText type="smallBold">
+            {locked} older {locked === 1 ? 'session is' : 'sessions are'} saved
+          </ThemedText>
+          <ThemedText type="small" themeColor="textSecondary">
+            Free accounts show your latest {FREE_HISTORY_SESSIONS} sessions. Nothing is deleted: Belay Buddy Plus brings your full history back.
+          </ThemedText>
+          <Button title="See all with Plus" variant="secondary" onPress={() => requirePlus()} />
+        </Card>
+      )}
       {selecting && (
         <Button
           title={selected.size ? `Delete ${selected.size} ${selected.size === 1 ? 'session' : 'sessions'}` : 'Delete'}
@@ -301,6 +317,8 @@ export function SessionHistory() {
   );
 }
 
+/** Sessions a free account sees in History. */
+const FREE_HISTORY_SESSIONS = 10;
 const ACTION_WIDTH = 92;
 /** How far the row must be dragged before letting go deletes it. */
 const FULL_SWIPE = 220;

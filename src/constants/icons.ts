@@ -57,6 +57,7 @@ export const Icons = {
   record: icon('plus', 'add'),
   stop: icon('stop.circle', 'stop_circle'),
   history: icon('clock.arrow.circlepath', 'history'),
+  bell: icon('bell', 'notifications'),
   sent: icon('checkmark.circle.fill', 'check_circle'),
   flash: icon('bolt.fill', 'bolt'),
   attempt: icon('arrow.counterclockwise', 'replay'),

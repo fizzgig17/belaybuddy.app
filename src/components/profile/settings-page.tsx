@@ -8,7 +8,7 @@ import { Button, Segmented, ToggleRow } from '@/components/form';
 import { AppIconPicker } from '@/components/profile/app-icon-picker';
 import { PLUS_NAME } from '@/content/plus';
 import { useAiConsent } from '@/lib/ai-consent';
-import { manageSubscription, restorePlus, usePlus } from '@/lib/purchases';
+import { manageSubscription, requirePlus, restorePlus, usePlus } from '@/lib/purchases';
 import { PrivacySettings } from '@/components/profile/privacy-settings';
 import { Screen } from '@/components/screen';
 import { ThemedText } from '@/components/themed-text';
@@ -33,6 +33,7 @@ const KINDS: { kind: NotificationKind; title: string; detail: string }[] = [
   { kind: 'messages', title: 'Messages', detail: 'New chat messages (emails at most every 15 minutes per chat)' },
   { kind: 'reminders', title: 'Session reminders', detail: '30 minutes before a session someone has joined' },
   { kind: 'friends', title: 'Friends', detail: 'Friend requests and when someone accepts yours' },
+  { kind: 'alerts', title: 'Partner alerts · Plus', detail: 'When someone posts on the board of one of your home gyms' },
 ];
 
 /** "0.1.0 (49)": app version plus the build number the TestFlight build was stamped with. */
@@ -42,6 +43,7 @@ const version = `${Constants.expoConfig?.version ?? ''}${build ? ` (${build})` :
 export function SettingsPage() {
   const theme = useTheme();
   const { user } = useAuth();
+  const { enabled: plusOn } = usePlus();
   const [settings, setSettings] = useState<NotificationSettings | null>(null);
   const [push, setPush] = useState<PushStatus>(pushSupported ? 'off' : 'unsupported');
   const [error, setError] = useState<string | null>(null);
@@ -78,6 +80,8 @@ export function SettingsPage() {
 
   async function change(key: keyof NotificationSettings, value: boolean) {
     if (!settings || !user) return;
+    // Partner alerts are a Plus feature: switching one on opens the paywall for anyone without Plus.
+    if (value && key.endsWith('_alerts') && !requirePlus()) return;
     const next = { ...settings, [key]: value };
     setSettings(next);
     setError(null);
@@ -187,7 +191,7 @@ export function SettingsPage() {
               <ActivityIndicator />
             </Row>
           ) : (
-            KINDS.map(({ kind, title, detail }) => (
+            KINDS.filter((k) => k.kind !== 'alerts' || plusOn).map(({ kind, title, detail }) => (
               <Row key={kind} style={styles.row}>
                 <View style={styles.flex}>
                   <ThemedText type="smallBold">{title}</ThemedText>

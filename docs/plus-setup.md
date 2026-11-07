@@ -41,3 +41,9 @@ route-tips function check RevenueCat (REST API or a webhook that writes a `plus`
    links to the Terms of Use and Privacy Policy (the paywall already shows the renewal text).
 8. **Terms and privacy pages.** Add a short subscriptions section (renewal, cancel in store settings, no refunds from
    us: the store handles refunds).
+
+## Plus limits and alerts (built)
+
+- **History window:** free accounts see their latest 10 sessions; older ones stay saved and show a "See all with Plus" card.
+- **Friend limit:** free accounts can have 5 friends (requests they sent count). Enforced in `src/lib/friends.ts`.
+- **Partner alerts:** opt-in switch in Settings (Plus only), migration `20261107000000_partner_alerts.sql`, delivered by the `notify` function (push on iPhone, email everywhere). Like the tag scan, the database does not check Plus; a RevenueCat webhook would be needed for that.

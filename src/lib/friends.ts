@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { useAuth } from '@/lib/auth';
+import { requirePlus } from '@/lib/purchases';
 import { supabase } from '@/lib/supabase';
 
 export type Friend = {
@@ -90,9 +91,22 @@ export async function myFriendCode(): Promise<string> {
 
 export const friendLink = (code: string) => `https://belaybuddy.app/friend/${code}`;
 
+/** Friends a free account can have, counting requests it has sent. Plus has no limit. */
+export const FREE_FRIEND_LIMIT = 5;
+
+/** Stops adding a friend past the free limit: opens the paywall and throws a message the screen can show. */
+async function assertRoomForFriend() {
+  const rows = await fetchFriends();
+  const used = rows.filter((f) => f.direction !== 'incoming').length;
+  if (used >= FREE_FRIEND_LIMIT && !requirePlus()) {
+    throw new Error(`Free accounts can have ${FREE_FRIEND_LIMIT} friends. Belay Buddy Plus removes the limit.`);
+  }
+}
+
 export type AddResult = { status: 'requested' | 'accepted' | 'already' | 'invalid'; name: string };
 
 export async function addFriendByCode(code: string): Promise<AddResult> {
+  await assertRoomForFriend();
   const { data, error } = await supabase.rpc('add_friend_by_code', { p_code: code });
   if (error) throw new Error(error.message);
   const out = data as { status: AddResult['status']; name?: string };
@@ -112,12 +126,14 @@ export async function findClimbers(query: string): Promise<Climber[]> {
 }
 
 export async function requestFriend(userId: string): Promise<AddResult['status']> {
+  await assertRoomForFriend();
   const { data, error } = await supabase.rpc('request_friend', { p_user: userId });
   if (error) throw new Error(error.message);
   return data as AddResult['status'];
 }
 
 export async function respondToRequest(friendshipId: string, accept: boolean) {
+  if (accept) await assertRoomForFriend();
   const { error } = await supabase.rpc('respond_friend_request', { p_id: friendshipId, p_accept: accept });
   if (error) throw new Error(error.message);
 }

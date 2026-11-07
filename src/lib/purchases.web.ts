@@ -19,3 +19,5 @@ export function usePlus() {
 export function requirePlus() {
   return true;
 }
+
+export const isPlusNow = () => true;

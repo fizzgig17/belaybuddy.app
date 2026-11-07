@@ -121,3 +121,6 @@ export function requirePlus(): boolean {
   router.push('/paywall');
   return false;
 }
+
+/** Plus status right now, outside a component. True when purchases are switched off. */
+export const isPlusNow = () => !plusEnabled || state.active;

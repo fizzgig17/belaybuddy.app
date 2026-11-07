@@ -136,11 +136,15 @@ export default function FriendsScreen() {
 
 function RequestRow({ friend, onChange }: { friend: Friend; onChange: () => void }) {
   const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
   async function answer(accept: boolean) {
     setBusy(true);
+    setProblem(null);
     try {
       await respondToRequest(friend.friendshipId, accept);
       onChange();
+    } catch (e) {
+      setProblem((e as Error).message);
     } finally {
       setBusy(false);
     }
@@ -148,6 +152,7 @@ function RequestRow({ friend, onChange }: { friend: Friend; onChange: () => void
   return (
     <View style={styles.rowBlock}>
       <ThemedText>{friend.name} wants to be friends.</ThemedText>
+      {problem && <ThemedText type="small" style={{ color: '#C0392B' }}>{problem}</ThemedText>}
       <View style={styles.buttons}>
         <View style={styles.flex}><Button title="Accept" onPress={() => answer(true)} loading={busy} /></View>
         <View style={styles.flex}><Button title="Decline" variant="secondary" onPress={() => answer(false)} disabled={busy} /></View>

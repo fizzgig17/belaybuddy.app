@@ -18,7 +18,7 @@ import nodemailer from 'npm:nodemailer@6.9.16';
 
 type Item = {
   id: number;
-  kind: 'response' | 'message' | 'reminder' | 'test' | 'friend_request' | 'friend_accepted';
+  kind: 'response' | 'message' | 'reminder' | 'test' | 'friend_request' | 'friend_accepted' | 'alert';
   user_id: string;
   email: string | null;
   actor_name: string;
@@ -81,6 +81,14 @@ export function compose(item: Item): { title: string; body: string; path: string
   }
   const gym = item.area_name ?? 'your gym';
   const postPath = `/partners/post?id=${item.post_id}`;
+  if (item.kind === 'alert') {
+    const goal = item.goal ? `${GOALS[item.goal] ?? item.goal}, ` : '';
+    return {
+      title: `${item.actor_name} is looking for a partner`,
+      body: `At ${gym}, ${goal}${when(item)}. Open the post to join.`,
+      path: postPath,
+    };
+  }
   if (item.kind === 'response') {
     const goal = item.goal ? `${GOALS[item.goal] ?? item.goal} ` : '';
     return {
