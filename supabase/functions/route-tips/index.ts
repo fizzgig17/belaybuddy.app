@@ -82,6 +82,10 @@ Deno.serve(async (req) => {
     return json({ error: 'Send a photo.' }, 400);
   }
 
+  // Scanning a tag is a Plus feature. (Everyone counts as Plus until the server switch in plus_config is turned on.)
+  const { data: plus } = await supabase.rpc('my_plus');
+  if (plus === false) return json({ error: 'Scanning route tags is part of Belay Buddy Plus.', code: 'plus' }, 402);
+
   const { data: ok } = await supabase.rpc('take_route_ai_quota', { p_limit: DAILY_LIMIT });
   if (!ok) return json({ error: `You have used today's ${DAILY_LIMIT} AI scans. Try again tomorrow.` }, 429);
 

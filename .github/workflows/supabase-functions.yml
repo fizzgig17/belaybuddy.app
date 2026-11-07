@@ -103,6 +103,11 @@ jobs:
             echo "::error::Deploying route-tips failed: $(tail -n 5 "$RUNNER_TEMP/deploy-tips.log" | tr '\n' ' ' | head -c 600)"
             exit 1
           fi
+          # RevenueCat's webhook (see supabase/functions/revenuecat-webhook).
+          if ! supabase functions deploy revenuecat-webhook --project-ref "$PROJECT_ID" --no-verify-jwt --use-api --yes 2>&1 | tee "$RUNNER_TEMP/deploy-rc.log"; then
+            echo "::error::Deploying revenuecat-webhook failed: $(tail -n 5 "$RUNNER_TEMP/deploy-rc.log" | tr '\n' ' ' | head -c 600)"
+            exit 1
+          fi
           supabase functions list --project-ref "$PROJECT_ID" 2>&1 | tee "$RUNNER_TEMP/list.log"
           echo "::notice::Functions on $TARGET: $(tr '\n' ' ' < "$RUNNER_TEMP/list.log" | head -c 500)"
 
@@ -118,6 +123,7 @@ jobs:
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          REVENUECAT_WEBHOOK_SECRET: ${{ secrets.REVENUECAT_WEBHOOK_SECRET }}
         run: |
           set -o pipefail
           NOTIFY_SECRET=$(openssl rand -hex 32)
@@ -153,6 +159,12 @@ jobs:
             echo "::notice::Route tag reading: on"
           else
             echo "::warning::Route tag reading is off: add the ANTHROPIC_API_KEY secret."
+          fi
+          if [ -n "$REVENUECAT_WEBHOOK_SECRET" ]; then
+            echo "REVENUECAT_WEBHOOK_SECRET=$(printf '%s' "$REVENUECAT_WEBHOOK_SECRET" | tr -d '[:space:]')" >> "$f"
+            echo "::notice::RevenueCat webhook: on"
+          else
+            echo "::warning::RevenueCat webhook is off: add the REVENUECAT_WEBHOOK_SECRET secret."
           fi
           if ! supabase secrets set --env-file "$f" --project-ref "$PROJECT_ID" --yes 2>&1 | tee "$RUNNER_TEMP/secrets.log"; then
             rm -f "$f"

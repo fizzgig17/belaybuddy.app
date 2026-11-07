@@ -423,3 +423,7 @@ verify_jwt = false
 
 [functions.crags]
 verify_jwt = false
+
+# Called by RevenueCat with a shared secret in the Authorization header.
+[functions.revenuecat-webhook]
+verify_jwt = false
