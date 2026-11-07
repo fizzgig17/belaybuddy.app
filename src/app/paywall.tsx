@@ -12,6 +12,7 @@ import { Icons } from '@/constants/icons';
 import { Spacing } from '@/constants/theme';
 import { PLUS_FEATURES, PLUS_NAME } from '@/content/plus';
 import { useTheme } from '@/hooks/use-theme';
+import { useAuth } from '@/lib/auth';
 import { buyPlus, loadPackages, manageSubscription, restorePlus, usePlus } from '@/lib/purchases';
 
 const periodWord = (pkg: PurchasesPackage) =>
@@ -29,6 +30,7 @@ function trialText(pkg: PurchasesPackage): string | null {
 export default function Paywall() {
   const theme = useTheme();
   const { enabled, isPlus, packages, problem } = usePlus();
+  const { user } = useAuth();
   const [picked, setPicked] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -39,7 +41,14 @@ export default function Paywall() {
   const options = [...packages].sort((a, b) => (a.packageType === 'ANNUAL' ? -1 : 0) - (b.packageType === 'ANNUAL' ? -1 : 0));
   const chosen = options.find((p) => p.identifier === picked) ?? options[0];
 
+  // Plus belongs to an account, so it follows you to a new phone and the server can see it.
+  function signInFirst() {
+    router.back();
+    router.push('/profile');
+  }
+
   async function subscribe() {
+    if (!user) return signInFirst();
     if (!chosen || busy) return;
     setBusy(true);
     const r = await buyPlus(chosen);
@@ -49,6 +58,7 @@ export default function Paywall() {
   }
 
   async function restore() {
+    if (!user) return signInFirst();
     setBusy(true);
     const ok = await restorePlus();
     setBusy(false);
@@ -118,8 +128,17 @@ export default function Paywall() {
               );
             })
           )}
+          {chosen && !user && (
+            <ThemedText type="small" themeColor="textSecondary">
+              Sign in first: Plus is tied to your account, so it follows you to a new phone.
+            </ThemedText>
+          )}
           {chosen && (
-            <Button title={trialText(chosen) ? 'Start free trial' : 'Subscribe'} onPress={subscribe} loading={busy} />
+            <Button
+              title={!user ? 'Sign in to continue' : trialText(chosen) ? 'Start free trial' : 'Subscribe'}
+              onPress={subscribe}
+              loading={busy}
+            />
           )}
           <Button title="Restore purchases" variant="secondary" onPress={restore} disabled={busy || !enabled} />
           <Button title="Not now" variant="secondary" onPress={() => router.back()} />
