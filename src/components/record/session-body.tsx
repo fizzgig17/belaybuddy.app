@@ -323,7 +323,9 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
               accessibilityRole="button"
               style={({ pressed }) => [styles.scan, { backgroundColor: theme.accent, opacity: scanning ? 0.5 : pressed ? 0.8 : 1 }]}>
               <SymbolView name={Icons.camera} size={16} tintColor="#FFFFFF" />
-              <ThemedText type="smallBold" style={styles.scanText}>{scanning ? 'Reading…' : plus.isPlus ? 'Scan tag' : 'Scan tag · Plus'}</ThemedText>
+              <ThemedText type="smallBold" style={styles.scanText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+                {scanning ? 'Reading…' : plus.isPlus ? 'Scan tag' : 'Scan · Plus'}
+              </ThemedText>
             </Pressable>
           </View>
         )}
