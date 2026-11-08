@@ -2,7 +2,7 @@
   "expo": {
     "name": "Belay Buddy",
     "slug": "belay-buddy",
-    "version": "1.1",
+    "version": "1.2",
     "orientation": "portrait",
     "icon": "./assets/icons/icon-a.png",
     "scheme": "belaybuddy",
