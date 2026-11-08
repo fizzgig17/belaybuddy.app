@@ -1,6 +1,6 @@
 /** Terms of use, shown at /terms (on the website and in the app). Keep it in step with what the app really does. */
 
-export const TERMS_UPDATED = 'November 2, 2026';
+export const TERMS_UPDATED = 'November 8, 2026';
 export const TERMS_CONTACT = 'support@belaybuddy.app';
 export const TERMS_GOVERNING_STATE = 'the State of North Carolina';
 
@@ -29,6 +29,14 @@ export const TERMS_SECTIONS: TermsSection[] = [
     body: [
       'You must be at least 13 years old to use Belay Buddy. Give accurate information and keep your sign-in secure. You are responsible for what happens under your account.',
       'You can delete your account at any time in Settings.',
+    ],
+  },
+  {
+    title: 'Belay Buddy Plus',
+    body: [
+      'Belay Buddy is free to use. Belay Buddy Plus is an optional subscription that adds extras such as route tag scanning, progress charts and export, unlimited friends, partner alerts, and your full session history. Finding gyms and partners, chat, safety guides and logging your climbs stay free. We may change what Plus includes, and we will not take away anything you have already paid for during the period you paid for.',
+      'Plus is billed through Google Play or the App Store, monthly or yearly, at the price shown before you subscribe. It renews automatically until you cancel. Cancel at least 24 hours before the end of the period in your store account settings (Google Play: Subscriptions; App Store: Subscriptions), and you keep Plus until the period ends. A free trial, if offered, turns into a paid subscription at its end unless you cancel first.',
+      'Refunds are handled by Google or Apple under their own rules. Plus belongs to your account, so sign in to use it on another phone, or use Restore purchases.',
     ],
   },
   {

@@ -3,7 +3,7 @@
  * app really does: when a feature starts sending data somewhere new, update it here first.
  */
 
-export const PRIVACY_UPDATED = 'November 2, 2026';
+export const PRIVACY_UPDATED = 'November 8, 2026';
 export const PRIVACY_CONTACT = 'support@belaybuddy.app';
 
 export type PolicySection = { title: string; body: string[] };
@@ -34,10 +34,19 @@ export const PRIVACY_SECTIONS: PolicySection[] = [
     ],
   },
   {
+    title: 'Subscriptions (Belay Buddy Plus)',
+    body: [
+      'If you subscribe to Belay Buddy Plus, Google Play or the App Store takes the payment. We never see your card or payment details.',
+      'We use RevenueCat to manage subscriptions. It receives your account ID, your device’s store receipt and what you bought, and it tells us whether Plus is active and when it ends. We keep only that: that your account has Plus, and until when.',
+      'We use your subscription status only to turn Plus features on or off. We do not use it for ads.',
+    ],
+  },
+  {
     title: 'Who else handles your data',
     body: [
       'Supabase hosts our database, sign-in, and server functions.',
       'Apple delivers push notifications to iPhones and distributes the iPhone app. Google (Firebase Cloud Messaging) delivers push notifications to Android phones, and Google Play distributes the Android app.',
+      'RevenueCat manages Belay Buddy Plus subscriptions, as described above.',
       'Our email provider sends sign-in codes and the email notifications you choose.',
       'Apple and Google, if you choose to sign in with them, confirm who you are under their own privacy policies.',
       'OpenStreetMap, through the Overpass service, and the Overture Maps Foundation’s open data supply gym and shop listings, and OpenBeta supplies outdoor crags. We send them a coarse area, never your identity.',
