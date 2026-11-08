@@ -38,37 +38,99 @@ export async function renderAuth(root, env, label, onDone, onSwitchEnv) {
   const footer = h('div', { class: 'small muted' }, 'Only Belay Buddy admins can use this. ', swapLink);
 
   if (st.phase === 'signin') {
+    // Remember that a code was emailed (until it expires), so going back or refreshing does not strand you:
+    // the old code still works, and a new email can only be sent once a minute.
+    const KEY = `bb-otp-${env}`;
+    const saved = (() => {
+      try {
+        const v = JSON.parse(sessionStorage.getItem(KEY) || 'null');
+        return v && Date.now() - v.at < 55 * 60 * 1000 ? v : null;
+      } catch { return null; }
+    })();
+    const remember = (to) => { try { sessionStorage.setItem(KEY, JSON.stringify({ email: to, at: Date.now() })); } catch { /* private mode */ } };
+    const forget = () => { try { sessionStorage.removeItem(KEY); } catch { /* private mode */ } };
+
     const email = h('input', { class: 'input', type: 'email', placeholder: 'Your admin email', autocomplete: 'username', required: true });
     const keep = h('input', { type: 'checkbox', checked: keepSignedIn.get(), onChange: (e) => keepSignedIn.set(e.target.checked) });
     const keepRow = h('label', { class: 'small', style: 'display:flex;gap:8px;align-items:center' }, keep, 'Keep me signed in on this device for up to 7 days');
     const send = h('button', { class: 'btn primary', type: 'submit' }, 'Email me a code');
+    const have = h('button', { class: 'btn small', type: 'button' }, 'I already have a code');
     const code = h('input', { class: 'input code hidden', inputmode: 'numeric', autocomplete: 'one-time-code', maxlength: '8', placeholder: '000000' });
     const verify = h('button', { class: 'btn primary hidden', type: 'button' }, 'Sign in');
+    const resend = h('button', { class: 'btn small hidden', type: 'button' }, 'Send a new code');
+    const other = h('button', { class: 'btn small hidden', type: 'button' }, 'Use a different email');
     let sentTo = '';
-    const form = h('form', { style: 'display:grid;gap:12px' }, email, keepRow, send, code, verify);
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      if (sentTo) return;
-      busy(send, true); msg.className = 'msg hidden';
+    let timer = null;
+
+    // The Resend button counts down the minute Supabase makes you wait between emails.
+    const cooldown = (sentAt) => {
+      clearInterval(timer);
+      const tick = () => {
+        const left = 60 - Math.floor((Date.now() - sentAt) / 1000);
+        if (left > 0 && resend.isConnected) { resend.disabled = true; resend.textContent = `Send a new code (${left}s)`; return; }
+        resend.disabled = false; resend.textContent = 'Send a new code';
+        clearInterval(timer);
+      };
+      tick();
+      if (resend.disabled) timer = setInterval(tick, 1000);
+    };
+    const showCode = (to, sentAt) => {
+      sentTo = to; email.value = to; email.disabled = true;
+      send.classList.add('hidden'); have.classList.add('hidden');
+      for (const el of [code, verify, resend, other]) el.classList.remove('hidden');
+      code.focus();
+      cooldown(sentAt);
+    };
+    const sendCode = async (btn) => {
+      const to = (sentTo || email.value).trim();
+      if (!to) return say('Enter your email first.');
+      busy(btn, true); msg.className = 'msg hidden';
       // shouldCreateUser: false so this page can never create an account.
-      const { error } = await c.auth.signInWithOtp({ email: email.value.trim(), options: { shouldCreateUser: false } });
-      busy(send, false);
-      if (error) return say(/not allowed|signups/i.test(error.message) ? 'That email has no Belay Buddy account in this environment.' : error.message);
-      sentTo = email.value.trim();
-      email.disabled = true; send.classList.add('hidden');
-      code.classList.remove('hidden'); verify.classList.remove('hidden'); code.focus();
-      say(`We emailed a code to ${sentTo}.`, 'info');
+      const { error } = await c.auth.signInWithOtp({ email: to, options: { shouldCreateUser: false } });
+      busy(btn, false);
+      if (error) {
+        if (/only request this after|rate limit/i.test(error.message)) {
+          // A code was already sent a moment ago: it still works, so go straight to entering it.
+          showCode(to, Date.now() - 1000);
+          return say('A code was sent in the last minute. Enter that one, or wait for the timer to send another.', 'info');
+        }
+        return say(/not allowed|signups/i.test(error.message) ? 'That email has no Belay Buddy account in this environment.' : error.message);
+      }
+      remember(to);
+      showCode(to, Date.now());
+      say(`We emailed a code to ${to}.`, 'info');
+    };
+
+    const form = h('form', { style: 'display:grid;gap:12px' }, email, keepRow, send, have, code, verify, resend, other);
+    form.addEventListener('submit', (e) => { e.preventDefault(); if (!sentTo) sendCode(send); });
+    have.addEventListener('click', () => {
+      if (!email.value.trim()) return say('Enter your email first, then tap this.');
+      msg.className = 'msg hidden';
+      showCode(email.value.trim(), 0);
+    });
+    resend.addEventListener('click', () => sendCode(resend));
+    other.addEventListener('click', () => {
+      forget(); clearInterval(timer); sentTo = ''; msg.className = 'msg hidden';
+      email.disabled = false; email.value = ''; code.value = '';
+      send.classList.remove('hidden'); have.classList.remove('hidden');
+      for (const el of [code, verify, resend, other]) el.classList.add('hidden');
+      email.focus();
     });
     const doVerify = async () => {
       busy(verify, true);
       const { error } = await c.auth.verifyOtp({ email: sentTo, token: code.value.trim(), type: 'email' });
       busy(verify, false);
       if (error) return say('That code did not work. Check it and try again.');
+      forget(); clearInterval(timer);
       again();
     };
     verify.addEventListener('click', doVerify);
     code.addEventListener('keydown', (e) => { if (e.key === 'Enter') doVerify(); });
     clear(root).append(card(logo(), h('h1', {}, 'Sign in ', envPill), h('p', { class: 'muted', style: 'margin:0' }, 'Step 1 of 2: confirm your email.'), form, msg, footer));
+    if (saved) {
+      showCode(saved.email, saved.at);
+      say(`We emailed a code to ${saved.email}. Enter it, or send a new one when the timer ends.`, 'info');
+    }
     return;
   }
 
