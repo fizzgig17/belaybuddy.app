@@ -9,9 +9,11 @@ import { useTheme } from '@/hooks/use-theme';
 import {
   cleanWallHeight,
   gradesFor,
+  logClimb,
   RESULT_LABELS,
   updateClimb,
   type ClimbLog,
+  type ClimbSession,
   type Discipline,
   type GradeMod,
   type Result,
@@ -25,17 +27,20 @@ function splitGrade(grade: string): { base: string; mod: GradeMod } {
 }
 
 /**
- * Change a logged climb: type, grade, result, hold color, name and wall height. Opens as a sheet; Save writes the
- * change and hands the updated climb to `onSaved`.
+ * Change a logged climb (`log`) or add one to a closed session (`addTo`): type, grade, result, hold color, name and
+ * wall height. Opens as a sheet; Save writes it and hands the saved climb to `onSaved`. A climb added to a closed
+ * session is stamped just after the session's latest climb, so it sits at the end.
  */
 export function ClimbEditor({
   log,
+  addTo = null,
   onClose,
   onSaved,
 }: {
   log: ClimbLog | null;
+  addTo?: ClimbSession | null;
   onClose: () => void;
-  onSaved: (updated: ClimbLog) => void;
+  onSaved: (saved: ClimbLog) => void;
 }) {
   const theme = useTheme();
   const [discipline, setDiscipline] = useState<Discipline>('route');
@@ -50,20 +55,20 @@ export function ClimbEditor({
 
   // Start from the climb each time the sheet opens.
   useEffect(() => {
-    if (!log) return;
-    const g = splitGrade(log.grade);
-    setDiscipline(log.discipline);
+    if (!log && !addTo) return;
+    const g = log ? splitGrade(log.grade) : { base: '5.9', mod: '' as GradeMod };
+    setDiscipline(log?.discipline ?? 'route');
     setBase(g.base);
     setMod(g.mod);
-    setResult(log.result);
-    setColor(log.color);
-    setName(log.routeName ?? '');
-    setHeight(log.wallHeight ? String(log.wallHeight) : '');
+    setResult(log?.result ?? 'send');
+    setColor(log?.color ?? null);
+    setName(log?.routeName ?? '');
+    setHeight(log?.wallHeight ? String(log.wallHeight) : '');
     setError(null);
     setBusy(false);
-  }, [log]);
+  }, [log, addTo]);
 
-  if (!log) return null;
+  if (!log && !addTo) return null;
 
   // The climb's own grade stays pickable even if the list does not have it (an old "5.10+", say).
   const list = gradesFor(discipline);
@@ -79,21 +84,23 @@ export function ClimbEditor({
   }
 
   async function save() {
-    if (!log || busy) return;
+    if (busy) return;
     if (height.trim() && cleanWallHeight(height) === null) return setError('Wall height is a whole number of feet, 1 to 500.');
     setBusy(true);
     setError(null);
     try {
-      const updated = await updateClimb(log.id, {
-        discipline,
-        grade: base + mod,
-        result,
-        color,
-        routeName: name,
-        wallHeight: cleanWallHeight(height),
-      });
+      const fields = { color, routeName: name, wallHeight: cleanWallHeight(height) };
+      let saved: ClimbLog;
+      if (log) {
+        saved = await updateClimb(log.id, { discipline, grade: base + mod, result, ...fields });
+      } else if (addTo) {
+        const last = addTo.logs.reduce((t, l) => Math.max(t, Date.parse(l.loggedAt)), Date.parse(addTo.startedAt));
+        saved = await logClimb(addTo.id, discipline, base + mod, result, { ...fields, loggedAt: new Date(last + 1000).toISOString() });
+      } else {
+        return;
+      }
       success();
-      onSaved(updated);
+      onSaved(saved);
       onClose();
     } catch (e) {
       setError((e as Error).message);
@@ -111,8 +118,13 @@ export function ClimbEditor({
           keyboardDismissMode="on-drag"
           automaticallyAdjustKeyboardInsets>
           <ThemedText type="subtitle" accessibilityRole="header">
-            Edit climb
+            {log ? 'Edit climb' : 'Add a climb'}
           </ThemedText>
+          {!log && addTo && (
+            <ThemedText type="small" themeColor="textSecondary">
+              Added to {addTo.areaName ?? 'Outdoors'} on {new Date(addTo.startedAt).toLocaleDateString([], { month: 'short', day: 'numeric' })}, at the end of the session.
+            </ThemedText>
+          )}
 
           <Segmented
             label="Type of climbing"

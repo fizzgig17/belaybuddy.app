@@ -102,7 +102,7 @@ export function SessionBody() {
         <Card>
           <ThemedText type="smallBold">{finished.areaName ?? 'Outdoors'}</ThemedText>
           <ThemedText themeColor="textSecondary">
-            {formatDuration(finished.startedAt, finished.endedAt)} · {s.climbs} {s.climbs === 1 ? 'climb' : 'climbs'}
+            {formatDuration(finished.startedAt, finished.endedAt, undefined, finished.idleSeconds)} · {s.climbs} {s.climbs === 1 ? 'climb' : 'climbs'}
           </ThemedText>
           <ThemedText>{describeSummary(s)}</ThemedText>
           {hardest(s) && <ThemedText>Hardest send: {hardest(s)}</ThemedText>}
@@ -301,7 +301,7 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
           {session.areaName ?? 'Outdoors'}
         </ThemedText>
         <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-          {formatDuration(session.startedAt, null, now)} · {describeSummary(s)}
+          {formatDuration(session.startedAt, null, now, session.idleSeconds)} · {describeSummary(s)}
           {hardest(s) ? ` · hardest ${hardest(s)}` : ''}
         </ThemedText>
       </View>

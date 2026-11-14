@@ -1,8 +1,10 @@
+import { SymbolView } from 'expo-symbols';
 import { useEffect, useRef, useState } from 'react';
 import { PanResponder, Pressable, ScrollView, StyleSheet, TextInput, View, type LayoutChangeEvent } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { ThemedText } from '@/components/themed-text';
+import { Icons } from '@/constants/icons';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { colorHex, isHexColor, ROUTE_COLORS } from '@/lib/climb-log';
@@ -130,6 +132,16 @@ export function ColorPicker({ value, onChange }: { value: string | null; onChang
   const [open, setOpen] = useState(custom);
   const [hsv, setHsv] = useState<Hsv>(() => (custom ? hexToHsv(value) : { h: 200, s: 0.7, v: 0.8 }));
   const [text, setText] = useState(custom ? value.toUpperCase() : '');
+  // Arrows at the ends of the color row: left until it is scrolled all the way left, right until all the way right.
+  const row = useRef<ScrollView>(null);
+  const [scroll, setScroll] = useState({ x: 0, content: 0, view: 0 });
+  const canLeft = scroll.x > 2;
+  const canRight = scroll.content > 0 && scroll.content - scroll.view - scroll.x > 2;
+  const nudge = (dir: 1 | -1) => {
+    tap();
+    const max = Math.max(0, scroll.content - scroll.view);
+    row.current?.scrollTo({ x: Math.max(0, Math.min(max, scroll.x + dir * scroll.view * 0.7)), animated: true });
+  };
 
   // Another color was chosen elsewhere (a scan, a swatch): follow it.
   useEffect(() => {
@@ -168,53 +180,80 @@ export function ColorPicker({ value, onChange }: { value: string | null; onChang
   const hex = hsvToHex(hsv);
   return (
     <View style={styles.wrap}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.swatches}
-        keyboardShouldPersistTaps="handled"
-        accessibilityLabel="Route color">
-        {ROUTE_COLORS.map((c) => {
-          const on = c.key === value;
-          return (
-            <Pressable
-              key={c.key}
-              accessibilityRole="button"
-              accessibilityLabel={`${c.label} route`}
-              accessibilityState={{ selected: on }}
-              onPress={() => {
-                tap();
-                onChange(on ? null : c.key);
-              }}
-              style={[styles.swatchRing, { borderColor: on ? theme.accent : 'transparent' }]}>
-              <View style={[styles.swatch, { backgroundColor: c.hex, borderColor: theme.border }]} />
-            </Pressable>
-          );
-        })}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Pick another color"
-          accessibilityState={{ selected: custom, expanded: open }}
-          onPress={openCustom}
-          style={[styles.swatchRing, { borderColor: custom ? theme.accent : 'transparent' }]}>
-          <View style={[styles.swatch, { borderColor: theme.border, backgroundColor: custom ? hex : 'transparent' }]}>
-            {!custom && (
-              <Svg width={28} height={28}>
-                <Defs>
-                  <LinearGradient id="rainbow" x1="0" y1="0" x2="1" y2="1">
-                    {HUES.map((c, i) => (
-                      <Stop key={i} offset={i / (HUES.length - 1)} stopColor={c} />
-                    ))}
-                  </LinearGradient>
-                </Defs>
-                <Circle cx={14} cy={14} r={14} fill="url(#rainbow)" />
-                <Rect x={13} y={7} width={2} height={14} fill="#FFFFFF" />
-                <Rect x={7} y={13} width={14} height={2} fill="#FFFFFF" />
-              </Svg>
-            )}
-          </View>
-        </Pressable>
-      </ScrollView>
+      <View>
+        <ScrollView
+          ref={row}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.swatches}
+          keyboardShouldPersistTaps="handled"
+          scrollEventThrottle={16}
+          onScroll={(e) => setScroll((m) => ({ ...m, x: e.nativeEvent.contentOffset.x }))}
+          onContentSizeChange={(w) => setScroll((m) => ({ ...m, content: w }))}
+          onLayout={(e) => setScroll((m) => ({ ...m, view: e.nativeEvent.layout.width }))}
+          accessibilityLabel="Route color">
+          {ROUTE_COLORS.map((c) => {
+            const on = c.key === value;
+            return (
+              <Pressable
+                key={c.key}
+                accessibilityRole="button"
+                accessibilityLabel={`${c.label} route`}
+                accessibilityState={{ selected: on }}
+                onPress={() => {
+                  tap();
+                  onChange(on ? null : c.key);
+                }}
+                style={[styles.swatchRing, { borderColor: on ? theme.accent : 'transparent' }]}>
+                <View style={[styles.swatch, { backgroundColor: c.hex, borderColor: theme.border }]} />
+              </Pressable>
+            );
+          })}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Pick another color"
+            accessibilityState={{ selected: custom, expanded: open }}
+            onPress={openCustom}
+            style={[styles.swatchRing, { borderColor: custom ? theme.accent : 'transparent' }]}>
+            <View style={[styles.swatch, { borderColor: theme.border, backgroundColor: custom ? hex : 'transparent' }]}>
+              {!custom && (
+                <Svg width={28} height={28}>
+                  <Defs>
+                    <LinearGradient id="rainbow" x1="0" y1="0" x2="1" y2="1">
+                      {HUES.map((c, i) => (
+                        <Stop key={i} offset={i / (HUES.length - 1)} stopColor={c} />
+                      ))}
+                    </LinearGradient>
+                  </Defs>
+                  <Circle cx={14} cy={14} r={14} fill="url(#rainbow)" />
+                  <Rect x={13} y={7} width={2} height={14} fill="#FFFFFF" />
+                  <Rect x={7} y={13} width={14} height={2} fill="#FFFFFF" />
+                </Svg>
+              )}
+            </View>
+          </Pressable>
+        </ScrollView>
+        {canLeft && (
+          <Pressable
+            onPress={() => nudge(-1)}
+            accessibilityRole="button"
+            accessibilityLabel="Show earlier colors"
+            hitSlop={6}
+            style={[styles.arrow, styles.arrowLeft, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <SymbolView name={Icons.back} size={12} tintColor={theme.text} />
+          </Pressable>
+        )}
+        {canRight && (
+          <Pressable
+            onPress={() => nudge(1)}
+            accessibilityRole="button"
+            accessibilityLabel="Show more colors"
+            hitSlop={6}
+            style={[styles.arrow, styles.arrowRight, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <SymbolView name={Icons.chevron} size={12} tintColor={theme.text} />
+          </Pressable>
+        )}
+      </View>
       {open && (
         <View style={[styles.panel, { borderColor: theme.border, backgroundColor: theme.surface }]}>
           <View style={styles.previewRow}>
@@ -255,6 +294,9 @@ const styles = StyleSheet.create({
   swatches: { gap: Spacing.two, paddingVertical: 2, alignItems: 'center' },
   swatchRing: { padding: 3, borderRadius: 999, borderWidth: 2 },
   swatch: { width: 28, height: 28, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+  arrow: { position: 'absolute', top: 6, width: 24, height: 24, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center', opacity: 0.95 },
+  arrowLeft: { left: 0 },
+  arrowRight: { right: 0 },
   panel: { borderWidth: 1, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.three },
   previewRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
   preview: { width: 44, height: 44, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth },

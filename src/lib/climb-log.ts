@@ -97,6 +97,8 @@ export type ClimbSession = {
   areaName: string | null;
   startedAt: string;
   endedAt: string | null;
+  /** Seconds the session spent closed between being ended and reopened; not climbing time. */
+  idleSeconds: number;
   logs: ClimbLog[];
 };
 
@@ -117,11 +119,12 @@ type SessionRow = {
   area_name: string | null;
   started_at: string;
   ended_at: string | null;
+  idle_seconds: number | null;
   climb_logs?: LogRow[];
 };
 
 const LOG_COLUMNS = 'id, session_id, discipline, grade, result, logged_at, color, route_name, wall_height';
-const SELECT = `id, area_id, area_name, started_at, ended_at, climb_logs(${LOG_COLUMNS})`;
+const SELECT = `id, area_id, area_name, started_at, ended_at, idle_seconds, climb_logs(${LOG_COLUMNS})`;
 
 const logFromRow = (r: LogRow): ClimbLog => ({
   id: r.id,
@@ -141,6 +144,7 @@ const sessionFromRow = (r: SessionRow): ClimbSession => ({
   areaName: r.area_name,
   startedAt: r.started_at,
   endedAt: r.ended_at,
+  idleSeconds: r.idle_seconds ?? 0,
   logs: (r.climb_logs ?? []).map(logFromRow).sort((a, b) => a.loggedAt.localeCompare(b.loggedAt)),
 });
 
@@ -171,6 +175,15 @@ export async function startSession(area: { areaId: string; areaName: string } | 
   return sessionFromRow(data as SessionRow);
 }
 
+/** Opens a closed session again. Fails with a message to show if another session is already running. */
+export async function reopenSession(id: string): Promise<ClimbSession> {
+  const { error } = await supabase.rpc('reopen_climb_session', { p_id: id });
+  if (error) throw new Error(error.message);
+  const open = await fetchActiveSession();
+  if (!open) throw new Error('That session could not be reopened.');
+  return open;
+}
+
 export async function endSession(id: string): Promise<void> {
   const { error } = await supabase.from('climb_sessions').update({ ended_at: new Date().toISOString() }).eq('id', id);
   if (error) throw new Error(error.message);
@@ -181,7 +194,7 @@ export async function logClimb(
   discipline: Discipline,
   grade: string,
   result: Result,
-  extra: { color?: string | null; routeName?: string | null; wallHeight?: number | null } = {},
+  extra: { color?: string | null; routeName?: string | null; wallHeight?: number | null; loggedAt?: string } = {},
 ): Promise<ClimbLog> {
   const { data, error } = await supabase
     .from('climb_logs')
@@ -193,6 +206,8 @@ export async function logClimb(
       color: extra.color || null,
       route_name: extra.routeName?.trim() || null,
       wall_height: cleanWallHeight(extra.wallHeight),
+      // Left out, the database stamps "now"; a climb added to a closed session passes its own time.
+      ...(extra.loggedAt ? { logged_at: extra.loggedAt } : {}),
     })
     .select(LOG_COLUMNS)
     .single();
@@ -297,8 +312,8 @@ export function hardest(s: Summary): string | null {
   return parts.length ? parts.join(' / ') : null;
 }
 
-export function formatDuration(startIso: string, endIso: string | null, now = Date.now()): string {
-  const minutes = Math.max(0, Math.round(((endIso ? Date.parse(endIso) : now) - Date.parse(startIso)) / 60_000));
+export function formatDuration(startIso: string, endIso: string | null, now = Date.now(), idleSeconds = 0): string {
+  const minutes = Math.max(0, Math.round(((endIso ? Date.parse(endIso) : now) - Date.parse(startIso) - idleSeconds * 1000) / 60_000));
   if (minutes < 60) return `${minutes} min`;
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;

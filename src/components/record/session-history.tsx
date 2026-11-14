@@ -15,7 +15,9 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/lib/auth';
 import { requirePlus, usePlus } from '@/lib/purchases';
+import { setActiveSession, useSessionActive } from '@/lib/active-session';
 import { select, success, tap } from '@/lib/haptics';
+import { setRecordTab } from '@/lib/record-sheet';
 import {
   deleteClimb,
   deleteSession,
@@ -24,6 +26,7 @@ import {
   formatDuration,
   hardest,
   colorLabel,
+  reopenSession,
   RESULT_LABELS,
   summarize,
   type ClimbLog,
@@ -43,9 +46,39 @@ export function SessionHistory() {
   const [error, setError] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [editing, setEditing] = useState<ClimbLog | null>(null);
+  const [adding, setAdding] = useState<ClimbSession | null>(null);
+  const [reopening, setReopening] = useState<string | null>(null);
+  // Only one session can be open at a time, so Reopen waits while one is running.
+  const sessionRunning = useSessionActive();
 
-  function climbSaved(updated: ClimbLog) {
-    setSessions((all) => all?.map((x) => (x.id === updated.sessionId ? { ...x, logs: x.logs.map((l) => (l.id === updated.id ? updated : l)) } : x)) ?? null);
+  /** A climb was edited (replace it) or added to a closed session (append it, in time order). */
+  function climbSaved(saved: ClimbLog) {
+    setSessions(
+      (all) =>
+        all?.map((x) => {
+          if (x.id !== saved.sessionId) return x;
+          const known = x.logs.some((l) => l.id === saved.id);
+          const logs = known ? x.logs.map((l) => (l.id === saved.id ? saved : l)) : [...x.logs, saved];
+          return { ...x, logs: logs.sort((a, b) => a.loggedAt.localeCompare(b.loggedAt)) };
+        }) ?? null,
+    );
+  }
+
+  async function reopen(s: ClimbSession) {
+    if (reopening) return;
+    setReopening(s.id);
+    setError(null);
+    try {
+      const open = await reopenSession(s.id);
+      setActiveSession(open);
+      setSessions((all) => all?.filter((x) => x.id !== s.id) ?? null);
+      success();
+      setRecordTab('record'); // back to the logger, now running this session
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setReopening(null);
+    }
   }
 
   function confirmDeleteClimb(sessionId: string, climbId: string, grade: string) {
@@ -167,7 +200,15 @@ export function SessionHistory() {
 
   return (
     <View style={styles.wrap}>
-      <ClimbEditor log={editing} onClose={() => setEditing(null)} onSaved={climbSaved} />
+      <ClimbEditor
+        log={editing}
+        addTo={adding}
+        onClose={() => {
+          setEditing(null);
+          setAdding(null);
+        }}
+        onSaved={climbSaved}
+      />
       {!selecting && all.length > 0 && (
         <View style={styles.headerRow}>
           <View style={styles.flex} />
@@ -240,7 +281,7 @@ export function SessionHistory() {
                 </ThemedText>
               </View>
               <ThemedText type="small" themeColor="textSecondary">
-                {formatDuration(s.startedAt, s.endedAt)} · {sum.climbs} {sum.climbs === 1 ? 'climb' : 'climbs'}
+                {formatDuration(s.startedAt, s.endedAt, undefined, s.idleSeconds)} · {sum.climbs} {sum.climbs === 1 ? 'climb' : 'climbs'}
                 {hardest(sum) ? ` · hardest ${hardest(sum)}` : ''}
               </ThemedText>
               <ThemedText type="small">{describeSummary(sum)}</ThemedText>
@@ -260,6 +301,19 @@ export function SessionHistory() {
                       <IconButton icon="trash" label={`Delete ${l.grade}`} onPress={() => confirmDeleteClimb(s.id, l.id, l.grade)} />
                     </View>
                   ))}
+                  <View style={styles.sessionActions}>
+                    <View style={styles.flex}>
+                      <Button title="Add a climb" variant="secondary" onPress={() => setAdding(s)} />
+                    </View>
+                    <View style={styles.flex}>
+                      <Button title="Reopen session" variant="secondary" disabled={sessionRunning} loading={reopening === s.id} onPress={() => void reopen(s)} />
+                    </View>
+                  </View>
+                  {sessionRunning && (
+                    <ThemedText type="small" themeColor="textSecondary">
+                      End the session you have running to reopen this one.
+                    </ThemedText>
+                  )}
                 </View>
               )}
               {!selecting && Platform.OS === 'web' && (
@@ -394,6 +448,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: Spacing.two, alignItems: 'baseline' },
   climbs: { gap: Spacing.two, marginTop: Spacing.two },
   climbRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three },
+  sessionActions: { flexDirection: 'row', gap: Spacing.two, marginTop: Spacing.one },
   delete: { alignSelf: 'flex-end', marginTop: Spacing.one },
   headerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   toolbar: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
