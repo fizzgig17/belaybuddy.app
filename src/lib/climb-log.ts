@@ -30,7 +30,50 @@ export const ROUTE_COLORS: { key: string; label: string; hex: string }[] = [
   { key: 'gray', label: 'Gray', hex: '#8A9094' },
   { key: 'brown', label: 'Brown', hex: '#8B5E3C' },
 ];
-export const colorHex = (key: string | null | undefined) => ROUTE_COLORS.find((c) => c.key === key)?.hex ?? null;
+
+/** A color that is not on the list is stored as "#RRGGBB". */
+export const isHexColor = (v: string | null | undefined): v is `#${string}` => !!v && /^#[0-9a-fA-F]{6}$/.test(v);
+export const colorHex = (key: string | null | undefined) =>
+  isHexColor(key) ? key.toUpperCase() : (ROUTE_COLORS.find((c) => c.key === key)?.hex ?? null);
+/** "Teal" for a listed color, "Custom" for one picked by hand. */
+export const colorLabel = (key: string | null | undefined) =>
+  isHexColor(key) ? 'Custom' : (ROUTE_COLORS.find((c) => c.key === key)?.label ?? null);
+
+function toLab(hex: string): [number, number, number] {
+  const n = parseInt(hex.slice(1), 16);
+  const lin = (v: number) => {
+    const c = v / 255;
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  const r = lin((n >> 16) & 255);
+  const g = lin((n >> 8) & 255);
+  const b = lin(n & 255);
+  const x = (0.4124 * r + 0.3576 * g + 0.1805 * b) / 0.95047;
+  const y = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  const z = (0.0193 * r + 0.1192 * g + 0.9505 * b) / 1.08883;
+  const f = (t: number) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+  return [116 * f(y) - 16, 500 * (f(x) - f(y)), 200 * (f(y) - f(z))];
+}
+
+/**
+ * The listed color that looks most like this hex color: nearest in CIELAB, counting lightness at a third of the weight so a
+ * pale pink goes to pink rather than white and a tan goes to brown.
+ */
+export function nearestRouteColor(hex: string): string {
+  if (!isHexColor(hex)) return '';
+  const [l, a, b] = toLab(hex);
+  let best = ROUTE_COLORS[0].key;
+  let bestD = Infinity;
+  for (const c of ROUTE_COLORS) {
+    const [l2, a2, b2] = toLab(c.hex);
+    const d = (0.3 * (l - l2)) ** 2 + (a - a2) ** 2 + (b - b2) ** 2;
+    if (d < bestD) {
+      bestD = d;
+      best = c.key;
+    }
+  }
+  return best;
+}
 
 export const RESULT_LABELS: Record<Result, string> = { send: 'Sent', flash: 'Flash', attempt: 'Attempt' };
 
@@ -41,9 +84,11 @@ export type ClimbLog = {
   grade: string;
   result: Result;
   loggedAt: string;
-  /** Hold color of the route (one of ROUTE_COLORS), if recorded. */
+  /** Hold color of the route: one of ROUTE_COLORS, or a custom "#RRGGBB", if recorded. */
   color: string | null;
   routeName: string | null;
+  /** Height of the wall or boulder in feet, if recorded. */
+  wallHeight: number | null;
 };
 
 export type ClimbSession = {
@@ -64,6 +109,7 @@ type LogRow = {
   logged_at: string;
   color: string | null;
   route_name: string | null;
+  wall_height: number | null;
 };
 type SessionRow = {
   id: string;
@@ -74,7 +120,8 @@ type SessionRow = {
   climb_logs?: LogRow[];
 };
 
-const SELECT = 'id, area_id, area_name, started_at, ended_at, climb_logs(id, session_id, discipline, grade, result, logged_at, color, route_name)';
+const LOG_COLUMNS = 'id, session_id, discipline, grade, result, logged_at, color, route_name, wall_height';
+const SELECT = `id, area_id, area_name, started_at, ended_at, climb_logs(${LOG_COLUMNS})`;
 
 const logFromRow = (r: LogRow): ClimbLog => ({
   id: r.id,
@@ -85,6 +132,7 @@ const logFromRow = (r: LogRow): ClimbLog => ({
   loggedAt: r.logged_at,
   color: r.color ?? null,
   routeName: r.route_name ?? null,
+  wallHeight: r.wall_height ?? null,
 });
 
 const sessionFromRow = (r: SessionRow): ClimbSession => ({
@@ -133,12 +181,55 @@ export async function logClimb(
   discipline: Discipline,
   grade: string,
   result: Result,
-  extra: { color?: string | null; routeName?: string | null } = {},
+  extra: { color?: string | null; routeName?: string | null; wallHeight?: number | null } = {},
 ): Promise<ClimbLog> {
   const { data, error } = await supabase
     .from('climb_logs')
-    .insert({ session_id: sessionId, discipline, grade, result, color: extra.color || null, route_name: extra.routeName?.trim() || null })
-    .select('id, session_id, discipline, grade, result, logged_at, color, route_name')
+    .insert({
+      session_id: sessionId,
+      discipline,
+      grade,
+      result,
+      color: extra.color || null,
+      route_name: extra.routeName?.trim() || null,
+      wall_height: cleanWallHeight(extra.wallHeight),
+    })
+    .select(LOG_COLUMNS)
+    .single();
+  if (error) throw new Error(error.message);
+  return logFromRow(data as LogRow);
+}
+
+/** The fields of a logged climb a person can change afterwards. */
+export type ClimbEdit = {
+  discipline: Discipline;
+  grade: string;
+  result: Result;
+  color: string | null;
+  routeName: string | null;
+  wallHeight: number | null;
+};
+
+/** A wall height in whole feet between 1 and 500, or null. */
+export function cleanWallHeight(v: number | string | null | undefined): number | null {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Math.round(Number(v));
+  return Number.isFinite(n) && n >= 1 && n <= 500 ? n : null;
+}
+
+export async function updateClimb(id: string, edit: ClimbEdit): Promise<ClimbLog> {
+  const { data, error } = await supabase
+    .from('climb_logs')
+    .update({
+      discipline: edit.discipline,
+      grade: edit.grade,
+      result: edit.result,
+      color: edit.color || null,
+      route_name: edit.routeName?.trim() || null,
+      wall_height: cleanWallHeight(edit.wallHeight),
+    })
+    .eq('id', id)
+    .select(LOG_COLUMNS)
     .single();
   if (error) throw new Error(error.message);
   return logFromRow(data as LogRow);

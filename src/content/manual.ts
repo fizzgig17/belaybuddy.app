@@ -41,9 +41,9 @@ export const MANUAL_SECTIONS: ManualSection[] = [
     title: 'Record a session',
     steps: [
       'Tap the round button in the middle of the tab bar and choose Start session.',
-      'Pick Route or Boulder, then tap Sent, Flash or Attempt after each climb. Choose the grade and hold color.',
-      'Optional: tap Scan tag and photograph the route tag. The grade, color and name are filled in for you. Scanning only runs if you turn on AI features in Settings, and it can be wrong, so check it before you log.',
-      'Each climb appears as a bead along the bottom. Tap a bead to see it, or the trash can to delete it.',
+      'Pick Route or Boulder, then tap Sent, Flash or Attempt after each climb. Choose the grade and hold color. If your route’s color is not on the list, tap the rainbow circle to pick any color. You can also add the wall height in feet.',
+      'Optional: tap Scan tag and photograph the route tag. The grade, color and name are filled in for you. Scanning only runs if you turn on AI features in Settings, and it can be wrong, so check it before you log. If the hold’s color is not on the list, the closest color is used, and you can change it.',
+      'Each climb appears as a bead along the bottom. Tap a bead to see it, the pencil to change it, or the trash can to delete it.',
       'Tap the round button again at any time to log your next climb. Tap End session when you are done.',
     ],
   },
@@ -52,7 +52,7 @@ export const MANUAL_SECTIONS: ManualSection[] = [
     title: 'Session history',
     steps: [
       'Open the round button and choose the History tab.',
-      'Tap a session to see its climbs. Delete a single climb with its trash can.',
+      'Tap a session to see its climbs. Change a climb with its pencil, or delete it with its trash can.',
       'Use Select to delete several sessions at once. An Undo bar appears if you change your mind.',
     ],
   },

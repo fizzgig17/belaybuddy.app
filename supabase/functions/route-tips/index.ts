@@ -2,7 +2,8 @@
 // names the color of the hold the tag is attached to.
 //
 // POST { mode: 'tag', image: <base64 JPEG, no prefix> }
-//   -> { found, grade, color, name, setter } | { found: false, unsafe: true }
+//   -> { found, grade, color, hex, name, setter } | { found: false, unsafe: true }
+//      color is a listed color or ''; hex is the shade of an unlisted color ('#RRGGBB') or ''.
 // Needs a signed-in user (JWT) who turned on AI features, and the ANTHROPIC_API_KEY secret. Limited per person per day.
 // Nothing is stored: the photo goes to the model and is not kept by us.
 // (The function keeps its old name, route-tips, so existing deploys and app builds keep working.)
@@ -26,7 +27,7 @@ const COLORS = ['red', 'orange', 'yellow', 'green', 'teal', 'blue', 'purple', 'p
 const TAG_SYSTEM = `You read the tag or label on an indoor climbing route or boulder problem from a photo. Tags are small cards or stickers hung from or placed next to the first hold of the route, with a grade (like 5.10a, 5.9+, V4, V3-4), sometimes a name, a setter, a date, and sometimes a color.
 Report only what is clearly printed or written. Never guess a grade that is not legible. If there is no tag, or no grade can be read, set found to false.
 Grade: copy it as written, e.g. "5.10b", "5.11+", "V4". Ignore other grading systems (French, Font) unless that is the only grade shown, then copy it as written.
-Hold color: the route's color is the color of the hold the tag hangs from or sits against (the hold nearest the tag, not the wall or other holds in the background). Judge it from the hold itself and pick the closest from this list: ${COLORS.join(', ')}. Use an empty string if you cannot tell which hold the tag belongs to or its color is unclear.
+Hold color: the route's color is the color of the hold the tag hangs from or sits against (the hold nearest the tag, not the wall or other holds in the background). Judge it from the hold itself. If it clearly matches one on this list, give that in hold_color: ${COLORS.join(', ')}. If the hold is a color that is not on the list (lime, navy, tan, peach...), leave hold_color empty and give the shade you see in hold_hex. Leave both empty if you cannot tell which hold the tag belongs to or its color is unclear.
 Printed color: if the tag itself names or prints a color, give it in "printed_color", else leave it empty.
 Do not identify or describe any person. If the photo has nudity, sexual content or graphic violence, set unsafe to true.
 Always answer by calling the report_tag tool, once.`;
@@ -39,7 +40,8 @@ const TAG_TOOL = {
     properties: {
       found: { type: 'boolean', description: 'True only if a legible grade was read.' },
       grade: { type: 'string' },
-      hold_color: { type: 'string', description: `Color of the hold the tag is on: one of ${COLORS.join(', ')}, or empty.` },
+      hold_color: { type: 'string', description: `Color of the hold the tag is on if it clearly matches one of ${COLORS.join(', ')}, else empty.` },
+      hold_hex: { type: 'string', description: 'Your best estimate of the hold color as #RRGGBB, when it is not on the list; else empty.' },
       printed_color: { type: 'string', description: 'A color named or printed on the tag itself, else empty.' },
       name: { type: 'string', description: 'Route name if printed, else empty.' },
       setter: { type: 'string', description: 'Setter name if printed, else empty.' },
@@ -121,11 +123,17 @@ Deno.serve(async (req) => {
     const c = clean(v, 30).toLowerCase().replace('grey', 'gray');
     return COLORS.find((k) => c === k || c.includes(k)) ?? '';
   };
+  const pickHex = (v: unknown) => {
+    const h = clean(v, 9);
+    return /^#[0-9a-fA-F]{6}$/.test(h) ? h.toUpperCase() : '';
+  };
   const grade = clean(out?.grade, 12);
   return json({
     found: out?.found === true && grade.length > 0,
     grade,
     color: pickColor(out?.hold_color) || pickColor(out?.printed_color),
+    // A color the list does not have: the app maps this to the closest listed color.
+    hex: pickHex(out?.hold_hex),
     name: clean(out?.name, 60),
     setter: clean(out?.setter, 60),
   });

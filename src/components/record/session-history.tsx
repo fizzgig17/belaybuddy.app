@@ -6,6 +6,7 @@ import ReanimatedSwipeable, { type SwipeableMethods } from 'react-native-gesture
 import { Button } from '@/components/form';
 import { ThemedText } from '@/components/themed-text';
 import { ClimbBead } from '@/components/record/climb-beads';
+import { ClimbEditor } from '@/components/record/climb-edit';
 import { ProgressCard } from '@/components/record/progress-card';
 import { Card } from '@/components/ui/group';
 import { IconButton } from '@/components/ui/icon-button';
@@ -22,9 +23,10 @@ import {
   fetchSessions,
   formatDuration,
   hardest,
+  colorLabel,
   RESULT_LABELS,
-  ROUTE_COLORS,
   summarize,
+  type ClimbLog,
   type ClimbSession,
 } from '@/lib/climb-log';
 
@@ -40,6 +42,11 @@ export function SessionHistory() {
   const [sessions, setSessions] = useState<ClimbSession[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<ClimbLog | null>(null);
+
+  function climbSaved(updated: ClimbLog) {
+    setSessions((all) => all?.map((x) => (x.id === updated.sessionId ? { ...x, logs: x.logs.map((l) => (l.id === updated.id ? updated : l)) } : x)) ?? null);
+  }
 
   function confirmDeleteClimb(sessionId: string, climbId: string, grade: string) {
     const run = async () => {
@@ -160,6 +167,7 @@ export function SessionHistory() {
 
   return (
     <View style={styles.wrap}>
+      <ClimbEditor log={editing} onClose={() => setEditing(null)} onSaved={climbSaved} />
       {!selecting && all.length > 0 && (
         <View style={styles.headerRow}>
           <View style={styles.flex} />
@@ -245,9 +253,10 @@ export function SessionHistory() {
                       <View style={styles.flex}>
                         <ThemedText type="smallBold">{l.grade} · {RESULT_LABELS[l.result]}</ThemedText>
                         <ThemedText type="small" themeColor="textSecondary" numberOfLines={1}>
-                          {[ROUTE_COLORS.find((c) => c.key === l.color)?.label, l.routeName, new Date(l.loggedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })].filter(Boolean).join(' · ')}
+                          {[colorLabel(l.color), l.routeName, l.wallHeight ? `${l.wallHeight} ft` : '', new Date(l.loggedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })].filter(Boolean).join(' · ')}
                         </ThemedText>
                       </View>
+                      <IconButton icon="edit" label={`Edit ${l.grade}`} onPress={() => setEditing(l)} />
                       <IconButton icon="trash" label={`Delete ${l.grade}`} onPress={() => confirmDeleteClimb(s.id, l.id, l.grade)} />
                     </View>
                   ))}

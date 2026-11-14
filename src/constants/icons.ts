@@ -63,6 +63,7 @@ export const Icons = {
   attempt: icon('arrow.counterclockwise', 'replay'),
   shield: icon('lock.shield', 'admin_panel_settings'),
   trash: icon('trash', 'delete'),
+  edit: icon('pencil', 'edit'),
   climber: icon('figure.climbing', 'hiking'),
 } as const;
 

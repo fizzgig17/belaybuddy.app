@@ -37,6 +37,11 @@ export async function removeClimb(id: string) {
   set({ ...state, logs: state.logs.filter((l) => l.id !== id) });
 }
 
+/** Puts an edited climb back into the running session's list (the beads redraw). */
+export function replaceClimb(updated: ClimbLog) {
+  set({ ...state, logs: state.logs.map((l) => (l.id === updated.id ? updated : l)) });
+}
+
 const subscribe = (l: () => void) => {
   listeners.add(l);
   return () => listeners.delete(l);

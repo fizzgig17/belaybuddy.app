@@ -6,6 +6,7 @@ import { announceFocus } from '@/lib/keyboard-reveal';
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 
 import { Button, ButtonIcon, Segmented, SingleChoice, ToggleRow } from '@/components/form';
+import { ColorPicker } from '@/components/record/color-picker';
 import { ButtonSkin, shade } from '@/components/record/materials';
 import { ThemedText } from '@/components/themed-text';
 import { Card } from '@/components/ui/group';
@@ -14,14 +15,13 @@ import { useTheme } from '@/hooks/use-theme';
 import { useAuth } from '@/lib/auth';
 import {
   describeSummary,
+  cleanWallHeight,
+  colorLabel,
   fetchActiveSession,
-  colorHex,
   formatDuration,
   gradesFor,
   hardest,
   logClimb,
-  RESULT_LABELS,
-  ROUTE_COLORS,
   startSession,
   summarize,
   type GradeMod,
@@ -203,6 +203,7 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
   const [now, setNow] = useState(Date.now());
   const [color, setColor] = useState<string | null>(null);
   const [routeName, setRouteName] = useState('');
+  const [wallHeight, setWallHeight] = useState('');
   const [scanning, setScanning] = useState(false);
   const [tagNote, setTagNote] = useState<string | null>(null);
   const { consent, set: setConsent } = useAiConsent();
@@ -225,8 +226,9 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
       if (t.name) setRouteName(t.name);
       rememberGrade(t.discipline, t.grade);
       success();
-      const label = ROUTE_COLORS.find((c) => c.key === t.color)?.label;
-      const bits = [label ? `${label} hold` : '', t.name, t.setter ? `set by ${t.setter}` : ''].filter(Boolean);
+      const label = colorLabel(t.color);
+      // A color the list doesn't have is filled in with the closest one; the swatches below change it.
+      const bits = [label ? `${label} hold${t.closest ? ' (closest match)' : ''}` : '', t.name, t.setter ? `set by ${t.setter}` : ''].filter(Boolean);
       setTagNote(`Read ${t.grade}${t.mod}${bits.length ? ` · ${bits.join(' · ')}` : ''}. Check it, then tap Sent, Flash or Attempt.`);
     } finally {
       setScanning(false);
@@ -270,11 +272,12 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
     setBusy(true);
     setError(null);
     try {
-      const entry = await logClimb(session.id, discipline, shownGrade, result, { color, routeName });
+      const entry = await logClimb(session.id, discipline, shownGrade, result, { color, routeName, wallHeight: cleanWallHeight(wallHeight) });
       onChange({ ...session, logs: [...logs, entry] });
       // The next climb is a different route: clear what belonged to this one. The grade stays, since it's usually close.
       setColor(null);
       setRouteName('');
+      setWallHeight('');
       setTagNote(null);
       if (result === 'attempt') tap();
       else success();
@@ -364,25 +367,7 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
         ]}
       />
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.grades} keyboardShouldPersistTaps="handled" accessibilityLabel="Route color">
-        {ROUTE_COLORS.map((c) => {
-          const on = c.key === color;
-          return (
-            <Pressable
-              key={c.key}
-              accessibilityRole="button"
-              accessibilityLabel={`${c.label} route`}
-              accessibilityState={{ selected: on }}
-              onPress={() => {
-                tap();
-                setColor(on ? null : c.key);
-              }}
-              style={[styles.swatchRing, { borderColor: on ? theme.accent : 'transparent' }]}>
-              <View style={[styles.swatch, { backgroundColor: c.hex, borderColor: theme.border }]} />
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+      <ColorPicker value={color} onChange={setColor} />
       <TextInput
         value={routeName}
         onChangeText={setRouteName}
@@ -391,6 +376,17 @@ function Logger({ session, onChange }: { session: ClimbSession; onChange: (s: Cl
         maxLength={60}
         returnKeyType="done"
         onFocus={announceFocus}
+        style={[styles.nameInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surface }]}
+      />
+      <TextInput
+        value={wallHeight}
+        onChangeText={(t) => setWallHeight(t.replace(/[^0-9]/g, '').slice(0, 3))}
+        placeholder="Wall height in feet (optional)"
+        placeholderTextColor={theme.textSecondary}
+        keyboardType="number-pad"
+        maxLength={3}
+        onFocus={announceFocus}
+        accessibilityLabel="Wall height in feet"
         style={[styles.nameInput, { color: theme.text, borderColor: theme.border, backgroundColor: theme.surface }]}
       />
 
@@ -471,8 +467,6 @@ const styles = StyleSheet.create({
   bigButton: { flex: 1, minHeight: 72, borderRadius: Spacing.three, alignItems: 'center', justifyContent: 'center', gap: Spacing.one },
   logRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.three, paddingVertical: Spacing.one + 2 },
   logGrade: { width: 52 },
-  swatchRing: { padding: 3, borderRadius: 999, borderWidth: 2 },
-  swatch: { width: 28, height: 28, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth },
   dot: { width: 12, height: 12, borderRadius: 6, borderWidth: StyleSheet.hairlineWidth },
   nameInput: { borderWidth: 1, borderRadius: Spacing.three, paddingHorizontal: Spacing.three, paddingVertical: Spacing.two, fontSize: 16 },
 });

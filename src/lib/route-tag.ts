@@ -1,11 +1,21 @@
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 
-import { BOULDER_GRADES, ROUTE_GRADES, type Discipline } from '@/lib/climb-log';
+import { BOULDER_GRADES, nearestRouteColor, ROUTE_GRADES, type Discipline } from '@/lib/climb-log';
 import { supabase } from '@/lib/supabase';
 
 /** What a tag scan read. `color` is the hold color (one of ROUTE_COLORS keys) or ''. */
-export type TagRead = { discipline: Discipline; grade: string; mod: '' | '-' | '+'; color: string; name: string; setter: string };
+export type TagRead = {
+  discipline: Discipline;
+  grade: string;
+  mod: '' | '-' | '+';
+  /** One of ROUTE_COLORS keys: the hold's color if it is on the list, otherwise the closest one. '' if no color was seen. */
+  color: string;
+  /** True when the hold's color was not on the list and `color` is the closest match. */
+  closest: boolean;
+  name: string;
+  setter: string;
+};
 export type TagResult = { tag: TagRead } | { error: string } | null;
 
 /** Turns a grade as printed on a tag ("5.10+", "V3-4", "5.9") into one of the logger's buttons plus a minus/plus. */
@@ -52,6 +62,7 @@ export async function scanRouteTag(): Promise<TagResult> {
       unsafe?: boolean;
       grade?: string;
       color?: string;
+      hex?: string;
       name?: string;
       setter?: string;
     }>('route-tips', { body: { mode: 'tag', image: small.base64 } });
@@ -68,7 +79,10 @@ export async function scanRouteTag(): Promise<TagResult> {
     if (!data?.found || !data.grade) return { error: 'Could not read a grade on that tag. Try again closer, or pick the grade yourself.' };
     const g = parseGrade(data.grade);
     if (!g) return { error: `Read “${data.grade}”, which isn’t a grade the log has. Pick the grade yourself.` };
-    return { tag: { ...g, color: data.color ?? '', name: data.name ?? '', setter: data.setter ?? '' } };
+    // The listed color if the AI found one, otherwise the closest listed color to the shade it saw.
+    const listed = data.color ?? '';
+    const color = listed || nearestRouteColor(data.hex ?? '');
+    return { tag: { ...g, color, closest: !listed && !!color, name: data.name ?? '', setter: data.setter ?? '' } };
   } catch {
     return { error: 'Could not scan the tag. Try again.' };
   }

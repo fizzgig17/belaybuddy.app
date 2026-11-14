@@ -6,8 +6,9 @@ import { ThemedText } from '@/components/themed-text';
 import { IconButton } from '@/components/ui/icon-button';
 import { HoldColors, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { removeClimb } from '@/lib/active-session';
-import { colorHex, RESULT_LABELS, ROUTE_COLORS, type ClimbLog } from '@/lib/climb-log';
+import { ClimbEditor } from '@/components/record/climb-edit';
+import { removeClimb, replaceClimb } from '@/lib/active-session';
+import { colorHex, colorLabel as nameOfColor, RESULT_LABELS, type ClimbLog } from '@/lib/climb-log';
 
 /** Dark or light text for a bead, whichever reads better on its color. */
 function textOn(hex: string | null, fallback: string): string {
@@ -75,6 +76,7 @@ export function ClimbBeads({ logs, pill }: { logs: ClimbLog[]; pill?: boolean })
   const theme = useTheme();
   const [openId, setOpenId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState<ClimbLog | null>(null);
   const scroller = useRef<ScrollView>(null);
   const picked = logs.find((l) => l.id === openId) ?? null;
   const fade = useRef(new Animated.Value(1)).current;
@@ -84,10 +86,11 @@ export function ClimbBeads({ logs, pill }: { logs: ClimbLog[]; pill?: boolean })
     if (!openId) return;
     fade.stopAnimation();
     fade.setValue(1);
+    if (editing) return;
     const t = setTimeout(dismiss, 5000);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openId, fade]);
+  }, [openId, fade, editing]);
 
   /** Fade the details out, then clear them. */
   function dismiss() {
@@ -122,9 +125,10 @@ export function ClimbBeads({ logs, pill }: { logs: ClimbLog[]; pill?: boolean })
   }
 
   if (logs.length === 0) return null;
-  const colorLabel = ROUTE_COLORS.find((c) => c.key === picked?.color)?.label;
+  const colorLabel = nameOfColor(picked?.color);
   return (
     <View style={styles.wrap}>
+      <ClimbEditor log={editing} onClose={() => setEditing(null)} onSaved={replaceClimb} />
       {picked && (
         <Animated.View
           style={[
@@ -141,12 +145,13 @@ export function ClimbBeads({ logs, pill }: { logs: ClimbLog[]; pill?: boolean })
               {picked.grade} · {RESULT_LABELS[picked.result]}
             </ThemedText>
             <ThemedText type="small" numberOfLines={2} style={styles.darkSoft}>
-              {[colorLabel ? `${colorLabel} hold` : '', picked.routeName, picked.discipline === 'boulder' ? 'Boulder' : 'Route', new Date(picked.loggedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })]
+              {[colorLabel ? `${colorLabel} hold` : '', picked.routeName, picked.wallHeight ? `${picked.wallHeight} ft` : '', picked.discipline === 'boulder' ? 'Boulder' : 'Route', new Date(picked.loggedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })]
                 .filter(Boolean)
                 .join(' · ')}
             </ThemedText>
             {error && <ThemedText type="small" style={{ color: '#C0392B' }}>{error}</ThemedText>}
           </View>
+          <IconButton icon="edit" label={`Edit ${picked.grade}`} onPress={() => setEditing(picked)} />
           <IconButton icon="trash" label={`Delete ${picked.grade}`} onPress={() => confirmRemove(picked)} />
           <IconButton icon="close" label="Close details" onPress={dismiss} />
         </Animated.View>

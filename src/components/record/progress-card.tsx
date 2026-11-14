@@ -15,10 +15,10 @@ const base = (g: string) => g.replace(/[+-]$/, '');
 /** One row per climb: for a spreadsheet. */
 export function sessionsToCsv(sessions: ClimbSession[]): string {
   const q = (v: string | null | undefined) => `"${(v ?? '').replace(/"/g, '""')}"`;
-  const rows = ['date,place,discipline,grade,result,color,route'];
+  const rows = ['date,place,discipline,grade,result,color,route,wall_height_ft'];
   for (const s of sessions) {
     for (const l of s.logs) {
-      rows.push([q(l.loggedAt), q(s.areaName), l.discipline, q(l.grade), l.result, q(l.color), q(l.routeName)].join(','));
+      rows.push([q(l.loggedAt), q(s.areaName), l.discipline, q(l.grade), l.result, q(l.color), q(l.routeName), l.wallHeight ?? ''].join(','));
     }
   }
   return rows.join('\n');
