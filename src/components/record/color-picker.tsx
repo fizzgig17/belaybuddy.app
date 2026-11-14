@@ -1,10 +1,8 @@
-import { SymbolView } from 'expo-symbols';
 import { useEffect, useRef, useState } from 'react';
 import { PanResponder, Pressable, ScrollView, StyleSheet, TextInput, View, type LayoutChangeEvent } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { ThemedText } from '@/components/themed-text';
-import { Icons } from '@/constants/icons';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { colorHex, isHexColor, ROUTE_COLORS } from '@/lib/climb-log';
@@ -133,14 +131,22 @@ export function ColorPicker({ value, onChange }: { value: string | null; onChang
   const [hsv, setHsv] = useState<Hsv>(() => (custom ? hexToHsv(value) : { h: 200, s: 0.7, v: 0.8 }));
   const [text, setText] = useState(custom ? value.toUpperCase() : '');
   // Arrows at the ends of the color row: left until it is scrolled all the way left, right until all the way right.
+  // The scroll position is kept in a ref and the screen only redraws when an arrow appears or goes away, not on every
+  // scroll event.
   const row = useRef<ScrollView>(null);
-  const [scroll, setScroll] = useState({ x: 0, content: 0, view: 0 });
-  const canLeft = scroll.x > 2;
-  const canRight = scroll.content > 0 && scroll.content - scroll.view - scroll.x > 2;
+  const size = useRef({ x: 0, content: 0, view: 0 });
+  const [edges, setEdges] = useState({ left: false, right: false });
+  const measure = () => {
+    const { x, content, view } = size.current;
+    const left = x > 2;
+    const right = content > 0 && content - view - x > 2;
+    setEdges((e) => (e.left === left && e.right === right ? e : { left, right }));
+  };
   const nudge = (dir: 1 | -1) => {
     tap();
-    const max = Math.max(0, scroll.content - scroll.view);
-    row.current?.scrollTo({ x: Math.max(0, Math.min(max, scroll.x + dir * scroll.view * 0.7)), animated: true });
+    const { x, content, view } = size.current;
+    const max = Math.max(0, content - view);
+    row.current?.scrollTo({ x: Math.max(0, Math.min(max, x + dir * view * 0.7)), animated: true });
   };
 
   // Another color was chosen elsewhere (a scan, a swatch): follow it.
@@ -187,10 +193,19 @@ export function ColorPicker({ value, onChange }: { value: string | null; onChang
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.swatches}
           keyboardShouldPersistTaps="handled"
-          scrollEventThrottle={16}
-          onScroll={(e) => setScroll((m) => ({ ...m, x: e.nativeEvent.contentOffset.x }))}
-          onContentSizeChange={(w) => setScroll((m) => ({ ...m, content: w }))}
-          onLayout={(e) => setScroll((m) => ({ ...m, view: e.nativeEvent.layout.width }))}
+          scrollEventThrottle={32}
+          onScroll={(e) => {
+            size.current.x = e.nativeEvent.contentOffset.x;
+            measure();
+          }}
+          onContentSizeChange={(w) => {
+            size.current.content = w;
+            measure();
+          }}
+          onLayout={(e) => {
+            size.current.view = e.nativeEvent.layout.width;
+            measure();
+          }}
           accessibilityLabel="Route color">
           {ROUTE_COLORS.map((c) => {
             const on = c.key === value;
@@ -233,24 +248,24 @@ export function ColorPicker({ value, onChange }: { value: string | null; onChang
             </View>
           </Pressable>
         </ScrollView>
-        {canLeft && (
+        {edges.left && (
           <Pressable
             onPress={() => nudge(-1)}
             accessibilityRole="button"
             accessibilityLabel="Show earlier colors"
             hitSlop={6}
             style={[styles.arrow, styles.arrowLeft, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <SymbolView name={Icons.back} size={12} tintColor={theme.text} />
+            <ThemedText style={styles.arrowGlyph}>‹</ThemedText>
           </Pressable>
         )}
-        {canRight && (
+        {edges.right && (
           <Pressable
             onPress={() => nudge(1)}
             accessibilityRole="button"
             accessibilityLabel="Show more colors"
             hitSlop={6}
             style={[styles.arrow, styles.arrowRight, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <SymbolView name={Icons.chevron} size={12} tintColor={theme.text} />
+            <ThemedText style={styles.arrowGlyph}>›</ThemedText>
           </Pressable>
         )}
       </View>
@@ -295,6 +310,7 @@ const styles = StyleSheet.create({
   swatchRing: { padding: 3, borderRadius: 999, borderWidth: 2 },
   swatch: { width: 28, height: 28, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
   arrow: { position: 'absolute', top: 6, width: 24, height: 24, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, alignItems: 'center', justifyContent: 'center', opacity: 0.95 },
+  arrowGlyph: { fontSize: 20, lineHeight: 22, textAlign: 'center', includeFontPadding: false },
   arrowLeft: { left: 0 },
   arrowRight: { right: 0 },
   panel: { borderWidth: 1, borderRadius: Spacing.three, padding: Spacing.three, gap: Spacing.three },
